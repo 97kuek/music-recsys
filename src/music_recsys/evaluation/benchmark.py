@@ -22,7 +22,7 @@ from music_recsys.evaluation.tracking import (
     TrackingError,
     TrackingResult,
 )
-from music_recsys.recommenders.popularity import PopularityRecommender
+from music_recsys.recommenders import create_recommender
 from music_recsys.types import (
     EvaluationResult,
     RecommendationRequest,
@@ -277,7 +277,7 @@ def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None)
     config = load_config(config_path)
     dataset = load_dataset(config.dataset_path, top_k=config.top_k)
     start = time.perf_counter()
-    model = PopularityRecommender(dataset.train_interactions)
+    model = create_recommender(config.model, dataset.train_interactions)
     training_seconds = time.perf_counter() - start
     return run_benchmark(
         dataset,

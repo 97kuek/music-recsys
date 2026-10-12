@@ -75,7 +75,7 @@ def test_notebook_runs_from_fresh_kernel(name, empty_validation, tmp_path, monke
     monkeypatch.setenv("MUSIC_RECSYS_PROFILE", str(profile_path))
     assertions = {
         "01_data.ipynb": "assert profile['n_events'] == 10\nassert snapshot.mode == 'fixture'\nassert tracks_df.shape[0] == 4 and users_df.shape[0] == 2\nassert SNAPSHOT_ID is None\nassert all(row['passed'] is not False for row in validation)\nassert snapshot.database_checks is None\nassert candidates['events'][0]['n_events'] == 8",
-        "02_recommendation.ipynb": "assert report.summary.n_requests == 5\nassert all(row['history_overlap_count'] == 0 for row in requests)\nassert len(recommendations) == 10\nassert not LOAD_SNAPSHOT",
+        "02_recommendation.ipynb": "assert result.request.user_id == 'u1'\nassert result.response.item_ids == ('track_c', 'track_d')\nassert history_df.item_id.tolist() == ['track_a', 'track_b']\nassert recommendations_df.score.tolist() == [2, 1]\nassert not recommendations_df.in_history.any()\nassert player is None",
         "03_analysis.ipynb": "assert report.summary.n_evaluated == 4\nassert report.summary.recall == 0.625\nassert abs(report.summary.ndcg - 0.561019236584229) < 1e-6\nassert len(comparison) == 1\nassert not READ_MLFLOW and not TRACK_EXPERIMENT\nassert RUN_DIR.joinpath('results.json').is_file()",
     }
     notebook = nbformat.read(ROOT / "notebooks" / name, as_version=4)
