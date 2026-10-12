@@ -245,7 +245,8 @@ def _run_benchmark(
         training_seconds=training_seconds,
         evaluation_conditions={
             "protocol": "explicit-json-binary-unseen-v1",
-            "snapshot_id": None,
+            "snapshot_id": (dataset.provenance or {}).get("snapshot_id"),
+            "dataset_provenance": dataset.provenance,
             "data_format": "explicit-json-v1",
             "train_sha256": _fingerprint(dataset.train_interactions),
             "split_sha256": _fingerprint((dataset.requests, dataset.ground_truth)),

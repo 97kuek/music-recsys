@@ -420,7 +420,7 @@ def test_migration_roundtrip_is_limited_to_test_schema(db):
         assert execute(c, "SELECT to_regclass(:name)", name=f"{schema}.tracks").scalar_one() is None
         command.upgrade(migration_config(c), "head")
         track(c, dataset(c))
-        assert execute(c, "SELECT version_num FROM alembic_version").scalar_one() == "0002"
+        assert execute(c, "SELECT version_num FROM alembic_version").scalar_one() == "0003"
 
 
 @pytest.mark.parametrize("table", ["snapshot_tracks", "snapshot_users", "snapshot_artifacts"])

@@ -33,6 +33,7 @@ class BenchmarkDataset:
     requests: tuple[RecommendationRequest, ...]
     ground_truth: tuple[GroundTruth, ...]
     sha256: str
+    provenance: dict | None = None
 
     def __post_init__(self) -> None:
         validate_id(self.dataset_id)
@@ -95,7 +96,8 @@ def load_dataset(path: Path, *, top_k: int) -> BenchmarkDataset:
         requests = []
         for row in _rows(raw, "requests"):
             history = _ids(row["history"])
-            candidates = tuple(item_id for item_id in catalog if item_id not in set(history))
+            heard = set(history)
+            candidates = tuple(item_id for item_id in catalog if item_id not in heard)
             requests.append(
                 RecommendationRequest(row["request_id"], row["user_id"], history, candidates, top_k)
             )
@@ -110,6 +112,7 @@ def load_dataset(path: Path, *, top_k: int) -> BenchmarkDataset:
             tuple(requests),
             truth,
             hashlib.sha256(content).hexdigest(),
+            raw.get("provenance"),
         )
     except KeyError as error:
         raise ValueError(f"missing dataset field: {error.args[0]}") from error
