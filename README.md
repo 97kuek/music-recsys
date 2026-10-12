@@ -26,7 +26,9 @@
 | [研究計画](docs/research-plan.md) | 背景・課題・比較・進め方 |
 | [評価方針](docs/evaluation-protocol.md) | 共通基盤・形式・指標候補 |
 | [データセット方針](docs/dataset-investigation.md) | Music4All / TalkPlayの用途・分割 |
+| [DB・取り込み設計](docs/db-design.md) | 保存先・ID・スナップショット・初回取り込みの合意事項 |
 | [ローカルDB](docs/local-db.md) | Docker Compose・環境変数・Alembicの手順 |
+| [取り込み元確認](docs/music4all-import-sources.md) | Music4Allの実配布ファイル・カラム・取得状況 |
 | [先行研究](docs/papers/README.md) | 調査候補と記録テンプレート |
 | [データ取得](data/README.md) | 出典・照合・加工コマンド |
 | [Music4All調査結果](experiments/music4all/summary.md) | 実集計・分割候補・未決定事項 |

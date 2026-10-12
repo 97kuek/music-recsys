@@ -5,14 +5,17 @@
 | 項目 | 記録 |
 | --- | --- |
 | 出典 | [Zenodo 15394646](https://zenodo.org/records/15394646)、v2、2025-05-13公開 |
-| 取得ファイル | `userid_trackid_timestamp.tsv.bz2` |
-| 公式サイズ | 2,211,449,511 bytes |
-| 公式MD5 | `dfe82201036765f7463e6f3ce3d0f991` |
+| 取得ファイル | `userid_trackid_timestamp.tsv.bz2`、`id_tags_dict.tsv.bz2` |
+| イベントファイルの公式サイズ | 2,211,449,511 bytes |
+| イベントファイルの公式MD5 | `dfe82201036765f7463e6f3ce3d0f991` |
 | 取得・照合 | 2026-10-12、サイズ・MD5一致 |
 | 配布メタデータのライセンス | `cc-by-4.0`。取得時の`record.json`をraw配下に保存 |
 | 列 | `user_id`, `track_id`, `timestamp` |
 | 時刻 | 秒までの日時文字列。タイムゾーンは未確認、配布表記のまま扱う |
-| 未取得 | 楽曲特徴、TalkPlay本体 |
+| 未取得 | 曲名・アーティスト名の基本カタログ、ユーザー属性、音響特徴・Embedding、TalkPlay本体 |
+
+- タグファイルはサイズ14,817,003 bytes、公式MD5 `9c1ca4a3e04a9696b9449ec54ac40cd5`と一致。
+- 実カラム・重複・取得可能な情報は [取り込み元確認](../docs/music4all-import-sources.md) を参照。
 
 ```bash
 mkdir -p data/raw/music4all-onion-v2
