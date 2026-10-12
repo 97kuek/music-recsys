@@ -14,6 +14,7 @@ dependencies = []
 music-recsys-benchmark = "music_recsys.evaluation.benchmark:main"
 music-recsys-profile = "music_recsys.music4all:main"
 music-recsys-import = "music_recsys.ingestion.cli:main"
+music-recsys-mlflow = "music_recsys.evaluation.tracking_server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/music_recsys"]
@@ -76,4 +77,8 @@ notebook = [
     "jupyterlab>=4,<5",
     "matplotlib>=3.9,<4",
     "nbclient>=0.10,<1",
+]
+tracking = [
+    { include-group = "db" },
+    "mlflow==3.17.0",
 ]

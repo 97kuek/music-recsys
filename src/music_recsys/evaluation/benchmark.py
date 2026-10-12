@@ -8,7 +8,7 @@ import tempfile
 import time
 import tomllib
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from importlib.metadata import version
 from pathlib import Path
@@ -16,6 +16,12 @@ from statistics import fmean
 
 from music_recsys.data import BenchmarkDataset, load_dataset
 from music_recsys.evaluation.metrics import evaluate_response
+from music_recsys.evaluation.tracking import (
+    ExperimentRun,
+    TrackingConfig,
+    TrackingError,
+    TrackingResult,
+)
 from music_recsys.recommenders.popularity import PopularityRecommender
 from music_recsys.types import (
     EvaluationResult,
@@ -33,6 +39,7 @@ class BenchmarkConfig:
     top_k: int
     seed: int
     sha256: str
+    tracking: TrackingConfig = TrackingConfig()
 
 
 @dataclass(frozen=True)
@@ -77,6 +84,7 @@ class BenchmarkReport:
     metadata: RunMetadata
     summary: BenchmarkSummary
     runs: tuple[RequestRun, ...]
+    tracking: TrackingResult | None = None
 
 
 def load_config(path: Path) -> BenchmarkConfig:
@@ -97,6 +105,7 @@ def load_config(path: Path) -> BenchmarkConfig:
             top_k=config["top_k"],
             seed=config["seed"],
             sha256=hashlib.sha256(content).hexdigest(),
+            tracking=TrackingConfig.from_settings(raw.get("tracking")),
         )
     except (KeyError, TypeError) as error:
         raise ValueError("invalid benchmark configuration") from error
@@ -119,6 +128,93 @@ def run_benchmark(
     seed: int = 0,
     training_seconds: float = 0.0,
     config_sha256: str | None = None,
+    tracking: TrackingConfig | None = None,
+) -> BenchmarkReport:
+    """共通Runnerを実行し、有効な場合は集計成果物だけをMLflowへ記録する。"""
+    tracking = tracking if tracking is not None else TrackingConfig.from_settings()
+    if not tracking.enabled:
+        return _run_benchmark(
+            dataset,
+            recommend,
+            model_name=model_name,
+            seed=seed,
+            training_seconds=training_seconds,
+            config_sha256=config_sha256,
+        )
+    conditions = {
+        "dataset_id": dataset.dataset_id,
+        "dataset_sha256": dataset.sha256,
+        "train_sha256": _fingerprint(dataset.train_interactions),
+        "split_sha256": _fingerprint((dataset.requests, dataset.ground_truth)),
+        "split": "explicit_dataset_split",
+        "model_name": model_name,
+        "seed": seed,
+        "config_sha256": config_sha256,
+    }
+    with ExperimentRun(tracking, params=conditions) as experiment:
+        report = _run_benchmark(
+            dataset,
+            recommend,
+            model_name=model_name,
+            seed=seed,
+            training_seconds=training_seconds,
+            config_sha256=config_sha256,
+        )
+        metadata = asdict(report.metadata)
+        experiment.log_params(
+            {
+                key: metadata[key]
+                for key in (
+                    "top_k",
+                    "python_version",
+                    "package_version",
+                    "platform",
+                    "source_sha256",
+                )
+            }
+        )
+        metrics = asdict(report.summary)
+        metrics[f"ndcg_at_{report.metadata.top_k}"] = metrics.pop("ndcg")
+        metrics[f"recall_at_{report.metadata.top_k}"] = metrics.pop("recall")
+        metrics["training_seconds"] = training_seconds
+        experiment.log_metrics(metrics)
+        if report.summary.n_failed:
+            experiment.mark_failed()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            (path / "report.json").write_text(
+                json.dumps(
+                    {"metadata": metadata, "summary": asdict(report.summary)},
+                    ensure_ascii=False,
+                    indent=2,
+                    allow_nan=False,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (path / "summary.md").write_text(format_summary(report), encoding="utf-8")
+            experiment.log_artifact(path / "report.json")
+            experiment.log_artifact(path / "summary.md")
+    return replace(report, tracking=experiment.result)
+
+
+def _fingerprint(value: object) -> str:
+    def serialize(item: object) -> object:
+        return asdict(item)
+
+    return hashlib.sha256(
+        json.dumps(value, default=serialize, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def _run_benchmark(
+    dataset: BenchmarkDataset,
+    recommend: Callable[[RecommendationRequest], RecommendationResponse],
+    *,
+    model_name: str,
+    seed: int,
+    training_seconds: float,
+    config_sha256: str | None,
 ) -> BenchmarkReport:
     """正解を推薦関数へ渡さず、失敗した要求も結果に残す。"""
     validate_id(model_name)
@@ -176,7 +272,7 @@ def run_benchmark(
     return BenchmarkReport(metadata, summary, tuple(runs))
 
 
-def run_experiment(config_path: Path) -> BenchmarkReport:
+def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None) -> BenchmarkReport:
     """設定からデータを読み、Popularityを学習して共通Runnerを呼ぶ。"""
     config = load_config(config_path)
     dataset = load_dataset(config.dataset_path, top_k=config.top_k)
@@ -190,6 +286,7 @@ def run_experiment(config_path: Path) -> BenchmarkReport:
         seed=config.seed,
         training_seconds=training_seconds,
         config_sha256=config.sha256,
+        tracking=tracking if tracking is not None else config.tracking,
     )
 
 
@@ -240,13 +337,20 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run a shared music recommendation benchmark")
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--output", type=Path, help="parent directory for a new result directory")
+    parser.add_argument("--tracking", action=argparse.BooleanOptionalAction, default=None)
     args = parser.parse_args()
     try:
-        report = run_experiment(args.config)
+        config = load_config(args.config)
+        tracking = config.tracking
+        if args.tracking is not None:
+            tracking = replace(tracking, enabled=args.tracking)
+        report = run_experiment(args.config, tracking=tracking)
         print(format_summary(report))
+        if report.tracking is not None:
+            print(f"MLflow: {report.tracking.run_id} ({report.tracking.status})")
         if args.output is not None:
             print(f"Saved: {save_report(report, args.output)}")
-    except (OSError, ValueError) as error:
+    except (OSError, ValueError, TrackingError) as error:
         parser.error(str(error))
 
 
