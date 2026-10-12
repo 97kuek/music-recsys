@@ -21,6 +21,9 @@ uv sync --locked --python "$(pyenv which python)" --group data --group notebook
 | 整形確認 | `uv run --locked ruff format --check src tests notebooks` |
 | ビルド | `uv build` |
 
+- PostgreSQL + pgvectorはDocker Compose、スキーマ変更はAlembicで管理する。[ローカルDBの手順](docs/local-db.md)
+- DB関連のPython依存は`uv sync --locked --group db`で追加する。
+
 ## ブランチ
 
 - 基準ブランチは`main`。
