@@ -1,4 +1,4 @@
-"""公開Music4Allの小規模取り込み。接続値と例外本文を出力しない。"""
+"""公開Music4Allの取り込み。接続値と例外本文を出力しない。"""
 
 import argparse
 import json
@@ -15,7 +15,16 @@ def main() -> int:
     parser.add_argument("--events", type=Path, required=True)
     parser.add_argument("--event-cache", type=Path, required=True)
     parser.add_argument("--version-label", required=True)
-    parser.add_argument("--tracks", type=int, default=100)
+    parser.add_argument("--selection", choices=("metadata", "history", "full"), default="metadata")
+    parser.add_argument(
+        "--train-end", help="Exclusive timezone-naive training cutoff for history selection"
+    )
+    parser.add_argument(
+        "--selection-seed", type=int, help="Use deterministic seeded user selection"
+    )
+    parser.add_argument(
+        "--tracks", type=int, default=100, help="Track limit for metadata selection"
+    )
     parser.add_argument("--users", type=int, default=100)
     parser.add_argument("--storage-root", type=Path, default=Path("data/imports"))
     parser.add_argument("--lockfile", type=Path, default=Path("uv.lock"))
@@ -37,6 +46,9 @@ def main() -> int:
             version_label=args.version_label,
             track_limit=args.tracks,
             user_limit=args.users,
+            selection=args.selection,
+            train_end=args.train_end,
+            selection_seed=args.selection_seed,
             progress=progress,
         )
         engine = engine_from_environment()

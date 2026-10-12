@@ -5,7 +5,9 @@ import bz2
 import csv
 import json
 import re
+import tempfile
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 
 from music_recsys.ingestion.artifacts import ArtifactStore
@@ -54,12 +56,32 @@ class Music4AllAdapter:
         version_label: str,
         track_limit: int,
         user_limit: int,
+        selection: str = "metadata",
+        train_end: str | None = None,
+        selection_seed: int | None = None,
         progress: Callable[[str], None] | None = None,
     ):
         if any(type(n) is not int or n <= 0 for n in (track_limit, user_limit)):
             raise ValidationError("subset limits must be positive integers")
         if not valid_text(version_label):
             raise ValidationError("version label is required")
+        if selection not in {"metadata", "history", "full"}:
+            raise ValidationError("unknown selection mode")
+        if selection_seed is not None and (
+            type(selection_seed) is not int or selection != "history"
+        ):
+            raise ValidationError("integer selection seed is only supported in history mode")
+        cutoff = None
+        if train_end is not None:
+            try:
+                cutoff = datetime.fromisoformat(train_end)
+            except (TypeError, ValueError):
+                raise ValidationError("invalid train end") from None
+            if cutoff.tzinfo is not None:
+                raise ValidationError("train end must use the timezone-naive source clock")
+        if selection == "history" and cutoff is None:
+            raise ValidationError("history selection requires train end")
+        self.selection, self.train_end, self.selection_seed = selection, cutoff, selection_seed
         self.event_cache = Path(event_cache)
         self.track_limit, self.user_limit = track_limit, user_limit
         self.progress = progress or (lambda message: None)
@@ -164,11 +186,78 @@ class Music4AllAdapter:
                 "conversion": manifest,
             },
         }
+        events = cached
+        artifacts = (cached, manifest_artifact)
+        if self.selection != "metadata":
+            config.update(
+                selection_mode=self.selection,
+                selection=(
+                    "all_events"
+                    if self.selection == "full"
+                    else "train_users_sha256_seed"
+                    if self.selection_seed is not None
+                    else "train_users_source_id_lexicographic"
+                ),
+                track_limit=None,
+                user_limit=self.user_limit if self.selection == "history" else None,
+                seed=self.selection_seed,
+                train_end=self.train_end.isoformat() if self.train_end else None,
+            )
+            if self.selection == "history":
+                events = self._prepare_history(store, cached)
+                artifacts += (events,)
+            config["history_events"] = {
+                "storage_key": events.storage_key,
+                "sha256": events.sha256,
+                "row_count": events.row_count,
+            }
         return AdapterInput(
             config,
-            {"events": cached.path, "tags": sources["id_tags_dict.tsv.bz2"].path},
-            (cached, manifest_artifact),
+            {"events": events.path, "tags": sources["id_tags_dict.tsv.bz2"].path},
+            artifacts,
         )
+
+    def _prepare_history(self, store: ArtifactStore, cached: Artifact) -> Artifact:
+        import duckdb
+
+        self.progress("Selecting train-eligible users and preserving their complete event history")
+        with tempfile.TemporaryDirectory(dir=store.root) as directory:
+            destination = Path(directory) / "history.parquet"
+            with duckdb.connect(
+                config={
+                    "memory_limit": "2GB",
+                    "threads": 1,
+                    "temp_directory": str(Path(directory) / "duckdb_tmp"),
+                }
+            ) as connection:
+                connection.read_parquet(str(cached.path)).create_view("events")
+                # Seeded ranking is stable across input order and DuckDB hash versions.
+                # Larger limits extend the same ranked cohort without using future outcomes.
+                order = "user_id"
+                parameters = [self.train_end]
+                if self.selection_seed is not None:
+                    order = "sha256(? || ':' || user_id), user_id"
+                    parameters.append(str(self.selection_seed))
+                parameters.append(self.user_limit)
+                connection.execute(
+                    "CREATE TEMP TABLE selected_users AS "
+                    "SELECT DISTINCT user_id FROM events WHERE event_time < ? "
+                    f"ORDER BY {order} LIMIT ?",
+                    parameters,
+                )
+                if (
+                    connection.execute("SELECT count(*) FROM selected_users").fetchone()[0]
+                    != self.user_limit
+                ):
+                    raise ValidationError("dataset has fewer train-eligible users than requested")
+                connection.execute(
+                    "COPY (SELECT e.user_id, e.item_id, e.event_time FROM events e "
+                    "JOIN selected_users s USING (user_id) "
+                    "ORDER BY e.user_id, e.event_time, e.item_id) "
+                    "TO ? (FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 262144)",
+                    [str(destination)],
+                )
+            return store.put(destination, format="parquet")
 
     def load(self, inputs: AdapterInput) -> Catalog:
         import duckdb
@@ -177,7 +266,7 @@ class Music4AllAdapter:
         with duckdb.connect(config={"memory_limit": "2GB", "threads": 2}) as connection:
             path = str(inputs.files["events"])
 
-            def select_ids(column: str, limit: int) -> list[str]:
+            def select_ids(column: str, limit: int | None) -> list[str]:
                 # 固定の列名のみ使用し、全量のdistinct IDを共通規則で検証する。
                 ids = [
                     row[0]
@@ -191,7 +280,13 @@ class Music4AllAdapter:
 
             tracks = select_ids("item_id", inputs.config["track_limit"])
             users = select_ids("user_id", inputs.config["user_limit"])
-        if len(tracks) != inputs.config["track_limit"] or len(users) != inputs.config["user_limit"]:
+        if any(
+            limit is not None and len(ids) != limit
+            for ids, limit in (
+                (tracks, inputs.config["track_limit"]),
+                (users, inputs.config["user_limit"]),
+            )
+        ):
             raise ValidationError("dataset has fewer IDs than requested")
         selected, hashes, payloads = set(tracks), {}, {}
         rows, duplicates = 0, 0
@@ -211,13 +306,16 @@ class Music4AllAdapter:
                     duplicates += 1
                 else:
                     hashes[row["id"]] = checksum
-                if row["id"] in selected:
+                if inputs.config.get("selection_mode") == "full" or row["id"] in selected:
                     if row["id"] in payloads and payloads[row["id"]] != payload:
                         raise ValidationError("conflicting duplicate track metadata")
                     payloads[row["id"]] = payload
                 rows += 1
                 if rows % 10000 == 0:
                     self.progress(f"Validated {rows:,} tag rows")
+        if inputs.config.get("selection_mode") == "full":
+            selected.update(payloads)
+            tracks = sorted(selected)
         stats = {
             "tag_rows": rows,
             "tag_unique_ids": len(hashes),

@@ -75,7 +75,7 @@ def test_json_normalization_matches_database_numeric_rules():
     )
 
 
-def adapter_for(files):
+def adapter_for(files, **options):
     from music_recsys.adapters.music4all import Music4AllAdapter
 
     return Music4AllAdapter(
@@ -84,15 +84,14 @@ def adapter_for(files):
         events_path=files["events"],
         event_cache=files["cache"],
         version_label="v2",
-        track_limit=3,
-        user_limit=2,
+        **{"track_limit": 3, "user_limit": 2, **options},
     )
 
 
-def prepared_adapter(files, root):
+def prepared_adapter(files, root, **options):
     from music_recsys.ingestion.artifacts import ArtifactStore
 
-    adapter = adapter_for(files)
+    adapter = adapter_for(files, **options)
     store = ArtifactStore(root, adapter.release.key)
     sources = {
         s.name: store.put(
@@ -271,3 +270,154 @@ def test_import_cli_reports_missing_optional_dependencies_without_a_traceback():
     assert result.returncode == 1
     assert "Traceback" not in result.stderr
     assert '"error_type": "ModuleNotFoundError"' in result.stderr
+
+
+HISTORY_ROWS = [
+    "0000\t01\t2020-01-05 00:00:00",  # future-only, even though first by ID
+    "0001\t02\t2020-01-01 00:00:00",
+    "0001\t99\t2020-01-05 00:00:00",
+    "0001\t99\t2020-01-05 00:00:00",  # repeated play must survive
+    "0002\t01\t2020-01-04 00:00:00",  # exactly at cutoff: cold
+    "0003\t03\t2020-01-02 00:00:00",
+    "0003\t04\t2020-01-06 00:00:00",
+    "0004\t05\t2020-01-03 00:00:00",  # eligible without future outcomes
+]
+
+
+def history_source(factory, name="history", rows=None):
+    return factory(
+        name=name,
+        events_data=(
+            "user_id\ttrack_id\ttimestamp\n"
+            + "\n".join(HISTORY_ROWS if rows is None else rows)
+            + "\n"
+        ).encode(),
+    )
+
+
+def test_history_selects_only_train_eligible_users_and_keeps_all_their_events(
+    music4all_factory, tmp_path
+):
+    import pyarrow.parquet as pq
+
+    adapter, inputs = prepared_adapter(
+        history_source(music4all_factory),
+        tmp_path / "store",
+        selection="history",
+        train_end="2020-01-04T00:00:00",
+        track_limit=1,
+    )
+    catalog = adapter.load(inputs)
+    assert [user.source_id for user in catalog.users] == ["0001", "0003"]
+    assert [track.source_id for track in catalog.tracks] == ["02", "03", "04", "99"]
+    events = pq.read_table(inputs.files["events"]).to_pydict()
+    assert list(zip(events["user_id"], events["item_id"], strict=True)) == [
+        ("0001", "02"),
+        ("0001", "99"),
+        ("0001", "99"),
+        ("0003", "03"),
+        ("0003", "04"),
+    ]
+    selected_artifact = next(a for a in inputs.artifacts if a.path == inputs.files["events"])
+    assert inputs.config["history_events"] == {
+        "storage_key": selected_artifact.storage_key,
+        "sha256": selected_artifact.sha256,
+        "row_count": 5,
+    }
+    assert inputs.config["selection_mode"] == "history"
+    assert inputs.config["train_end"] == "2020-01-04T00:00:00"
+    assert inputs.config["user_limit"] == 2
+    assert inputs.config["track_limit"] is None
+
+
+def test_full_history_reuses_cache_and_includes_cold_users(music4all_factory, tmp_path):
+    adapter, inputs = prepared_adapter(
+        history_source(music4all_factory), tmp_path / "store", selection="full", track_limit=1
+    )
+    catalog = adapter.load(inputs)
+    assert [user.source_id for user in catalog.users] == ["0000", "0001", "0002", "0003", "0004"]
+    assert [track.source_id for track in catalog.tracks] == ["01", "02", "03", "04", "05", "99"]
+    assert inputs.config["history_events"]["sha256"] == inputs.config["event_cache"]["sha256"]
+    assert inputs.config["history_events"]["row_count"] == 8
+    assert len(inputs.artifacts) == 2
+
+
+def test_history_seed_and_amount_are_reproducible_under_event_reordering(
+    music4all_factory, tmp_path
+):
+    selections = []
+    for name, rows, seed, amount in [
+        ("first", HISTORY_ROWS, 1, 2),
+        ("reversed", list(reversed(HISTORY_ROWS)), 1, 2),
+        ("other_seed", HISTORY_ROWS, 2, 2),
+        ("less", HISTORY_ROWS, 1, 1),
+    ]:
+        files = history_source(music4all_factory, name, rows)
+        options = dict(
+            selection="history", train_end="2020-01-04", selection_seed=seed, user_limit=amount
+        )
+        adapter, inputs = prepared_adapter(files, tmp_path / "store", **options)
+        catalog = adapter.load(inputs)
+        selections.append(([user.source_id for user in catalog.users], inputs))
+        if name == "first":
+            _, repeated = prepared_adapter(files, tmp_path / "store", **options)
+            assert inputs.config == repeated.config
+            assert inputs.files == repeated.files
+    assert selections[0][0] == selections[1][0]
+    assert selections[0][1].config["history_events"] == selections[1][1].config["history_events"]
+    assert selections[0][0] != selections[2][0]
+    assert len(selections[3][0]) == 1
+    assert set(selections[3][0]) <= set(selections[0][0])
+    assert all(set(users) <= {"0001", "0003", "0004"} for users, _ in selections)
+    assert selections[0][1].config["seed"] == 1
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"selection": "unknown"},
+        {"selection": "history"},
+        {"selection": "history", "train_end": "invalid"},
+        {"selection": "history", "train_end": "2020-01-04T00:00:00Z"},
+        {"selection": "history", "train_end": "2020-01-04", "selection_seed": True},
+        {"selection": "metadata", "selection_seed": 1},
+    ],
+)
+def test_adapter_rejects_invalid_history_selection(music4all_factory, options):
+    from music_recsys.ingestion.types import ValidationError
+
+    with pytest.raises(ValidationError):
+        adapter_for(music4all_factory(), **options)
+
+
+def test_history_requires_requested_number_of_train_users(music4all_factory, tmp_path):
+    from music_recsys.ingestion.types import ValidationError
+
+    with pytest.raises(ValidationError, match="fewer"):
+        prepared_adapter(
+            history_source(music4all_factory),
+            tmp_path / "store",
+            selection="history",
+            train_end="2020-01-04",
+            user_limit=4,
+        )
+
+
+def test_full_catalog_includes_tracks_without_any_events(music4all_factory, tmp_path):
+    files = music4all_factory(tag_rows=[("01", "{}"), ("777", "{'ambient': 60}")])
+    adapter, inputs = prepared_adapter(files, tmp_path / "store", selection="full")
+    catalog = adapter.load(inputs)
+    assert [track.source_id for track in catalog.tracks] == ["01", "02", "03", "777", "99"]
+    assert next(track for track in catalog.tracks if track.source_id == "777").metadata == {
+        "tags": {"ambient": 60}
+    }
+    assert catalog.stats["missing_metadata"] == 3
+    assert inputs.config["history_events"]["row_count"] == 4
+
+
+def test_history_catalog_excludes_tag_only_tracks(music4all_factory, tmp_path):
+    files = music4all_factory(tag_rows=[("01", "{}"), ("777", "{'ambient': 60}")])
+    adapter, inputs = prepared_adapter(
+        files, tmp_path / "store", selection="history", train_end="2020-01-04"
+    )
+    assert [track.source_id for track in adapter.load(inputs).tracks] == ["01", "02"]
