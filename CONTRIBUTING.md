@@ -7,7 +7,7 @@
 - 推薦モデル・評価・LLM / Agent・UIを分離する。推薦エンジンを単独で利用できるようにする。
 - 必要なディレクトリ・実装だけを段階的に追加し、過度な抽象化を避ける。
 - Notebookは分析・可視化を中心にし、データ処理・モデル学習・評価は`src/`のPythonコードを呼ぶ。UIは後で作る。
-- `01_data.ipynb`は保存済みデータの読込み・検証・EDA・分割状態の確認、`02_recommendation.ipynb`は推薦結果分析、`03_analysis.ipynb`は指標可視化・比較・考察。
+- `01_data.ipynb`は保存済みデータの読込み・検証・EDA・分割状態の確認、`02_recommendation.ipynb`は推薦の実行・モデルの挙動の理解、`03_analysis.ipynb`は共通指標による性能比較・考察。
 
 ```bash
 uv sync --locked --python "$(pyenv which python)" --group data --group notebook
@@ -62,7 +62,7 @@ uv sync --locked --python "$(pyenv which python)" --group data --group notebook
 - 未承認の提案・仮説・運用ルールを追加しない。未確定事項は未確定と書く。
 - 実行結果・再現コマンドは、研究方針と分けて必要な分だけ記録する。
 - 論文の未確認の結果・主張を事実として書かず、出典を付ける。
-- Notebookは出力をクリアして管理する。
+- Notebookの説明は簡潔な箇条書き・表にし、出力をクリアして管理する。
 
 | Gitに含める | Gitに含めない |
 | --- | --- |
