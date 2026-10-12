@@ -232,3 +232,31 @@ def test_invalid_metric_input_does_not_expose_value(tracking):
         with ExperimentRun(tracking) as run:
             run.log_metrics({"cost_usd": "private-input"})
     assert "private-input" not in str(failure.value)
+
+
+def test_saved_details_are_linked_by_manifest_without_uploading_histories(tracking, tmp_path):
+    from mlflow import MlflowClient
+
+    from music_recsys.evaluation.benchmark import run_experiment, save_report
+    from music_recsys.experiment_analysis import read_mlflow_report
+
+    report = run_experiment(ROOT / "configs/toy.toml", tracking=tracking)
+    root = tmp_path / "results"
+    saved = save_report(report, root, tracking=tracking)
+    client = MlflowClient(tracking_uri=tracking.tracking_uri)
+    manifest_path = Path(
+        client.download_artifacts(report.tracking.run_id, "reports/details.json", str(tmp_path))
+    )
+    manifest = json.loads(manifest_path.read_text())
+    assert not Path(manifest["relative_path"]).is_absolute()
+    assert "user_id" not in manifest_path.read_text()
+    loaded = read_mlflow_report(
+        report.tracking.run_id, tracking_uri=tracking.tracking_uri, details_root=root
+    )
+    assert loaded["runs"][0]["request"]["user_id"] == "u1"
+    assert client.get_run(report.tracking.run_id).info.status == "FINISHED"
+    (saved / "results.json").write_text("{}")
+    with pytest.raises(ValueError, match="checksum"):
+        read_mlflow_report(
+            report.tracking.run_id, tracking_uri=tracking.tracking_uri, details_root=root
+        )

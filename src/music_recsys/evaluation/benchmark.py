@@ -56,6 +56,8 @@ class RunMetadata:
     source_sha256: str
     config_sha256: str | None
     training_seconds: float
+    evaluation_conditions: dict | None = None
+    model_parameters: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -128,6 +130,7 @@ def run_benchmark(
     seed: int = 0,
     training_seconds: float = 0.0,
     config_sha256: str | None = None,
+    model_parameters: dict | None = None,
     tracking: TrackingConfig | None = None,
 ) -> BenchmarkReport:
     """共通Runnerを実行し、有効な場合は集計成果物だけをMLflowへ記録する。"""
@@ -140,6 +143,7 @@ def run_benchmark(
             seed=seed,
             training_seconds=training_seconds,
             config_sha256=config_sha256,
+            model_parameters=model_parameters,
         )
     conditions = {
         "dataset_id": dataset.dataset_id,
@@ -159,6 +163,7 @@ def run_benchmark(
             seed=seed,
             training_seconds=training_seconds,
             config_sha256=config_sha256,
+            model_parameters=model_parameters,
         )
         metadata = asdict(report.metadata)
         experiment.log_params(
@@ -215,6 +220,7 @@ def _run_benchmark(
     seed: int,
     training_seconds: float,
     config_sha256: str | None,
+    model_parameters: dict | None,
 ) -> BenchmarkReport:
     """正解を推薦関数へ渡さず、失敗した要求も結果に残す。"""
     validate_id(model_name)
@@ -237,6 +243,22 @@ def _run_benchmark(
         source_sha256=_source_sha256(),
         config_sha256=config_sha256,
         training_seconds=training_seconds,
+        evaluation_conditions={
+            "protocol": "explicit-json-binary-unseen-v1",
+            "snapshot_id": None,
+            "data_format": "explicit-json-v1",
+            "train_sha256": _fingerprint(dataset.train_interactions),
+            "split_sha256": _fingerprint((dataset.requests, dataset.ground_truth)),
+            "input_sha256": _fingerprint(dataset.requests),
+            "candidate_policy": "exclude_request_history",
+            "relevance": "binary_within_candidates",
+            "aggregation": "request_mean_excluding_no_relevant_candidates",
+            "failure_policy": "zero_if_relevant_candidates_exist",
+            "evaluator_sha256": hashlib.sha256(
+                Path(__file__).with_name("metrics.py").read_bytes()
+            ).hexdigest(),
+        },
+        model_parameters=model_parameters,
     )
     truth_by_id = {truth.request_id: truth for truth in dataset.ground_truth}
     runs = []
@@ -286,6 +308,7 @@ def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None)
         seed=config.seed,
         training_seconds=training_seconds,
         config_sha256=config.sha256,
+        model_parameters={},
         tracking=tracking if tracking is not None else config.tracking,
     )
 
@@ -321,7 +344,9 @@ def format_summary(report: BenchmarkReport) -> str:
     )
 
 
-def save_report(report: BenchmarkReport, output_root: Path) -> Path:
+def save_report(
+    report: BenchmarkReport, output_root: Path, *, tracking: TrackingConfig | None = None
+) -> Path:
     """新しい実行ディレクトリへ保存する。既存結果は上書きしない。"""
     serialized = json.dumps(asdict(report), ensure_ascii=False, indent=2, allow_nan=False)
     root = Path(output_root)
@@ -330,6 +355,31 @@ def save_report(report: BenchmarkReport, output_root: Path) -> Path:
     directory = Path(tempfile.mkdtemp(prefix=prefix, dir=root))
     (directory / "results.json").write_text(serialized + "\n", encoding="utf-8")
     (directory / "summary.md").write_text(format_summary(report), encoding="utf-8")
+    if tracking is not None and tracking.enabled:
+        if report.tracking is None:
+            raise ValueError("report has no MLflow run to link")
+        manifest = directory / "details.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "relative_path": f"{directory.name}/results.json",
+                    "sha256": hashlib.sha256((directory / "results.json").read_bytes()).hexdigest(),
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        try:
+            from mlflow import MlflowClient
+
+            client = MlflowClient(tracking_uri=tracking.tracking_uri)
+            client.log_artifact(report.tracking.run_id, str(manifest), artifact_path="reports")
+        except Exception:
+            raise TrackingError(
+                "Failed to link saved details to MLflow; local report is retained"
+            ) from None
     return directory
 
 
@@ -349,7 +399,7 @@ def main() -> None:
         if report.tracking is not None:
             print(f"MLflow: {report.tracking.run_id} ({report.tracking.status})")
         if args.output is not None:
-            print(f"Saved: {save_report(report, args.output)}")
+            print(f"Saved: {save_report(report, args.output, tracking=tracking)}")
     except (OSError, ValueError, TrackingError) as error:
         parser.error(str(error))
 
