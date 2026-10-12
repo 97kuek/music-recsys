@@ -1,8 +1,8 @@
-# 初回取り込みのテーブル定義
+# 取り込み・保存済み分割のテーブル定義
 
-- 対象：Music4All-Onionの楽曲ID・タグと重み、ユーザーIDの小規模取り込み。
+- 対象：Music4All-Onionの楽曲ID・タグと重み、ユーザーID、再生履歴の保存物参照、保存済み時系列分割。
 - 方針は[DB設計の合意事項](db-design.md)、実カラムは[配布ファイルの確認](music4all-import-sources.md)を参照。
-- Alembic revision `0002`に実装。[migration](../migrations/versions/0002_ingestion_schema.py)と[SQL定義](../migrations/sql/)、[Adapter・実ファイル取り込み](music4all-import.md)を参照。
+- 取り込みはrevision [`0002`](../migrations/versions/0002_ingestion_schema.py)、保存済み分割は[`0003`](../migrations/versions/0003_benchmark_splits.py)。[SQL定義](../migrations/sql/)、[取り込み手順](music4all-import.md)を参照。
 
 ## 共通定義
 
@@ -146,12 +146,27 @@
 - 入力hashはrun INSERT前に確定する。開始トランザクションで参照を追加し、封印時にDBの入力documentと照合する。
 - 再取り込み時の生成物と既存snapshotの内容hash比較、実ファイルのchecksum・内容検証は共通取り込み処理で行う。DBで検証済み保存物の宣言だけから実ファイルの正しさを推定しない。
 
+## 保存済み分割
+
+- `benchmark_splits`は公開済みsnapshotに結び付く不変の1行。[SQL定義](../migrations/sql/0003_benchmark_splits.sql)
+
+| カラム | 定義・制約 |
+| --- | --- |
+| `id`, `dataset_id`, `dataset_version_id UUID`, `snapshot_id UUID`, `created_at` | PK(`id`)。複合FKでsnapshotの所属・版を保証 |
+| `config JSONB`, `summary JSONB`, `artifact_manifest JSONB` | いずれもオブジェクト。設定・検証集計・役割別保存物の宣言 |
+| `content_fingerprint TEXT` | UQ。snapshot ID・config・artifact manifest・summaryの正規化SHA-256とCHECKで照合 |
+| `events_artifact_id UUID`, `train_artifact_id UUID`, `validation_artifact_id UUID`, `test_artifact_id UUID` | 必須の4役割。所属一致のFK、形式はParquet |
+| `validation_benchmark_artifact_id UUID?`, `test_benchmark_artifact_id UUID?` | 任意の2役割。所属一致のFK、形式はJSON |
+
+- INSERT時にsnapshot公開状態と、各保存物の形式・SHA-256・サイズ・行数がmanifestに一致することを検証する。
+- 6役割を固定カラムで確定し、UPDATE / DELETE / TRUNCATEを禁止する。公開後に任意の役割を追加しない。
+- 実ファイルの照合・分割内容の検証はPython側で行う。[分割・読込み手順](music4all-benchmark.md)
+
 ## 後続で追加するもの
 
 | 対象 | 接続先・方針 |
 | --- | --- |
 | ユーザー属性 | 実配布カラムを確認後に、不変の本体とsnapshot内参照を追加。初期snapshotはIDのみのまま保持 |
-| 分割 | データセット版・再生イベントの保存物・抽出条件に紐付け、snapshotとは別に管理 |
 | Embedding | snapshotや分割/学習保存物、生成モデル・モデル版・前処理に紐付ける |
 | 実験 | データセット版・snapshot・分割・Embedding・モデル設定を参照。データセットの一致と公開状態を検証 |
 | 会話・楽曲対応付け | 実配布カラムと必要性を確認した段階で追加 |
@@ -170,5 +185,5 @@
 | 公開未完了、Parquet検証失敗、同時公開/追加 | 未完成集合をCOMMITしない。公開後の追加を拒否 |
 | 同じ入力fingerprintで異なる出力 | 失敗。既存snapshotを維持 |
 
-- 初回サブセットは元ID文字列順の楽曲100件・ユーザー100件。評価実験の分割条件は未確定。
+- メタデータ100曲・100ユーザー、履歴コホート、全量を区別する。初期評価の分割条件は[評価方針](evaluation-protocol.md#music4allの初回実データ検証)に固定。
 - DBの所属・出典・封印・公開・不変性と、Adapterによる重複行処理・元ファイルからの取り込みを検証する。[実行手順](music4all-import.md)

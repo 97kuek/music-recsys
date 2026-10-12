@@ -36,6 +36,6 @@
 | C | 動的なツール選択を追加し、Bとの差を評価 |
 | 比較・報告 | 定量・定性評価、有効性と限界の整理。満足度・説明の納得感の主観評価も検討 |
 
-- 小さな検証データ・Popularity・Runner・NDCG / Recall・Notebookまで実装する方針は承認済み。
-- データセットの用途・分割案は [データセット方針](dataset-investigation.md) を参照。
-- 主評価指標、最終分割条件、比較モデル、LLM・Agentの詳細、日程は未確定。
+- 合成データとMusic4Allの初期検証に、Popularity・Runner・NDCG / Recall・Notebookを使用する。
+- Music4Allの100ユーザーでの初期評価条件は決定済み。[データセット方針](dataset-investigation.md)、[評価条件](evaluation-protocol.md#music4allの初回実データ検証)を参照。全量での推薦性能評価は未実施。
+- 研究全体の主評価指標・最終評価条件、比較モデル、LLM・Agentの詳細、日程は未確定。

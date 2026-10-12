@@ -39,6 +39,8 @@ include = [
     "/data/README.md",
     "/experiments/toy/summary.md",
     "/experiments/music4all/summary.md",
+    "/experiments/music4all/smoke.md",
+    "/experiments/music4all/validation-stability.json",
     "/experiments/music4all/eda/profile.json",
     "/experiments/music4all/eda/daily_counts.csv",
     "/experiments/music4all/eda/time-quality.json",

@@ -9,9 +9,10 @@
 
 - 過去の履歴から今後聴きそうな曲を推薦する。
 - 既聴曲を除外し、まだ聴いていない曲を推薦する。
-- 全体の時系列分割とWarm Startを初期案とする。
-- train / validation / testは8:1:1を初期案とし、実際の日付は分布を見て決める。
-- v2の時刻付きイベントを取得・集計済み。取得方法は [データREADME](../data/README.md)、実集計と分割候補は [調査結果](../experiments/music4all/summary.md) を参照。
+- 初期評価は全体の時系列分割とWarm Start。境界は2017-03-29 / 2018-09-21とし、TestではTrain＋Validationで再学習する。
+- Trainに1件以上の履歴があるユーザーを元ID順に100人選び、全期間の履歴と関連曲を保持する。人数・抽出seedを変える確認はValidationで行う。
+- 配布時刻をtimezone-naiveのまま扱い、1970年の1件も保持する。[評価条件](evaluation-protocol.md#music4allの初回実データ検証)
+- v2の時刻付きイベントを取得・全量集計済み。[取得手順](../data/README.md)、[全量集計](../experiments/music4all/summary.md)、[分割・評価の実行](music4all-benchmark.md)を参照。
 
 ## TalkPlayData
 
@@ -22,5 +23,5 @@
 
 ## 未確定
 
-- Music4Allの分割境界、時刻不正値の扱い、test再学習、最小履歴量、初期評価の規模。
+- 研究全体の最終評価条件・比較モデル。Music4Allの全量推薦性能は未評価。
 - TalkPlayの具体的な入力形式と評価基盤への接続。

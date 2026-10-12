@@ -27,15 +27,16 @@ uv run --locked --group data --group notebook --group tracking jupyter lab
 
 | 設定 | 内容 |
 | --- | --- |
-| `REPORT_PATHS` | 表示名 → 保存された`results.json`のPath |
-| `DATASET_ID` / `TOP_K` | 対象データセットとK |
+| `MUSIC_RECSYS_REPORT_PATH` | Popularityの保存済み`results.json`。指定時の既定はMusic4All・K=10 |
+| `MUSIC_RECSYS_DATASET_ID` / `MUSIC_RECSYS_TOP_K` | 対象データセットとKを上書き |
+| `REPORT_PATHS` | 複数runを比較する場合の表示名 → 保存結果のPath |
 | `MLFLOW_RUNS` | 任意：表示名 → MLflow run ID |
 | `DETAILS_ROOT` | 任意：CLIの`--output`で指定した親ディレクトリ |
 | `BASELINE` | 対応差分の基準run |
 | `BOOTSTRAP` | 信頼水準・再標本化回数・乱数seed |
 | `HISTORY_EDGES` / `USER_ATTRIBUTE` | 履歴量の区切り・保存済み属性名 |
 
-- 既定は[合成データの保存結果](../examples/reports/toy-popularity.json)。実行済みPopularity 1 runを読む。
+- 未指定時は[合成データの保存結果](../examples/reports/toy-popularity.json)をK=2で読む。実データへの切替は[Music4Allの実行手順](music4all-benchmark.md)を参照。
 - 追加モデル・LLM・Agentも同じ保存形式で読み込む。未実装モデルの値は作らない。
 - MLflow集計のみの場合は平均・集計件数を表示し、ユーザー別分析や信頼区間は未分析とする。
 - `DETAILS_ROOT`指定時はMLflowの`reports/details.json`から詳細を解決し、SHA-256・run ID・集計との一致を検証する。
@@ -67,6 +68,6 @@ uv run --locked --group data --group notebook --group tracking jupyter lab
 
 - 任意項目は今後の評価処理が記録するための読込み口。現在のRunnerは属性・追加指標・費用を生成しない。
 - Diversityの特徴・類似度、Coverageの対象カタログ、Noveltyの人気度参照期間などは`definition`に含める。異なる定義は比較しない。
-- 追加指標の算出方法、実データの主指標・K・集計方法は未確定。
+- Music4Allの初期評価はNDCG@10・Recall@10と正解のある要求の平均。[100ユーザーの結果](../experiments/music4all/smoke.md)を全量の推薦性能とは扱わない。追加指標の算出方法・研究全体の最終評価条件は未確定。
 - 時間・コストは計測環境と併せて解釈する。コストの散布図は通貨・算定基準が一致する場合に表示する。
 - 生履歴・要求別の詳細はローカル保存。MLflowには集計と詳細へのmanifestを記録する。

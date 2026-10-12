@@ -1,10 +1,10 @@
-# Music4All-Onionの小規模取り込み
+# Music4All-Onionの取り込み
 
 ## 対象
 
 - 公開版[Zenodo record 15394646](https://zenodo.org/records/15394646)。配布ファイルとカラムは[取り込み元確認](music4all-import-sources.md)を参照。
 - 初回は元IDの文字列順で、再生履歴に現れる楽曲100件・ユーザー100件。
-- 楽曲ID・タグと重み、ユーザーIDを取り込む。再生関係・曲名・アーティスト名・ユーザー属性は含めない。
+- 楽曲ID・タグと重み、ユーザーIDをPostgreSQLへ、再生履歴をParquetへ保存する。曲名・アーティスト名・ユーザー属性は未取得。
 - タグ未取得はNULL、取得済みの空タグ辞書は`{"tags": {}}`として区別する。
 - 同一内容の重複行をまとめ、競合する内容は拒否する。
 
@@ -20,10 +20,20 @@ uv run --locked --env-file .env --group db --group data music-recsys-import \
   --storage-root data/imports --lockfile uv.lock
 ```
 
-- 前提：DockerのDBにAlembic `0002`を適用し、元ファイル・変換済みParquetと対応する`events.manifest.json`を用意する。[DB手順](local-db.md)、[全量Parquet変換・EDA](../experiments/music4all/summary.md)
+- 前提：DockerのDBにAlembic `0003`を適用し、元ファイル・変換済みParquetと対応する`events.manifest.json`を用意する。[DB手順](local-db.md)、[全量Parquet変換・EDA](../experiments/music4all/summary.md)
 - `--version-label`は明示する。APIの`metadata.version`が未設定であるため、その値から推測しない。
-- 件数を変更すると設定が変わり、別snapshotになる。抽出方法は乱数を使わない元ID文字列順。
+- 件数・抽出条件・処理版の変更は別snapshot。同じ入力・処理版ではsnapshotと同一内容の保存物を再利用する。
 - 接続先は環境変数、保存先ルートは`--storage-root`で管理する。認証情報はGitに含めない。
+
+| `--selection` | 対象 |
+| --- | --- |
+| `metadata`（既定） | 初回の独立した楽曲100件・ユーザー100件。履歴は登録しない |
+| `history` | `--train-end 2017-03-29T00:00:00 --users 100`。Train観測ユーザーを元ID順に選び、全期間の履歴と関連曲を取り込む |
+| `full` | 全ユーザー・全イベント・公開タグ内の全曲。タグのみの曲も保持 |
+
+- `history`の`--selection-seed`を指定するとSHA-256による再現可能なユーザー抽出。未指定は元ID順。未来の活動量・正解の有無でユーザーを選ばない。
+- `history_events`に使用したイベントParquetのSHA-256・保存キー・行数を固定する。
+- [分割・Benchmark・Notebookの実行](music4all-benchmark.md)
 
 ## 保存・公開
 
@@ -38,7 +48,7 @@ uv run --locked --env-file .env --group db --group data music-recsys-import \
 | 失敗 | 元ファイル/cacheのpreflight不一致はrun開始前に拒否。開始後の変換・保存・公開失敗はfailed runを記録し、途中snapshotを公開しない |
 | 読込み | `load_snapshot`は公開済みsnapshotの構成に限定し、Parquetのhash・schema・内容を再検証 |
 
-- snapshot用Parquetは小規模な共通カタログ。全量の再生イベントをDBへ複製しない。
+- snapshot用Parquetは共通カタログ。再生イベントを全量DBへ複製しない。
 - cacheの元ファイル・変換manifestと実Parquetを入力設定で追跡する。保存先の絶対パスはfingerprintに含めない。
 - Adapter / 共通処理の版は実ソースコードhashを含む。依存lock hash・実行Python / ライブラリ版・DB revisionも記録する。
 - CLIと失敗履歴は例外型と集計だけを記録し、認証情報・例外本文・元ユーザーIDを出力しない。
