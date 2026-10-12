@@ -14,11 +14,13 @@
 | DBの変更 | MLflow自身が専用DBを管理。推薦用DBのAlembicとは分離 |
 | 成果物 | Git管理外の`data/mlflow/artifacts/`。サーバー経由で送受信 |
 | ローカルUI / API | `http://127.0.0.1:5000`。localhostのみ公開 |
-| Runner / Notebook | `run_experiment`・`run_benchmark`から同じ記録処理を呼ぶ |
+| Runner / CLI | `run_experiment`・`run_benchmark`から同じ記録処理を呼ぶ |
+| 03 Notebook | 保存済み集計・詳細結果を読み込んで比較する |
 | 将来のモデル実装 | `ExperimentRun`で条件・集計指標・費用・成果物を記録可能 |
 
 - 元データ・ユーザーの生履歴・要求別の推薦結果はMLflowへ自動送信しない。MLflowの成果物は集計した`report.json`と`summary.md`。
-- CLIの`--output`によるローカル`results.json`・`summary.md`保存は継続。MLflowを使った場合はrun ID・experiment ID・statusも残す。
+- CLIの`--output`でローカル詳細を保存し、MLflowを使う場合は`reports/details.json`に相対パス・SHA-256を記録する。詳細自体は送信しない。
+- ローカル`results.json`にはrun ID・experiment ID・statusも残す。manifest記録失敗時はローカル結果を残して`TrackingError`を通知する。
 - seed、モデル、top-k、データ・Train・分割・コード・設定のSHA-256、Python・パッケージ版を記録する。
 - NDCG@K・Recall@K、件数・失敗数・実行時間を記録する。未定義の指標は0に変換しない。
 - 推薦の失敗を含むrunは`FAILED`。記録処理の失敗は`TrackingError`で通知し、成功扱いしない。接続断でstatus更新も失敗した場合は、MLflow側に`RUNNING`が残ることがある。
@@ -58,18 +60,16 @@ uv run --locked --group tracking music-recsys-benchmark \
 - `configs/toy.toml`は従来どおり記録なしで実行できる。`--tracking`または環境変数でも有効化できる。
 - 研究室サーバーを使う場合は`MLFLOW_TRACKING_URI`を変更する。サーバー側の配置・公開・認証設定は未実装。URIに認証情報やtokenを埋め込まない。[MLflow公式のサーバー設定](https://mlflow.org/docs/latest/tracking/server/)
 
-## Notebook / Python
+## Pythonからの実行
 
 ```python
 from pathlib import Path
-from music_recsys.evaluation.benchmark import run_experiment
+from music_recsys.evaluation.benchmark import run_experiment, save_report
 from music_recsys.evaluation.tracking import TrackingConfig
 
-report = run_experiment(
-    Path("../configs/toy.toml"),
-    tracking=TrackingConfig.from_settings({"enabled": True}),
-)
-report.tracking
+tracking = TrackingConfig.from_settings({"enabled": True})
+report = run_experiment(Path("configs/toy.toml"), tracking=tracking)
+save_report(report, Path("data/mlflow/runs"), tracking=tracking)
 ```
 
 - 独自の推薦関数には`run_benchmark(..., tracking=...)`を使う。
@@ -88,6 +88,12 @@ with ExperimentRun(
 
 - context内で例外が発生するとrunを`FAILED`にする。例外の型だけを記録し、本文は送信しない。
 - `run.log_params(...)`・`run.log_artifact(...)`も利用できる。認証情報・生データを渡さない。
+
+## 03 Notebookでの読込み
+
+- `MLFLOW_RUNS`に表示名とrun IDを指定する。集計成果物だけでも平均・件数を比較できる。
+- ユーザー別分析・信頼区間には詳細が必要。`DETAILS_ROOT`にCLIの`--output`で使ったディレクトリを指定する。
+- manifestのSHA-256・run ID・集計との一致を検証し、対応するローカル詳細を読む。[保存結果の分析](result-analysis.md)
 
 ## 検証結果・コマンド
 

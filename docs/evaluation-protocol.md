@@ -16,7 +16,7 @@
 | Dataset | ユーザー履歴・楽曲・会話・正解データ |
 | Benchmark Runner | データ分割・入力条件・実験設定の統一、A / B / Cの実行 |
 | Common Evaluator | NDCG・Recall・Diversity・制約充足率・コストなど |
-| Tracking / Reports | 実験履歴・比較表・統計分析。MLflowを候補とする |
+| Tracking / Reports | MLflowによる実験管理・比較表・統計分析 |
 | Notebook | Pythonの処理を呼んで検証・可視化。UIは後から作る |
 
 ## 共通形式の検討
@@ -46,3 +46,9 @@
 - NDCG@10を主指標候補とし、多様性・発見性・実行コストも評価する。
 - 主指標・K・関連度・最終的な集計方法は未確定。
 - 現在の合成データではNDCG / Recallを実装済み。条件と結果は [toy実験](../experiments/toy/summary.md) を参照。
+
+## 保存済み結果の分析
+
+- 03は同条件の保存結果を比較し、性能・ユーザー間の差・効率を分析する。
+- 信頼区間はユーザー単位bootstrap・95%。実行間のばらつきとは分ける。
+- [6章構成・比較条件・保存形式](result-analysis.md)

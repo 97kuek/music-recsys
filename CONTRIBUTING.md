@@ -63,6 +63,7 @@ uv sync --locked --python "$(pyenv which python)" --group data --group notebook
 - 実行結果・再現コマンドは、研究方針と分けて必要な分だけ記録する。
 - 論文の未確認の結果・主張を事実として書かず、出典を付ける。
 - Notebookの説明は簡潔な箇条書き・表にし、出力をクリアして管理する。
+- 03では保存済み結果のみを分析する。正式な実験はCLIで実行・保存する。[設定と保存形式](docs/result-analysis.md)
 
 | Gitに含める | Gitに含めない |
 | --- | --- |

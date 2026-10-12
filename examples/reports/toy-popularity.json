@@ -1,0 +1,222 @@
+{
+  "metadata": {
+    "dataset_id": "toy-music-v1",
+    "dataset_sha256": "e02c7b10be5c8a620b1895594dfef123a8d6593bbc44d3f746def369b9b9c660",
+    "model_name": "popularity",
+    "top_k": 2,
+    "seed": 42,
+    "started_at": "2026-10-12T10:25:37.342823+00:00",
+    "python_version": "3.12.13",
+    "package_version": "0.1.0",
+    "platform": "macOS-27.0.1-arm64-arm-64bit",
+    "source_sha256": "050a08c1fffd04caf52899f21b4dbfd54bacaaf1099222bdf0e85df168e7e027",
+    "config_sha256": "3dd6a790ef7462972c761dbf8abcc46a175b5ffc274233f3078cc072d1106188",
+    "training_seconds": 3.80830024369061e-05,
+    "evaluation_conditions": {
+      "protocol": "explicit-json-binary-unseen-v1",
+      "snapshot_id": null,
+      "data_format": "explicit-json-v1",
+      "train_sha256": "2b176f3bb70a071dbfd56082be609b84c59caa8c1b222855fdc6b26ebed9c17e",
+      "split_sha256": "a385e229bde1f5f3f9361f4a8acff37625c3f501c0aa657c9d6f8e1ba81b5e90",
+      "input_sha256": "111d19304f6533deefacc07ef433f0ed8a2b727d3de5d1fef964059b7c67fe7e",
+      "candidate_policy": "exclude_request_history",
+      "relevance": "binary_within_candidates",
+      "aggregation": "request_mean_excluding_no_relevant_candidates",
+      "failure_policy": "zero_if_relevant_candidates_exist",
+      "evaluator_sha256": "439c15b2941bcb298fed88e2a3e25c0924bb2cd67708743835d048ecd2904eb7"
+    },
+    "model_parameters": {}
+  },
+  "summary": {
+    "ndcg": 0.561019236584229,
+    "recall": 0.625,
+    "n_requests": 5,
+    "n_evaluated": 4,
+    "n_excluded": 1,
+    "n_failed": 0,
+    "n_short": 0,
+    "total_recommendation_seconds": 2.9001996153965592e-05,
+    "mean_recommendation_seconds": 5.800399230793119e-06
+  },
+  "runs": [
+    {
+      "request": {
+        "request_id": "r1",
+        "user_id": "u1",
+        "history": [
+          "track_a",
+          "track_b"
+        ],
+        "candidate_ids": [
+          "track_c",
+          "track_d",
+          "track_e",
+          "track_f"
+        ],
+        "top_k": 2
+      },
+      "response": {
+        "request_id": "r1",
+        "item_ids": [
+          "track_c",
+          "track_d"
+        ],
+        "status": "ok",
+        "error_type": null
+      },
+      "evaluation": {
+        "request_id": "r1",
+        "ndcg": 0.6131471927654584,
+        "recall": 0.5,
+        "relevant_count": 2,
+        "returned_count": 2,
+        "invalid_count": 0,
+        "duplicate_count": 0
+      },
+      "recommendation_seconds": 1.6833990230225027e-05
+    },
+    {
+      "request": {
+        "request_id": "r2",
+        "user_id": "u2",
+        "history": [
+          "track_a",
+          "track_c"
+        ],
+        "candidate_ids": [
+          "track_b",
+          "track_d",
+          "track_e",
+          "track_f"
+        ],
+        "top_k": 2
+      },
+      "response": {
+        "request_id": "r2",
+        "item_ids": [
+          "track_b",
+          "track_d"
+        ],
+        "status": "ok",
+        "error_type": null
+      },
+      "evaluation": {
+        "request_id": "r2",
+        "ndcg": 1.0,
+        "recall": 1.0,
+        "relevant_count": 1,
+        "returned_count": 2,
+        "invalid_count": 0,
+        "duplicate_count": 0
+      },
+      "recommendation_seconds": 3.916997229680419e-06
+    },
+    {
+      "request": {
+        "request_id": "r3",
+        "user_id": "u3",
+        "history": [
+          "track_b",
+          "track_c"
+        ],
+        "candidate_ids": [
+          "track_a",
+          "track_d",
+          "track_e",
+          "track_f"
+        ],
+        "top_k": 2
+      },
+      "response": {
+        "request_id": "r3",
+        "item_ids": [
+          "track_a",
+          "track_d"
+        ],
+        "status": "ok",
+        "error_type": null
+      },
+      "evaluation": {
+        "request_id": "r3",
+        "ndcg": 0.6309297535714575,
+        "recall": 1.0,
+        "relevant_count": 1,
+        "returned_count": 2,
+        "invalid_count": 0,
+        "duplicate_count": 0
+      },
+      "recommendation_seconds": 2.334010787308216e-06
+    },
+    {
+      "request": {
+        "request_id": "r4",
+        "user_id": "cold_user",
+        "history": [],
+        "candidate_ids": [
+          "track_a",
+          "track_b",
+          "track_c",
+          "track_d",
+          "track_e",
+          "track_f"
+        ],
+        "top_k": 2
+      },
+      "response": {
+        "request_id": "r4",
+        "item_ids": [
+          "track_a",
+          "track_b"
+        ],
+        "status": "ok",
+        "error_type": null
+      },
+      "evaluation": {
+        "request_id": "r4",
+        "ndcg": 0.0,
+        "recall": 0.0,
+        "relevant_count": 1,
+        "returned_count": 2,
+        "invalid_count": 0,
+        "duplicate_count": 0
+      },
+      "recommendation_seconds": 3.8330035749822855e-06
+    },
+    {
+      "request": {
+        "request_id": "r5",
+        "user_id": "no_truth_user",
+        "history": [],
+        "candidate_ids": [
+          "track_a",
+          "track_b",
+          "track_c",
+          "track_d",
+          "track_e",
+          "track_f"
+        ],
+        "top_k": 2
+      },
+      "response": {
+        "request_id": "r5",
+        "item_ids": [
+          "track_a",
+          "track_b"
+        ],
+        "status": "ok",
+        "error_type": null
+      },
+      "evaluation": {
+        "request_id": "r5",
+        "ndcg": null,
+        "recall": null,
+        "relevant_count": 0,
+        "returned_count": 2,
+        "invalid_count": 0,
+        "duplicate_count": 0
+      },
+      "recommendation_seconds": 2.0839943317696452e-06
+    }
+  ],
+  "tracking": null
+}

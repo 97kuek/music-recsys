@@ -26,10 +26,10 @@
 | --- | --- |
 | [01_data](notebooks/01_data.ipynb) | 保存済みデータのSQL/DataFrame読込み・検証・EDA・分割状態の確認 |
 | [02_recommendation](notebooks/02_recommendation.ipynb) | 推薦の実行・履歴と推薦曲の比較・推薦理由の確認・ローカル音源の試聴 |
-| [03_analysis](notebooks/03_analysis.ipynb) | 指標の可視化・同条件の保存結果/MLflow成果物の比較・考察 |
+| [03_analysis](notebooks/03_analysis.ipynb) | 保存結果の性能比較・ユーザー別分析・信頼区間・効率・考察 |
 
 - 3冊とも独立実行可能。既定では保存済み合成データとEDAを使い、DB・常駐MLflowは不要。01は公開snapshot指定で読み取り専用SQLを使う。
-- データ処理・学習・評価は`src/`の共通APIを呼び、Notebookは分析・可視化に使う。
+- データ処理・学習・評価は`src/`の共通APIを使う。03は保存済み結果だけを読み、実験を実行しない。[結果分析の設定](docs/result-analysis.md)
 
 | 文書 | 内容 |
 | --- | --- |
