@@ -151,3 +151,43 @@ def test_analysis_handles_saved_result_variants_without_experiment_execution(cas
         resources={"metadata": {"path": str(ROOT / "notebooks")}},
     ).execute()
     nbformat.write(executed, tmp_path / f"analysis-{case}.ipynb")
+
+
+def _run_notebook_cells(name, indices):
+    """設定と読込みセルを実行し、カーネルなしで環境変数の接続を検証する。"""
+    notebook = json.loads((ROOT / "notebooks" / name).read_text())
+    namespace = {}
+    for index in indices:
+        exec(compile("".join(notebook["cells"][index]["source"]), name, "exec"), namespace)
+    return namespace
+
+
+def test_recommendation_accepts_saved_dataset_and_selects_first_request(tmp_path, monkeypatch):
+    raw = json.loads((ROOT / "examples/toy/dataset.json").read_text())
+    path = tmp_path / "saved-dataset.json"
+    path.write_text(json.dumps(raw))
+    monkeypatch.setenv("MUSIC_RECSYS_DATASET_PATH", str(path))
+    monkeypatch.setenv("MUSIC_RECSYS_TOP_K", "3")
+    monkeypatch.delenv("MUSIC_RECSYS_REQUEST_ID", raising=False)
+    ns = _run_notebook_cells("02_recommendation.ipynb", [2, 4])
+    assert ns["DATASET_PATH"] == path
+    assert ns["TOP_K"] == 3
+    assert ns["REQUEST_ID"] == ns["dataset"].requests[0].request_id
+    assert len(ns["result"].response.item_ids) == 3
+
+
+def test_recommendation_accepts_explicit_saved_request(monkeypatch):
+    monkeypatch.setenv("MUSIC_RECSYS_REQUEST_ID", "r2")
+    ns = _run_notebook_cells("02_recommendation.ipynb", [2, 4])
+    assert ns["result"].request.request_id == "r2"
+
+
+def test_analysis_reads_environment_report_with_explicit_conditions(tmp_path, monkeypatch):
+    path = tmp_path / "saved-report.json"
+    path.write_bytes((ROOT / "examples/reports/toy-popularity.json").read_bytes())
+    monkeypatch.setenv("MUSIC_RECSYS_REPORT_PATH", str(path))
+    monkeypatch.setenv("MUSIC_RECSYS_DATASET_ID", "toy-music-v1")
+    monkeypatch.setenv("MUSIC_RECSYS_TOP_K", "2")
+    ns = _run_notebook_cells("03_analysis.ipynb", [2, 3])
+    assert ns["REPORT_PATHS"] == {"Popularity": path}
+    assert ns["reports"]["Popularity"]["summary"]["recall"] == 0.625
