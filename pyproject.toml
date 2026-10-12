@@ -44,7 +44,10 @@ include = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["notebook: executes the example notebook in a fresh Python kernel"]
+markers = [
+    "notebook: executes the example notebook in a fresh Python kernel",
+    "db: opt-in PostgreSQL integration tests in disposable schemas",
+]
 
 [tool.ruff]
 target-version = "py312"

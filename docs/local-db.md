@@ -12,7 +12,7 @@
 | スキーマ管理 | [alembic.ini](../alembic.ini)、`migrations/versions/` |
 
 - PostgreSQL 18のVolume配置は[公式イメージ仕様](https://hub.docker.com/_/postgres)、pgvectorは[公式イメージ](https://github.com/pgvector/pgvector#docker)を参照。
-- 初期migrationはpgvectorの固定版有効化。楽曲・ユーザー・スナップショットのテーブルは設計確定後にmigrationで追加する。
+- revision `0001`はpgvectorの固定版有効化。`0002`は[初回13テーブルと制約](db-schema.md)。
 
 ## 起動・スキーマ適用
 
@@ -44,6 +44,18 @@ docker compose ps
 - ORMモデルは未導入。現在は明示的なmigrationを記述する。[Alembic公式](https://alembic.sqlalchemy.org/en/latest/tutorial.html)
 - 研究室サーバーでは環境変数の接続先を変更し、同じrevisionを使用する。Dockerを使う場合は同じ固定イメージを利用する。
 
+## DBテスト
+
+```bash
+MUSIC_RECSYS_TEST_DB=1 uv run --locked --env-file .env --group db --group data --group notebook pytest
+```
+
+- 明示的に有効化したときだけDBへ接続する。通常のpytestではDBテストを読み飛ばす。
+- テストごとに`test_recsys_`で始まるランダム名の専用schemaを作成し、終了時に削除する。
+- Alembicの履歴テーブルも専用schemaに置く。`public`の履歴は変更しない。
+- downgrade / upgradeの往復検証は専用schema内だけで実行する。
+- IDの一意性・所属・出典manifest照合・hash・入力封印・公開COMMIT・失敗ROLLBACK・再実行・同時公開・変更拒否を検証する。
+
 ## 検証結果
 
 - 2026-10-12：Docker Desktop起動後、Composeの起動・ヘルスチェックを確認。
@@ -52,3 +64,6 @@ docker compose ps
 - コンテナを再作成し、同じVolumeでpgvectorとmigration履歴が保持されることを確認。
 - DB接続なしのupgrade / downgrade SQL生成、既存56件のテスト、Ruff、ビルドを確認。
 - 検証用`.env`はGit管理外。実際のパスワードは記録・表示していない。
+- 2026-10-12：revision `0002`をローカルDBへ適用・再適用し、13テーブルと`0002 (head)`を確認。
+- DB60件・既存56件の計116件、Ruff、upgrade / downgrade SQL生成、ビルドを確認。公開の原子性・再実行・ロック待ちを含む同時公開・変更拒否を検証。
+- 検証用schemaの残存は0。テスト用の行は通常DBに残していない。

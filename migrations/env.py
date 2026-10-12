@@ -12,7 +12,7 @@ config = context.config
 if config.config_file_name:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-# ドメインのテーブル設計は別途確定し、明示的なmigrationで追加する。
+# ORMは導入せず、明示的なmigrationでスキーマを管理する。
 target_metadata = None
 
 
@@ -49,6 +49,18 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    supplied_connection = config.attributes.get("connection")
+    if supplied_connection is not None:
+        context.configure(
+            connection=supplied_connection,
+            target_metadata=target_metadata,
+            version_table_schema=supplied_connection.exec_driver_sql(
+                "SELECT current_schema()"
+            ).scalar_one(),
+        )
+        with context.begin_transaction():
+            context.run_migrations()
+        return
     engine = create_engine(database_url(), poolclass=pool.NullPool, hide_parameters=True)
     try:
         with engine.connect() as connection:
