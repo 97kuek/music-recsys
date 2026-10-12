@@ -47,14 +47,14 @@ docker compose ps
 ## DBテスト
 
 ```bash
-MUSIC_RECSYS_TEST_DB=1 uv run --locked --env-file .env --group db --group data --group notebook pytest
+MUSIC_RECSYS_TEST_DB=1 uv run --locked --env-file .env --group db --group data --group notebook --group tracking pytest
 ```
 
 - 明示的に有効化したときだけDBへ接続する。通常のpytestではDBテストを読み飛ばす。
 - テストごとに`test_recsys_`で始まるランダム名の専用schemaを作成し、終了時に削除する。
 - Alembicの履歴テーブルも専用schemaに置く。`public`の履歴は変更しない。
 - downgrade / upgradeの往復検証は専用schema内だけで実行する。
-- IDの一意性・所属・出典manifest照合・hash・入力封印・公開COMMIT・失敗ROLLBACK・再実行・同時公開・変更拒否を検証する。
+- IDの一意性・所属・出典manifest照合・hash・入力封印・公開COMMIT・失敗ROLLBACK・再実行・同時公開・変更拒否と、[Adapter・Parquet保存](music4all-import.md)を検証する。
 
 ## 検証結果
 
@@ -67,3 +67,4 @@ MUSIC_RECSYS_TEST_DB=1 uv run --locked --env-file .env --group db --group data -
 - 2026-10-12：revision `0002`をローカルDBへ適用・再適用し、13テーブルと`0002 (head)`を確認。
 - DB60件・既存56件の計116件、Ruff、upgrade / downgrade SQL生成、ビルドを確認。公開の原子性・再実行・ロック待ちを含む同時公開・変更拒否を検証。
 - 検証用schemaの残存は0。テスト用の行は通常DBに残していない。
+- 2026-10-12：Music4Allの楽曲・ユーザー各100件を取り込み、再実行で同じsnapshotを再利用。成功runは2件。[取り込み結果](music4all-import.md#実データでの検証結果)

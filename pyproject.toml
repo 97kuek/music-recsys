@@ -13,6 +13,7 @@ dependencies = []
 [project.scripts]
 music-recsys-benchmark = "music_recsys.evaluation.benchmark:main"
 music-recsys-profile = "music_recsys.music4all:main"
+music-recsys-import = "music_recsys.ingestion.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/music_recsys"]
