@@ -1,0 +1,5 @@
+[benchmark]
+dataset = "../examples/toy/dataset.json"
+model = "popularity"
+top_k = 2
+seed = 42
