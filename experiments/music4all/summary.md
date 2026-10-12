@@ -3,7 +3,7 @@
 - 実行日：2026-10-12。
 - [出典・取得手順](../../data/README.md)：時刻付きイベントをサイズ・MD5照合後に全量集計。
 - モデル学習・実データのNDCG / Recall計測は未実施。
-- [集計JSON](eda/profile.json)、[日別件数](eda/daily_counts.csv)、[品質診断](eda/time-quality.json)、[Notebook](../../notebooks/02_music4all_data_profile.ipynb)。
+- [集計JSON](eda/profile.json)、[日別件数](eda/daily_counts.csv)、[品質診断](eda/time-quality.json)、[Notebook](../../notebooks/01_data.ipynb)。
 
 ## 件数と分割候補
 

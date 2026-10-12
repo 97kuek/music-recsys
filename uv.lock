@@ -1370,6 +1370,7 @@ source = { editable = "." }
 [package.dev-dependencies]
 data = [
     { name = "duckdb" },
+    { name = "pandas" },
     { name = "pyarrow" },
 ]
 db = [
@@ -1399,6 +1400,7 @@ tracking = [
 [package.metadata.requires-dev]
 data = [
     { name = "duckdb", specifier = ">=1.4,<2" },
+    { name = "pandas", specifier = "==3.0.6" },
     { name = "pyarrow", specifier = ">=19,<26" },
 ]
 db = [

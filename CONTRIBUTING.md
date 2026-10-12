@@ -6,7 +6,8 @@
 - `src/music_recsys/`に実装し、型ヒントを使う。
 - 推薦モデル・評価・LLM / Agent・UIを分離する。推薦エンジンを単独で利用できるようにする。
 - 必要なディレクトリ・実装だけを段階的に追加し、過度な抽象化を避ける。
-- NotebookからPythonコードを呼んで検証する。UIは後で作る。
+- Notebookは分析・可視化を中心にし、データ処理・モデル学習・評価は`src/`のPythonコードを呼ぶ。UIは後で作る。
+- `01_data.ipynb`は保存済みデータの読込み・検証・EDA・分割状態の確認、`02_recommendation.ipynb`は推薦結果分析、`03_analysis.ipynb`は指標可視化・比較・考察。
 
 ```bash
 uv sync --locked --python "$(pyenv which python)" --group data --group notebook
@@ -15,14 +16,17 @@ uv sync --locked --python "$(pyenv which python)" --group data --group notebook
 | 用途 | コマンド |
 | --- | --- |
 | 合成データの評価 | `uv run --locked music-recsys-benchmark --config configs/toy.toml` |
-| Notebook | `uv run --locked --group notebook jupyter lab` |
-| 全テスト | `uv run --locked --group data --group notebook pytest` |
-| 静的解析 | `uv run --locked ruff check src tests notebooks` |
-| 整形確認 | `uv run --locked ruff format --check src tests notebooks` |
+| MLflowで評価を記録 | `uv run --locked --group tracking music-recsys-benchmark --config configs/toy-mlflow.toml` |
+| Notebook | `uv run --locked --group data --group notebook --group tracking jupyter lab` |
+| 全テスト | `uv run --locked --group data --group notebook --group tracking pytest` |
+| 静的解析 | `uv run --locked ruff check src tests notebooks migrations` |
+| 整形確認 | `uv run --locked ruff format --check src tests notebooks migrations` |
 | ビルド | `uv build` |
 
 - PostgreSQL + pgvectorはDocker Compose、スキーマ変更はAlembicで管理する。[ローカルDBの手順](docs/local-db.md)
 - DB関連のPython依存は`uv sync --locked --group db`で追加する。
+- DBテストは明示的に有効化し、専用schemaで実行する。[実行コマンド](docs/local-db.md#dbテスト)
+- MLflowは`tracking`依存groupで導入し、専用PostgreSQL DBとGit管理外の成果物保存先を使う。[設定・起動・Notebookの手順](docs/mlflow.md)
 
 ## ブランチ
 

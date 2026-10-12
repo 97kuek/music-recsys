@@ -1,0 +1,17 @@
+{
+  "kind": "synthetic_catalog_fixture",
+  "dataset_key": "synthetic-catalog",
+  "version_label": "fixture-v1",
+  "source_ref": "repository:examples/catalog/snapshot.json",
+  "snapshot_id": null,
+  "tracks": [
+    {"internal_id": "00000000-0000-4000-8000-000000000001", "source_id": "synthetic-track-a", "payload": {"tags": {"rock": 80, "pop": 20}}},
+    {"internal_id": "00000000-0000-4000-8000-000000000002", "source_id": "synthetic-track-b", "payload": {"tags": {"rock": 40}}},
+    {"internal_id": "00000000-0000-4000-8000-000000000003", "source_id": "synthetic-track-c", "payload": null},
+    {"internal_id": "00000000-0000-4000-8000-000000000004", "source_id": "synthetic-track-d", "payload": {"tags": {}}}
+  ],
+  "users": [
+    {"internal_id": "00000000-0000-4000-8000-000000000005", "source_id": "synthetic-user-a"},
+    {"internal_id": "00000000-0000-4000-8000-000000000006", "source_id": "synthetic-user-b"}
+  ]
+}

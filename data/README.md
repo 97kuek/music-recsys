@@ -44,4 +44,4 @@ uv run --locked --group data music-recsys-profile \
 - 出力：`runs/<実行ID>/profile.json`、`daily_counts.csv`、`summary.md`。
 - 指定境界を調べる場合：`--train-end YYYY-MM-DD --validation-end YYYY-MM-DD`。
 - [調査結果](../experiments/music4all/summary.md) に共有用集計を保存。
-- [Notebook](../notebooks/02_music4all_data_profile.ipynb) は保存済み`experiments/music4all/eda/profile.json`を読む。別のJSONは環境変数`MUSIC_RECSYS_PROFILE`に絶対パスを指定する。
+- [01_data Notebook](../notebooks/01_data.ipynb) は保存済み`experiments/music4all/eda/profile.json`を読む。別のJSONは環境変数`MUSIC_RECSYS_PROFILE`に絶対パスを指定する。

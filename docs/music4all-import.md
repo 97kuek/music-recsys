@@ -58,7 +58,7 @@ finally:
     engine.dispose()
 ```
 
-- Notebookもload_snapshotで保存済みデータを読む。起動は`uv run --env-file .env --group db --group data --group notebook jupyter lab`。
+- `01_data.ipynb`は保存済みsnapshotを読み取る。取り込みはNotebook外のCLIで実行する。`.env`を渡して起動する場合は`uv run --env-file .env --group data --group notebook --group tracking jupyter lab`。
 - 個々の楽曲・ユーザーはsnapshotを指定して読む。台帳全体から最新の内容を暗黙に選ばない。
 
 ## 実データでの検証結果

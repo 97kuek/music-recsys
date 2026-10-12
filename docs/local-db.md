@@ -68,3 +68,5 @@ MUSIC_RECSYS_TEST_DB=1 uv run --locked --env-file .env --group db --group data -
 - DB60件・既存56件の計116件、Ruff、upgrade / downgrade SQL生成、ビルドを確認。公開の原子性・再実行・ロック待ちを含む同時公開・変更拒否を検証。
 - 検証用schemaの残存は0。テスト用の行は通常DBに残していない。
 - 2026-10-12：Music4Allの楽曲・ユーザー各100件を取り込み、再実行で同じsnapshotを再利用。成功runは2件。[取り込み結果](music4all-import.md#実データでの検証結果)
+- MLflowとNotebook 3冊を含む全201件のテスト、Ruff・整形、ビルドを確認。
+- `01_data.ipynb`で公開snapshotを読み取り専用SQLからDataFrameへ取得し、件数・所属・hash・Parquet一致を検証。実行前後でDB件数が変化しないことを確認。
