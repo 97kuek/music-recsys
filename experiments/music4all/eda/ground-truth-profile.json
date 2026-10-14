@@ -1,0 +1,2008 @@
+{
+  "created_at_utc": "2026-10-14T02:47:55.128075+00:00",
+  "analysis_source_sha256": "906b6a6c2bc347c89f6c91e0c5112a5634ed7595a5d2878cc310762939094f24",
+  "duckdb_version": "1.5.6",
+  "source_parquet_sha256": "f12cffed51730afd4ba527baae4bcc025236577ebe5a0b6c31d5240808666cfa",
+  "source_manifest": {
+    "format_version": 1,
+    "pyarrow_version": "25.0.1",
+    "source_sha256": "05f22c3c316cd62ee6f41ec82cab2c32486d9b575577518a6473c60e7ddfb1c1",
+    "parquet_sha256": "f12cffed51730afd4ba527baae4bcc025236577ebe5a0b6c31d5240808666cfa",
+    "source_bytes": 2211449511,
+    "n_events": 252984396,
+    "timestamp_interpretation": "timezone-naive values as provided; timezone not verified"
+  },
+  "train_end": "2017-03-29T00:00:00",
+  "validation_end": "2018-09-21T00:00:00",
+  "timezone": "source-naive calendar dates; no UTC or JST conversion",
+  "test_used_for_analysis": false,
+  "quantile_method": "exact quantile_disc; positive user-item pairs",
+  "resources": {
+    "memory_limit": "2GB",
+    "threads": 2,
+    "user_hash_partitions": 32
+  },
+  "windows": {
+    "30d": {
+      "days": 30,
+      "end_exclusive": "2017-04-28T00:00:00",
+      "reason_counts": {
+        "cold_user": {
+          "pairs": 4,
+          "events": 4,
+          "users": 1
+        },
+        "repeat": {
+          "pairs": 555453,
+          "events": 1033693,
+          "users": 16460
+        },
+        "new": {
+          "pairs": 214879,
+          "events": 367440,
+          "users": 14744
+        },
+        "cold_item": {
+          "pairs": 12713,
+          "events": 39435,
+          "users": 4037
+        }
+      },
+      "categories": {
+        "new": {
+          "pairs": 214879,
+          "users_with_positive_pairs": 14744,
+          "events": 367440,
+          "play_count_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 1,
+            "0.9": 3,
+            "0.95": 4,
+            "0.99": 12,
+            "1": 2465
+          },
+          "active_days_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 1,
+            "0.9": 2,
+            "0.95": 3,
+            "0.99": 6,
+            "1": 29
+          },
+          "log_count_day_correlation": 0.8732995341575349,
+          "count_100_plus_pairs": 31,
+          "count_100_plus_single_day_pairs": 1,
+          "threshold_counts": {
+            "play_count": {
+              "1": 214879,
+              "2": 50214,
+              "3": 22572,
+              "5": 9435,
+              "10": 3081,
+              "20": 885,
+              "50": 113,
+              "100": 31
+            },
+            "active_days": {
+              "1": 214879,
+              "2": 36251,
+              "3": 14332,
+              "5": 4297,
+              "10": 558,
+              "20": 16,
+              "50": 0,
+              "100": 0
+            }
+          },
+          "per_user_positive_pairs_quantiles": {
+            "0": 1,
+            "0.25": 3,
+            "0.5": 8,
+            "0.75": 19,
+            "0.9": 35,
+            "0.95": 49,
+            "0.99": 92,
+            "1": 338
+          },
+          "per_user_multiday_pairs_quantiles": {
+            "0": 0,
+            "0.25": 0,
+            "0.5": 1,
+            "0.75": 3,
+            "0.9": 7,
+            "0.95": 11,
+            "0.99": 23,
+            "1": 100
+          },
+          "user_macro_multiday_fraction_among_positive_users": 0.15858028803773194,
+          "play_day_cross_counts": [
+            {
+              "plays": "1",
+              "days": "1",
+              "pairs": 164665
+            },
+            {
+              "plays": "10-99",
+              "days": "1",
+              "pairs": 101
+            },
+            {
+              "plays": "10-99",
+              "days": "10+",
+              "pairs": 544
+            },
+            {
+              "plays": "10-99",
+              "days": "2-4",
+              "pairs": 773
+            },
+            {
+              "plays": "10-99",
+              "days": "5-9",
+              "pairs": 1632
+            },
+            {
+              "plays": "100+",
+              "days": "1",
+              "pairs": 1
+            },
+            {
+              "plays": "100+",
+              "days": "10+",
+              "pairs": 14
+            },
+            {
+              "plays": "100+",
+              "days": "2-4",
+              "pairs": 3
+            },
+            {
+              "plays": "100+",
+              "days": "5-9",
+              "pairs": 13
+            },
+            {
+              "plays": "2-4",
+              "days": "1",
+              "pairs": 13461
+            },
+            {
+              "plays": "2-4",
+              "days": "2-4",
+              "pairs": 27318
+            },
+            {
+              "plays": "5-9",
+              "days": "1",
+              "pairs": 400
+            },
+            {
+              "plays": "5-9",
+              "days": "2-4",
+              "pairs": 3860
+            },
+            {
+              "plays": "5-9",
+              "days": "5-9",
+              "pairs": 2094
+            }
+          ]
+        },
+        "repeat": {
+          "pairs": 555453,
+          "users_with_positive_pairs": 16460,
+          "events": 1033693,
+          "play_count_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 2,
+            "0.9": 3,
+            "0.95": 5,
+            "0.99": 12,
+            "1": 2049
+          },
+          "active_days_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 1,
+            "0.9": 3,
+            "0.95": 4,
+            "0.99": 7,
+            "1": 30
+          },
+          "log_count_day_correlation": 0.8956396298391006,
+          "count_100_plus_pairs": 89,
+          "count_100_plus_single_day_pairs": 2,
+          "threshold_counts": {
+            "play_count": {
+              "1": 555453,
+              "2": 171427,
+              "3": 79464,
+              "5": 30183,
+              "10": 8214,
+              "20": 2160,
+              "50": 330,
+              "100": 89
+            },
+            "active_days": {
+              "1": 555453,
+              "2": 138848,
+              "3": 57948,
+              "5": 17581,
+              "10": 2898,
+              "20": 196,
+              "50": 0,
+              "100": 0
+            }
+          },
+          "per_user_positive_pairs_quantiles": {
+            "0": 1,
+            "0.25": 6,
+            "0.5": 17,
+            "0.75": 43,
+            "0.9": 82,
+            "0.95": 118,
+            "0.99": 225,
+            "1": 952
+          },
+          "per_user_multiday_pairs_quantiles": {
+            "0": 0,
+            "0.25": 0,
+            "0.5": 2,
+            "0.75": 9,
+            "0.9": 23,
+            "0.95": 35,
+            "0.99": 80,
+            "1": 641
+          },
+          "user_macro_multiday_fraction_among_positive_users": 0.19339957712369663,
+          "play_day_cross_counts": [
+            {
+              "plays": "1",
+              "days": "1",
+              "pairs": 384026
+            },
+            {
+              "plays": "10-99",
+              "days": "1",
+              "pairs": 302
+            },
+            {
+              "plays": "10-99",
+              "days": "10+",
+              "pairs": 2846
+            },
+            {
+              "plays": "10-99",
+              "days": "2-4",
+              "pairs": 1376
+            },
+            {
+              "plays": "10-99",
+              "days": "5-9",
+              "pairs": 3601
+            },
+            {
+              "plays": "100+",
+              "days": "1",
+              "pairs": 2
+            },
+            {
+              "plays": "100+",
+              "days": "10+",
+              "pairs": 52
+            },
+            {
+              "plays": "100+",
+              "days": "2-4",
+              "pairs": 19
+            },
+            {
+              "plays": "100+",
+              "days": "5-9",
+              "pairs": 16
+            },
+            {
+              "plays": "2-4",
+              "days": "1",
+              "pairs": 31129
+            },
+            {
+              "plays": "2-4",
+              "days": "2-4",
+              "pairs": 110115
+            },
+            {
+              "plays": "5-9",
+              "days": "1",
+              "pairs": 1146
+            },
+            {
+              "plays": "5-9",
+              "days": "2-4",
+              "pairs": 9757
+            },
+            {
+              "plays": "5-9",
+              "days": "5-9",
+              "pairs": 11066
+            }
+          ]
+        }
+      },
+      "new_fixed_30day_followup": {
+        "pairs": 7979,
+        "users_with_positive_pairs": 2593,
+        "events": 15557,
+        "play_count_quantiles": {
+          "0": 1,
+          "0.25": 1,
+          "0.5": 1,
+          "0.75": 2,
+          "0.9": 3,
+          "0.95": 5,
+          "0.99": 14,
+          "1": 205
+        },
+        "active_days_quantiles": {
+          "0": 1,
+          "0.25": 1,
+          "0.5": 1,
+          "0.75": 1,
+          "0.9": 2,
+          "0.95": 4,
+          "0.99": 9,
+          "1": 22
+        },
+        "log_count_day_correlation": 0.9078195844703921,
+        "count_100_plus_pairs": 4,
+        "count_100_plus_single_day_pairs": 0,
+        "threshold_counts": {
+          "play_count": {
+            "1": 7979,
+            "2": 2218,
+            "3": 1048,
+            "5": 501,
+            "10": 177,
+            "20": 47,
+            "50": 8,
+            "100": 4
+          },
+          "active_days": {
+            "1": 7979,
+            "2": 1723,
+            "3": 761,
+            "5": 296,
+            "10": 64,
+            "20": 6,
+            "50": 0,
+            "100": 0
+          }
+        },
+        "per_user_positive_pairs_quantiles": {
+          "0": 1,
+          "0.25": 1,
+          "0.5": 2,
+          "0.75": 4,
+          "0.9": 7,
+          "0.95": 10,
+          "0.99": 16,
+          "1": 38
+        },
+        "per_user_multiday_pairs_quantiles": {
+          "0": 0,
+          "0.25": 0,
+          "0.5": 0,
+          "0.75": 1,
+          "0.9": 2,
+          "0.95": 3,
+          "0.99": 8,
+          "1": 19
+        },
+        "user_macro_multiday_fraction_among_positive_users": 0.2292757149226242,
+        "play_day_cross_counts": [
+          {
+            "plays": "1",
+            "days": "1",
+            "pairs": 5761
+          },
+          {
+            "plays": "10-99",
+            "days": "1",
+            "pairs": 3
+          },
+          {
+            "plays": "10-99",
+            "days": "10+",
+            "pairs": 62
+          },
+          {
+            "plays": "10-99",
+            "days": "2-4",
+            "pairs": 22
+          },
+          {
+            "plays": "10-99",
+            "days": "5-9",
+            "pairs": 86
+          },
+          {
+            "plays": "100+",
+            "days": "10+",
+            "pairs": 2
+          },
+          {
+            "plays": "100+",
+            "days": "5-9",
+            "pairs": 2
+          },
+          {
+            "plays": "2-4",
+            "days": "1",
+            "pairs": 476
+          },
+          {
+            "plays": "2-4",
+            "days": "2-4",
+            "pairs": 1241
+          },
+          {
+            "plays": "5-9",
+            "days": "1",
+            "pairs": 16
+          },
+          {
+            "plays": "5-9",
+            "days": "2-4",
+            "pairs": 164
+          },
+          {
+            "plays": "5-9",
+            "days": "5-9",
+            "pairs": 144
+          }
+        ],
+        "followup_calendar_days": 30,
+        "late_first_play_excluded_pairs": 206900
+      }
+    },
+    "90d": {
+      "days": 90,
+      "end_exclusive": "2017-06-27T00:00:00",
+      "reason_counts": {
+        "cold_user": {
+          "pairs": 54,
+          "events": 62,
+          "users": 1
+        },
+        "repeat": {
+          "pairs": 1215238,
+          "events": 2822191,
+          "users": 19268
+        },
+        "new": {
+          "pairs": 603121,
+          "events": 1181592,
+          "users": 18601
+        },
+        "cold_item": {
+          "pairs": 97277,
+          "events": 340050,
+          "users": 10314
+        }
+      },
+      "categories": {
+        "new": {
+          "pairs": 603121,
+          "users_with_positive_pairs": 18601,
+          "events": 1181592,
+          "play_count_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 2,
+            "0.9": 3,
+            "0.95": 5,
+            "0.99": 15,
+            "1": 2465
+          },
+          "active_days_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 1,
+            "0.9": 2,
+            "0.95": 4,
+            "0.99": 9,
+            "1": 57
+          },
+          "log_count_day_correlation": 0.9121431543309964,
+          "count_100_plus_pairs": 184,
+          "count_100_plus_single_day_pairs": 2,
+          "threshold_counts": {
+            "play_count": {
+              "1": 603121,
+              "2": 166698,
+              "3": 81060,
+              "5": 36698,
+              "10": 12778,
+              "20": 3962,
+              "50": 691,
+              "100": 184
+            },
+            "active_days": {
+              "1": 603121,
+              "2": 130918,
+              "3": 59029,
+              "5": 22661,
+              "10": 5297,
+              "20": 789,
+              "50": 8,
+              "100": 0
+            }
+          },
+          "per_user_positive_pairs_quantiles": {
+            "0": 1,
+            "0.25": 6,
+            "0.5": 18,
+            "0.75": 42,
+            "0.9": 80,
+            "0.95": 111,
+            "0.99": 203,
+            "1": 694
+          },
+          "per_user_multiday_pairs_quantiles": {
+            "0": 0,
+            "0.25": 0,
+            "0.5": 3,
+            "0.75": 9,
+            "0.9": 19,
+            "0.95": 28,
+            "0.99": 57,
+            "1": 189
+          },
+          "user_macro_multiday_fraction_among_positive_users": 0.20079153942824904,
+          "play_day_cross_counts": [
+            {
+              "plays": "1",
+              "days": "1",
+              "pairs": 436423
+            },
+            {
+              "plays": "10-99",
+              "days": "1",
+              "pairs": 213
+            },
+            {
+              "plays": "10-99",
+              "days": "10+",
+              "pairs": 5164
+            },
+            {
+              "plays": "10-99",
+              "days": "2-4",
+              "pairs": 1685
+            },
+            {
+              "plays": "10-99",
+              "days": "5-9",
+              "pairs": 5532
+            },
+            {
+              "plays": "100+",
+              "days": "1",
+              "pairs": 2
+            },
+            {
+              "plays": "100+",
+              "days": "10+",
+              "pairs": 133
+            },
+            {
+              "plays": "100+",
+              "days": "2-4",
+              "pairs": 8
+            },
+            {
+              "plays": "100+",
+              "days": "5-9",
+              "pairs": 41
+            },
+            {
+              "plays": "2-4",
+              "days": "1",
+              "pairs": 34638
+            },
+            {
+              "plays": "2-4",
+              "days": "2-4",
+              "pairs": 95362
+            },
+            {
+              "plays": "5-9",
+              "days": "1",
+              "pairs": 927
+            },
+            {
+              "plays": "5-9",
+              "days": "2-4",
+              "pairs": 11202
+            },
+            {
+              "plays": "5-9",
+              "days": "5-9",
+              "pairs": 11791
+            }
+          ]
+        },
+        "repeat": {
+          "pairs": 1215238,
+          "users_with_positive_pairs": 19268,
+          "events": 2822191,
+          "play_count_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 2,
+            "0.9": 4,
+            "0.95": 7,
+            "0.99": 17,
+            "1": 5843
+          },
+          "active_days_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 2,
+            "0.9": 4,
+            "0.95": 5,
+            "0.99": 12,
+            "1": 90
+          },
+          "log_count_day_correlation": 0.9334368491572902,
+          "count_100_plus_pairs": 288,
+          "count_100_plus_single_day_pairs": 4,
+          "threshold_counts": {
+            "play_count": {
+              "1": 1215238,
+              "2": 475146,
+              "3": 251270,
+              "5": 110659,
+              "10": 33374,
+              "20": 9067,
+              "50": 1327,
+              "100": 288
+            },
+            "active_days": {
+              "1": 1215238,
+              "2": 416185,
+              "3": 206656,
+              "5": 80253,
+              "10": 18966,
+              "20": 3405,
+              "50": 132,
+              "100": 0
+            }
+          },
+          "per_user_positive_pairs_quantiles": {
+            "0": 1,
+            "0.25": 10,
+            "0.5": 32,
+            "0.75": 82,
+            "0.9": 157,
+            "0.95": 225,
+            "0.99": 423,
+            "1": 2142
+          },
+          "per_user_multiday_pairs_quantiles": {
+            "0": 0,
+            "0.25": 1,
+            "0.5": 7,
+            "0.75": 25,
+            "0.9": 58,
+            "0.95": 89,
+            "0.99": 190,
+            "1": 1275
+          },
+          "user_macro_multiday_fraction_among_positive_users": 0.2577072942624859,
+          "play_day_cross_counts": [
+            {
+              "plays": "1",
+              "days": "1",
+              "pairs": 740092
+            },
+            {
+              "plays": "10-99",
+              "days": "1",
+              "pairs": 510
+            },
+            {
+              "plays": "10-99",
+              "days": "10+",
+              "pairs": 18739
+            },
+            {
+              "plays": "10-99",
+              "days": "2-4",
+              "pairs": 2845
+            },
+            {
+              "plays": "10-99",
+              "days": "5-9",
+              "pairs": 10992
+            },
+            {
+              "plays": "100+",
+              "days": "1",
+              "pairs": 4
+            },
+            {
+              "plays": "100+",
+              "days": "10+",
+              "pairs": 227
+            },
+            {
+              "plays": "100+",
+              "days": "2-4",
+              "pairs": 25
+            },
+            {
+              "plays": "100+",
+              "days": "5-9",
+              "pairs": 32
+            },
+            {
+              "plays": "2-4",
+              "days": "1",
+              "pairs": 56457
+            },
+            {
+              "plays": "2-4",
+              "days": "2-4",
+              "pairs": 308030
+            },
+            {
+              "plays": "5-9",
+              "days": "1",
+              "pairs": 1990
+            },
+            {
+              "plays": "5-9",
+              "days": "2-4",
+              "pairs": 25032
+            },
+            {
+              "plays": "5-9",
+              "days": "5-9",
+              "pairs": 50263
+            }
+          ]
+        }
+      },
+      "new_fixed_30day_followup": {
+        "pairs": 421685,
+        "users_with_positive_pairs": 17370,
+        "events": 791105,
+        "play_count_quantiles": {
+          "0": 1,
+          "0.25": 1,
+          "0.5": 1,
+          "0.75": 2,
+          "0.9": 3,
+          "0.95": 5,
+          "0.99": 14,
+          "1": 2465
+        },
+        "active_days_quantiles": {
+          "0": 1,
+          "0.25": 1,
+          "0.5": 1,
+          "0.75": 1,
+          "0.9": 2,
+          "0.95": 4,
+          "0.99": 8,
+          "1": 30
+        },
+        "log_count_day_correlation": 0.9028077379746641,
+        "count_100_plus_pairs": 93,
+        "count_100_plus_single_day_pairs": 1,
+        "threshold_counts": {
+          "play_count": {
+            "1": 421685,
+            "2": 112520,
+            "3": 53468,
+            "5": 23678,
+            "10": 7938,
+            "20": 2327,
+            "50": 339,
+            "100": 93
+          },
+          "active_days": {
+            "1": 421685,
+            "2": 87594,
+            "3": 37969,
+            "5": 13462,
+            "10": 2515,
+            "20": 150,
+            "50": 0,
+            "100": 0
+          }
+        },
+        "per_user_positive_pairs_quantiles": {
+          "0": 1,
+          "0.25": 5,
+          "0.5": 14,
+          "0.75": 31,
+          "0.9": 60,
+          "0.95": 83,
+          "0.99": 155,
+          "1": 624
+        },
+        "per_user_multiday_pairs_quantiles": {
+          "0": 0,
+          "0.25": 0,
+          "0.5": 2,
+          "0.75": 6,
+          "0.9": 14,
+          "0.95": 21,
+          "0.99": 42,
+          "1": 162
+        },
+        "user_macro_multiday_fraction_among_positive_users": 0.1981807861785289,
+        "play_day_cross_counts": [
+          {
+            "plays": "1",
+            "days": "1",
+            "pairs": 309165
+          },
+          {
+            "plays": "10-99",
+            "days": "1",
+            "pairs": 164
+          },
+          {
+            "plays": "10-99",
+            "days": "10+",
+            "pairs": 2461
+          },
+          {
+            "plays": "10-99",
+            "days": "2-4",
+            "pairs": 1279
+          },
+          {
+            "plays": "10-99",
+            "days": "5-9",
+            "pairs": 3941
+          },
+          {
+            "plays": "100+",
+            "days": "1",
+            "pairs": 1
+          },
+          {
+            "plays": "100+",
+            "days": "10+",
+            "pairs": 54
+          },
+          {
+            "plays": "100+",
+            "days": "2-4",
+            "pairs": 5
+          },
+          {
+            "plays": "100+",
+            "days": "5-9",
+            "pairs": 33
+          },
+          {
+            "plays": "2-4",
+            "days": "1",
+            "pairs": 24094
+          },
+          {
+            "plays": "2-4",
+            "days": "2-4",
+            "pairs": 64748
+          },
+          {
+            "plays": "5-9",
+            "days": "1",
+            "pairs": 667
+          },
+          {
+            "plays": "5-9",
+            "days": "2-4",
+            "pairs": 8100
+          },
+          {
+            "plays": "5-9",
+            "days": "5-9",
+            "pairs": 6973
+          }
+        ],
+        "followup_calendar_days": 30,
+        "late_first_play_excluded_pairs": 181436
+      }
+    },
+    "180d": {
+      "days": 180,
+      "end_exclusive": "2017-09-25T00:00:00",
+      "reason_counts": {
+        "cold_user": {
+          "pairs": 85,
+          "events": 109,
+          "users": 1
+        },
+        "repeat": {
+          "pairs": 1866165,
+          "events": 5189511,
+          "users": 20876
+        },
+        "new": {
+          "pairs": 1108411,
+          "events": 2412670,
+          "users": 20702
+        },
+        "cold_item": {
+          "pairs": 243332,
+          "events": 942250,
+          "users": 14221
+        }
+      },
+      "categories": {
+        "new": {
+          "pairs": 1108411,
+          "users_with_positive_pairs": 20702,
+          "events": 2412670,
+          "play_count_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 2,
+            "0.9": 4,
+            "0.95": 6,
+            "0.99": 18,
+            "1": 2465
+          },
+          "active_days_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 2,
+            "0.9": 3,
+            "0.95": 5,
+            "0.99": 11,
+            "1": 117
+          },
+          "log_count_day_correlation": 0.9282326276351623,
+          "count_100_plus_pairs": 462,
+          "count_100_plus_single_day_pairs": 4,
+          "threshold_counts": {
+            "play_count": {
+              "1": 1108411,
+              "2": 340989,
+              "3": 174534,
+              "5": 82018,
+              "10": 30218,
+              "20": 9882,
+              "50": 1818,
+              "100": 462
+            },
+            "active_days": {
+              "1": 1108411,
+              "2": 278294,
+              "3": 134414,
+              "5": 56602,
+              "10": 15907,
+              "20": 3241,
+              "50": 170,
+              "100": 4
+            }
+          },
+          "per_user_positive_pairs_quantiles": {
+            "0": 1,
+            "0.25": 9,
+            "0.5": 29,
+            "0.75": 72,
+            "0.9": 133,
+            "0.95": 185,
+            "0.99": 330,
+            "1": 1357
+          },
+          "per_user_multiday_pairs_quantiles": {
+            "0": 0,
+            "0.25": 1,
+            "0.5": 6,
+            "0.75": 17,
+            "0.9": 36,
+            "0.95": 52,
+            "0.99": 104,
+            "1": 394
+          },
+          "user_macro_multiday_fraction_among_positive_users": 0.22515159317879066,
+          "play_day_cross_counts": [
+            {
+              "plays": "1",
+              "days": "1",
+              "pairs": 767422
+            },
+            {
+              "plays": "10-99",
+              "days": "1",
+              "pairs": 412
+            },
+            {
+              "plays": "10-99",
+              "days": "10+",
+              "pairs": 15536
+            },
+            {
+              "plays": "10-99",
+              "days": "2-4",
+              "pairs": 2784
+            },
+            {
+              "plays": "10-99",
+              "days": "5-9",
+              "pairs": 11024
+            },
+            {
+              "plays": "100+",
+              "days": "1",
+              "pairs": 4
+            },
+            {
+              "plays": "100+",
+              "days": "10+",
+              "pairs": 371
+            },
+            {
+              "plays": "100+",
+              "days": "2-4",
+              "pairs": 19
+            },
+            {
+              "plays": "100+",
+              "days": "5-9",
+              "pairs": 68
+            },
+            {
+              "plays": "2-4",
+              "days": "1",
+              "pairs": 60649
+            },
+            {
+              "plays": "2-4",
+              "days": "2-4",
+              "pairs": 198322
+            },
+            {
+              "plays": "5-9",
+              "days": "1",
+              "pairs": 1630
+            },
+            {
+              "plays": "5-9",
+              "days": "2-4",
+              "pairs": 20567
+            },
+            {
+              "plays": "5-9",
+              "days": "5-9",
+              "pairs": 29603
+            }
+          ]
+        },
+        "repeat": {
+          "pairs": 1866165,
+          "users_with_positive_pairs": 20876,
+          "events": 5189511,
+          "play_count_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 3,
+            "0.9": 5,
+            "0.95": 8,
+            "0.99": 22,
+            "1": 10304
+          },
+          "active_days_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 2,
+            "0.9": 4,
+            "0.95": 7,
+            "0.99": 16,
+            "1": 178
+          },
+          "log_count_day_correlation": 0.9474946941603453,
+          "count_100_plus_pairs": 759,
+          "count_100_plus_single_day_pairs": 6,
+          "threshold_counts": {
+            "play_count": {
+              "1": 1866165,
+              "2": 838785,
+              "3": 481320,
+              "5": 231296,
+              "10": 77940,
+              "20": 22687,
+              "50": 3788,
+              "100": 759
+            },
+            "active_days": {
+              "1": 1866165,
+              "2": 756066,
+              "3": 413905,
+              "5": 182132,
+              "10": 52040,
+              "20": 11292,
+              "50": 920,
+              "100": 44
+            }
+          },
+          "per_user_positive_pairs_quantiles": {
+            "0": 1,
+            "0.25": 13,
+            "0.5": 45,
+            "0.75": 116,
+            "0.9": 223,
+            "0.95": 322,
+            "0.99": 597,
+            "1": 2805
+          },
+          "per_user_multiday_pairs_quantiles": {
+            "0": 0,
+            "0.25": 2,
+            "0.5": 13,
+            "0.75": 45,
+            "0.9": 98,
+            "0.95": 146,
+            "0.99": 301,
+            "1": 2254
+          },
+          "user_macro_multiday_fraction_among_positive_users": 0.30365258290270475,
+          "play_day_cross_counts": [
+            {
+              "plays": "1",
+              "days": "1",
+              "pairs": 1027380
+            },
+            {
+              "plays": "10-99",
+              "days": "1",
+              "pairs": 818
+            },
+            {
+              "plays": "10-99",
+              "days": "10+",
+              "pairs": 51376
+            },
+            {
+              "plays": "10-99",
+              "days": "2-4",
+              "pairs": 4504
+            },
+            {
+              "plays": "10-99",
+              "days": "5-9",
+              "pairs": 20483
+            },
+            {
+              "plays": "100+",
+              "days": "1",
+              "pairs": 6
+            },
+            {
+              "plays": "100+",
+              "days": "10+",
+              "pairs": 664
+            },
+            {
+              "plays": "100+",
+              "days": "2-4",
+              "pairs": 29
+            },
+            {
+              "plays": "100+",
+              "days": "5-9",
+              "pairs": 60
+            },
+            {
+              "plays": "2-4",
+              "days": "1",
+              "pairs": 79134
+            },
+            {
+              "plays": "2-4",
+              "days": "2-4",
+              "pairs": 528355
+            },
+            {
+              "plays": "5-9",
+              "days": "1",
+              "pairs": 2761
+            },
+            {
+              "plays": "5-9",
+              "days": "2-4",
+              "pairs": 41046
+            },
+            {
+              "plays": "5-9",
+              "days": "5-9",
+              "pairs": 109549
+            }
+          ]
+        }
+      },
+      "new_fixed_30day_followup": {
+        "pairs": 952562,
+        "users_with_positive_pairs": 20122,
+        "events": 1750272,
+        "play_count_quantiles": {
+          "0": 1,
+          "0.25": 1,
+          "0.5": 1,
+          "0.75": 2,
+          "0.9": 3,
+          "0.95": 5,
+          "0.99": 13,
+          "1": 2465
+        },
+        "active_days_quantiles": {
+          "0": 1,
+          "0.25": 1,
+          "0.5": 1,
+          "0.75": 1,
+          "0.9": 2,
+          "0.95": 3,
+          "0.99": 7,
+          "1": 30
+        },
+        "log_count_day_correlation": 0.90015244134208,
+        "count_100_plus_pairs": 250,
+        "count_100_plus_single_day_pairs": 4,
+        "threshold_counts": {
+          "play_count": {
+            "1": 952562,
+            "2": 248028,
+            "3": 115572,
+            "5": 49937,
+            "10": 16308,
+            "20": 4841,
+            "50": 821,
+            "100": 250
+          },
+          "active_days": {
+            "1": 952562,
+            "2": 189825,
+            "3": 80648,
+            "5": 28311,
+            "10": 5185,
+            "20": 353,
+            "50": 0,
+            "100": 0
+          }
+        },
+        "per_user_positive_pairs_quantiles": {
+          "0": 1,
+          "0.25": 8,
+          "0.5": 25,
+          "0.75": 63,
+          "0.9": 116,
+          "0.95": 164,
+          "0.99": 293,
+          "1": 1231
+        },
+        "per_user_multiday_pairs_quantiles": {
+          "0": 0,
+          "0.25": 0,
+          "0.5": 4,
+          "0.75": 12,
+          "0.9": 25,
+          "0.95": 37,
+          "0.99": 75,
+          "1": 281
+        },
+        "user_macro_multiday_fraction_among_positive_users": 0.18886607572837597,
+        "play_day_cross_counts": [
+          {
+            "plays": "1",
+            "days": "1",
+            "pairs": 704534
+          },
+          {
+            "plays": "10-99",
+            "days": "1",
+            "pairs": 376
+          },
+          {
+            "plays": "10-99",
+            "days": "10+",
+            "pairs": 5014
+          },
+          {
+            "plays": "10-99",
+            "days": "2-4",
+            "pairs": 2589
+          },
+          {
+            "plays": "10-99",
+            "days": "5-9",
+            "pairs": 8079
+          },
+          {
+            "plays": "100+",
+            "days": "1",
+            "pairs": 4
+          },
+          {
+            "plays": "100+",
+            "days": "10+",
+            "pairs": 171
+          },
+          {
+            "plays": "100+",
+            "days": "2-4",
+            "pairs": 25
+          },
+          {
+            "plays": "100+",
+            "days": "5-9",
+            "pairs": 50
+          },
+          {
+            "plays": "2-4",
+            "days": "1",
+            "pairs": 56271
+          },
+          {
+            "plays": "2-4",
+            "days": "2-4",
+            "pairs": 141820
+          },
+          {
+            "plays": "5-9",
+            "days": "1",
+            "pairs": 1552
+          },
+          {
+            "plays": "5-9",
+            "days": "2-4",
+            "pairs": 17080
+          },
+          {
+            "plays": "5-9",
+            "days": "5-9",
+            "pairs": 14997
+          }
+        ],
+        "followup_calendar_days": 30,
+        "late_first_play_excluded_pairs": 155849
+      }
+    },
+    "full": {
+      "days": 541,
+      "end_exclusive": "2018-09-21T00:00:00",
+      "reason_counts": {
+        "repeat": {
+          "pairs": 3326807,
+          "events": 13065841,
+          "users": 23707
+        },
+        "new": {
+          "pairs": 2874931,
+          "events": 7649039,
+          "users": 23914
+        },
+        "cold_item": {
+          "pairs": 1060658,
+          "events": 4566642,
+          "users": 19749
+        },
+        "cold_user": {
+          "pairs": 207,
+          "events": 353,
+          "users": 6
+        }
+      },
+      "categories": {
+        "new": {
+          "pairs": 2874931,
+          "users_with_positive_pairs": 23914,
+          "events": 7649039,
+          "play_count_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 2,
+            "0.9": 5,
+            "0.95": 8,
+            "0.99": 25,
+            "1": 2465
+          },
+          "active_days_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 1,
+            "0.75": 2,
+            "0.9": 4,
+            "0.95": 6,
+            "0.99": 17,
+            "1": 349
+          },
+          "log_count_day_correlation": 0.9478529237558759,
+          "count_100_plus_pairs": 2113,
+          "count_100_plus_single_day_pairs": 14,
+          "threshold_counts": {
+            "play_count": {
+              "1": 2874931,
+              "2": 1061162,
+              "3": 587423,
+              "5": 293849,
+              "10": 117350,
+              "20": 42741,
+              "50": 8461,
+              "100": 2113
+            },
+            "active_days": {
+              "1": 2874931,
+              "2": 906328,
+              "3": 482978,
+              "5": 225030,
+              "10": 77675,
+              "20": 21861,
+              "50": 2375,
+              "100": 262
+            }
+          },
+          "per_user_positive_pairs_quantiles": {
+            "0": 1,
+            "0.25": 17,
+            "0.5": 63,
+            "0.75": 163,
+            "0.9": 304,
+            "0.95": 419,
+            "0.99": 737,
+            "1": 3031
+          },
+          "per_user_multiday_pairs_quantiles": {
+            "0": 0,
+            "0.25": 3,
+            "0.5": 16,
+            "0.75": 49,
+            "0.9": 101,
+            "0.95": 145,
+            "0.99": 278,
+            "1": 1165
+          },
+          "user_macro_multiday_fraction_among_positive_users": 0.2680325877961973,
+          "play_day_cross_counts": [
+            {
+              "plays": "1",
+              "days": "1",
+              "pairs": 1813769
+            },
+            {
+              "plays": "10-99",
+              "days": "1",
+              "pairs": 989
+            },
+            {
+              "plays": "10-99",
+              "days": "10+",
+              "pairs": 75756
+            },
+            {
+              "plays": "10-99",
+              "days": "2-4",
+              "pairs": 6602
+            },
+            {
+              "plays": "10-99",
+              "days": "5-9",
+              "pairs": 31890
+            },
+            {
+              "plays": "100+",
+              "days": "1",
+              "pairs": 14
+            },
+            {
+              "plays": "100+",
+              "days": "10+",
+              "pairs": 1919
+            },
+            {
+              "plays": "100+",
+              "days": "2-4",
+              "pairs": 42
+            },
+            {
+              "plays": "100+",
+              "days": "5-9",
+              "pairs": 138
+            },
+            {
+              "plays": "2-4",
+              "days": "1",
+              "pairs": 150087
+            },
+            {
+              "plays": "2-4",
+              "days": "2-4",
+              "pairs": 617226
+            },
+            {
+              "plays": "5-9",
+              "days": "1",
+              "pairs": 3744
+            },
+            {
+              "plays": "5-9",
+              "days": "2-4",
+              "pairs": 57428
+            },
+            {
+              "plays": "5-9",
+              "days": "5-9",
+              "pairs": 115327
+            }
+          ]
+        },
+        "repeat": {
+          "pairs": 3326807,
+          "users_with_positive_pairs": 23707,
+          "events": 13065841,
+          "play_count_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 2,
+            "0.75": 4,
+            "0.9": 8,
+            "0.95": 13,
+            "0.99": 34,
+            "1": 60316
+          },
+          "active_days_quantiles": {
+            "0": 1,
+            "0.25": 1,
+            "0.5": 2,
+            "0.75": 3,
+            "0.9": 7,
+            "0.95": 10,
+            "0.99": 26,
+            "1": 500
+          },
+          "log_count_day_correlation": 0.9637711570075399,
+          "count_100_plus_pairs": 3944,
+          "count_100_plus_single_day_pairs": 16,
+          "threshold_counts": {
+            "play_count": {
+              "1": 3326807,
+              "2": 1817228,
+              "3": 1181466,
+              "5": 648964,
+              "10": 254420,
+              "20": 86195,
+              "50": 15867,
+              "100": 3944
+            },
+            "active_days": {
+              "1": 3326807,
+              "2": 1689063,
+              "3": 1062388,
+              "5": 550400,
+              "10": 194719,
+              "20": 56888,
+              "50": 7308,
+              "100": 1230
+            }
+          },
+          "per_user_positive_pairs_quantiles": {
+            "0": 1,
+            "0.25": 18,
+            "0.5": 70,
+            "0.75": 186,
+            "0.9": 360,
+            "0.95": 502,
+            "0.99": 922,
+            "1": 3934
+          },
+          "per_user_multiday_pairs_quantiles": {
+            "0": 0,
+            "0.25": 4,
+            "0.5": 26,
+            "0.75": 91,
+            "0.9": 192,
+            "0.95": 287,
+            "0.99": 571,
+            "1": 3108
+          },
+          "user_macro_multiday_fraction_among_positive_users": 0.3785503955144073,
+          "play_day_cross_counts": [
+            {
+              "plays": "1",
+              "days": "1",
+              "pairs": 1509579
+            },
+            {
+              "plays": "10-99",
+              "days": "1",
+              "pairs": 1090
+            },
+            {
+              "plays": "10-99",
+              "days": "10+",
+              "pairs": 190990
+            },
+            {
+              "plays": "10-99",
+              "days": "2-4",
+              "pairs": 7978
+            },
+            {
+              "plays": "10-99",
+              "days": "5-9",
+              "pairs": 50418
+            },
+            {
+              "plays": "100+",
+              "days": "1",
+              "pairs": 16
+            },
+            {
+              "plays": "100+",
+              "days": "10+",
+              "pairs": 3729
+            },
+            {
+              "plays": "100+",
+              "days": "2-4",
+              "pairs": 65
+            },
+            {
+              "plays": "100+",
+              "days": "5-9",
+              "pairs": 134
+            },
+            {
+              "plays": "2-4",
+              "days": "1",
+              "pairs": 123382
+            },
+            {
+              "plays": "2-4",
+              "days": "2-4",
+              "pairs": 1044882
+            },
+            {
+              "plays": "5-9",
+              "days": "1",
+              "pairs": 3677
+            },
+            {
+              "plays": "5-9",
+              "days": "2-4",
+              "pairs": 85738
+            },
+            {
+              "plays": "5-9",
+              "days": "5-9",
+              "pairs": 305129
+            }
+          ]
+        }
+      },
+      "new_fixed_30day_followup": {
+        "pairs": 2738233,
+        "users_with_positive_pairs": 23767,
+        "events": 4876766,
+        "play_count_quantiles": {
+          "0": 1,
+          "0.25": 1,
+          "0.5": 1,
+          "0.75": 2,
+          "0.9": 3,
+          "0.95": 4,
+          "0.99": 12,
+          "1": 2465
+        },
+        "active_days_quantiles": {
+          "0": 1,
+          "0.25": 1,
+          "0.5": 1,
+          "0.75": 1,
+          "0.9": 2,
+          "0.95": 3,
+          "0.99": 7,
+          "1": 30
+        },
+        "log_count_day_correlation": 0.8941249144813663,
+        "count_100_plus_pairs": 539,
+        "count_100_plus_single_day_pairs": 13,
+        "threshold_counts": {
+          "play_count": {
+            "1": 2738233,
+            "2": 702973,
+            "3": 315492,
+            "5": 131657,
+            "10": 42644,
+            "20": 12529,
+            "50": 2046,
+            "100": 539
+          },
+          "active_days": {
+            "1": 2738233,
+            "2": 524313,
+            "3": 214945,
+            "5": 73239,
+            "10": 13469,
+            "20": 840,
+            "50": 0,
+            "100": 0
+          }
+        },
+        "per_user_positive_pairs_quantiles": {
+          "0": 1,
+          "0.25": 17,
+          "0.5": 61,
+          "0.75": 155,
+          "0.9": 291,
+          "0.95": 401,
+          "0.99": 705,
+          "1": 2941
+        },
+        "per_user_multiday_pairs_quantiles": {
+          "0": 0,
+          "0.25": 1,
+          "0.5": 10,
+          "0.75": 29,
+          "0.9": 58,
+          "0.95": 84,
+          "0.99": 163,
+          "1": 998
+        },
+        "user_macro_multiday_fraction_among_positive_users": 0.18117291918612083,
+        "play_day_cross_counts": [
+          {
+            "plays": "1",
+            "days": "1",
+            "pairs": 2035260
+          },
+          {
+            "plays": "10-99",
+            "days": "1",
+            "pairs": 1201
+          },
+          {
+            "plays": "10-99",
+            "days": "10+",
+            "pairs": 13137
+          },
+          {
+            "plays": "10-99",
+            "days": "2-4",
+            "pairs": 6906
+          },
+          {
+            "plays": "10-99",
+            "days": "5-9",
+            "pairs": 20861
+          },
+          {
+            "plays": "100+",
+            "days": "1",
+            "pairs": 13
+          },
+          {
+            "plays": "100+",
+            "days": "10+",
+            "pairs": 332
+          },
+          {
+            "plays": "100+",
+            "days": "2-4",
+            "pairs": 58
+          },
+          {
+            "plays": "100+",
+            "days": "5-9",
+            "pairs": 136
+          },
+          {
+            "plays": "2-4",
+            "days": "1",
+            "pairs": 172960
+          },
+          {
+            "plays": "2-4",
+            "days": "2-4",
+            "pairs": 398356
+          },
+          {
+            "plays": "5-9",
+            "days": "1",
+            "pairs": 4486
+          },
+          {
+            "plays": "5-9",
+            "days": "2-4",
+            "pairs": 45754
+          },
+          {
+            "plays": "5-9",
+            "days": "5-9",
+            "pairs": 38773
+          }
+        ],
+        "followup_calendar_days": 30,
+        "late_first_play_excluded_pairs": 136698
+      }
+    }
+  },
+  "train_users": 119133,
+  "train_items": 45888,
+  "train": {
+    "pairs": 42582802,
+    "users_with_positive_pairs": 119133,
+    "events": 202396019,
+    "play_count_quantiles": {
+      "0": 1,
+      "0.25": 1,
+      "0.5": 2,
+      "0.75": 4,
+      "0.9": 10,
+      "0.95": 17,
+      "0.99": 46,
+      "1": 28069
+    },
+    "active_days_quantiles": {
+      "0": 1,
+      "0.25": 1,
+      "0.5": 2,
+      "0.75": 4,
+      "0.9": 8,
+      "0.95": 13,
+      "0.99": 32,
+      "1": 1507
+    },
+    "log_count_day_correlation": 0.9689876653559666,
+    "count_100_plus_pairs": 93067,
+    "count_100_plus_single_day_pairs": 131,
+    "threshold_counts": {
+      "play_count": {
+        "1": 42582802,
+        "2": 22807378,
+        "3": 15742063,
+        "5": 9637612,
+        "10": 4514125,
+        "20": 1784138,
+        "50": 376635,
+        "100": 93067
+      },
+      "active_days": {
+        "1": 42582802,
+        "2": 21480210,
+        "3": 14396100,
+        "5": 8371356,
+        "10": 3503718,
+        "20": 1145651,
+        "50": 159130,
+        "100": 25288
+      }
+    },
+    "per_user_positive_pairs_quantiles": {
+      "0": 1,
+      "0.25": 52,
+      "0.5": 169,
+      "0.75": 491,
+      "0.9": 937,
+      "0.95": 1293,
+      "0.99": 2188,
+      "1": 7919
+    },
+    "per_user_multiday_pairs_quantiles": {
+      "0": 0,
+      "0.25": 14,
+      "0.5": 64,
+      "0.75": 252,
+      "0.9": 500,
+      "0.95": 698,
+      "0.99": 1232,
+      "1": 4518
+    },
+    "user_macro_multiday_fraction_among_positive_users": 0.4166701643210623,
+    "play_day_cross_counts": [
+      {
+        "plays": "1",
+        "days": "1",
+        "pairs": 19775424
+      },
+      {
+        "plays": "10-99",
+        "days": "1",
+        "pairs": 11046
+      },
+      {
+        "plays": "10-99",
+        "days": "10+",
+        "pairs": 3414078
+      },
+      {
+        "plays": "10-99",
+        "days": "2-4",
+        "pairs": 122314
+      },
+      {
+        "plays": "10-99",
+        "days": "5-9",
+        "pairs": 873620
+      },
+      {
+        "plays": "100+",
+        "days": "1",
+        "pairs": 131
+      },
+      {
+        "plays": "100+",
+        "days": "10+",
+        "pairs": 89640
+      },
+      {
+        "plays": "100+",
+        "days": "2-4",
+        "pairs": 843
+      },
+      {
+        "plays": "100+",
+        "days": "5-9",
+        "pairs": 2453
+      },
+      {
+        "plays": "2-4",
+        "days": "1",
+        "pairs": 1269807
+      },
+      {
+        "plays": "2-4",
+        "days": "2-4",
+        "pairs": 11899959
+      },
+      {
+        "plays": "5-9",
+        "days": "1",
+        "pairs": 46184
+      },
+      {
+        "plays": "5-9",
+        "days": "2-4",
+        "pairs": 1085738
+      },
+      {
+        "plays": "5-9",
+        "days": "5-9",
+        "pairs": 3991565
+      }
+    ]
+  },
+  "checks": {
+    "synthetic_checks_passed": true,
+    "source_hash_matches": true,
+    "full_validation_matches_existing_eda": true,
+    "active_days_lte_play_count": true,
+    "test_event_values_not_aggregated": true
+  },
+  "reproduction_script_sha256": "0d80389ed3677cc117a36f440646fb791bec2c69a37927a12bc180bc966d4ced",
+  "execution_source_archive": "data/ground-truth-eda/20261014-partitioned-v2/analysis.py",
+  "reproduction_note": "Repository script makes root/output paths portable and is formatted; aggregation SQL unchanged. Original executed source is archived with analysis_source_sha256."
+}
