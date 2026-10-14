@@ -18,6 +18,7 @@
 - 初期評価はTrainに履歴のある100ユーザー、Popularity、NDCG@10・Recall@10。全量での推薦性能評価は未実施。
 - PostgreSQL + pgvectorのローカルDocker環境とAlembicを構築済み。
 - MLflowを共通Runnerへ接続し、ローカルサーバーへの条件・指標・成果物・実行状態の記録を確認済み。
+- ValidationのGrid探索・成功試行の再利用・設定選択／確認／固定・最終Testを、同じTOMLと保存artifactで管理する。
 - LLM・Agent・UIは今後実装。UIより先に検証基盤を整える。
 
 ## 文書
@@ -25,17 +26,35 @@
 | Notebook | 用途 |
 | --- | --- |
 | [01_data](notebooks/01_data.ipynb) | 保存済みデータのSQL/DataFrame読込み・検証・EDA・分割状態の確認 |
-| [02_recommendation](notebooks/02_recommendation.ipynb) | 推薦の実行・履歴と推薦曲の比較・推薦理由の確認・ローカル音源の試聴 |
-| [03_analysis](notebooks/03_analysis.ipynb) | 保存結果の性能比較・ユーザー別分析・信頼区間・効率・考察 |
+| [02_analysis](notebooks/02_analysis.ipynb) | 検証の中心：探索結果、設定選択、K別・ユーザー別分析、Testの最終比較 |
+| [03_recommendation](notebooks/03_recommendation.ipynb) | 選択設定を引継ぎ、Validationの履歴・推薦・根拠・特徴・ローカル音源を確認 |
 
-- 3冊とも独立実行可能。既定は合成データと参考EDA。環境変数で01のsnapshot・split、02の評価入力、03の保存結果を切り替える。01のDB操作は読込みのみ。
-- データ処理・学習・評価は`src/`の共通APIを使う。03は保存済み結果だけを読み、実験を実行しない。[結果分析の設定](docs/result-analysis.md)
+- 3冊とも独立実行可能。既定は合成データと参考EDA。01のDB操作は読込みのみ。
+- 02・03・CLIは`MUSIC_RECSYS_EXPERIMENT_CONFIG`で同じTOMLを読む。モデル・パラメータを03へ再入力しない。02の既定操作は読込みで、明示した選択・固定だけを共通APIへ委譲する。
+- **01で確認 → CLI Smoke → Validation探索 → 02で選択 → 03で確認 → 固定 → CLI最終Test → 02で比較**。[検証フロー](docs/experiment-workflow.md) / [既存結果の分析](docs/result-analysis.md)
+
+## 合成データで検証フローを試す
+
+同じ設定ファイルを各コマンドで使う。Popularityには探索可能なパラメータがないため、この例はseed反復と導線の確認。1変数／2変数の探索基盤は合成モデルのテストで検証する。
+
+```bash
+uv run --locked --group data --group tracking python -m music_recsys.experiment_search --config configs/workflow-toy.toml smoke
+uv run --locked --group data --group tracking python -m music_recsys.experiment_search --config configs/workflow-toy.toml search
+uv run --locked --group data --group tracking python -m music_recsys.experiment_search --config configs/workflow-toy.toml select
+```
+
+次に03で推薦を確認し、同じTOMLに対して`review --accept --note "確認内容"`、`freeze`、`test`の順に実行する。各コマンドは状態・次の操作を表示する。Testは固定済み設定だけで実行し、探索には使用しない。
+
+- 設定・主指標は実験開始前に指定する。未指定なら自動選択・Testを止める。
+- 成功試行は内容hashを検証して再利用する。失敗・予算切れは`search`で再開できる。データ・コード・主指標が変わった場合は別の出力先で開始する。
+- 出力はGit管理外の`data/experiments/`。実験結果の未測定値は0で補わない。
 
 | 文書 | 内容 |
 | --- | --- |
 | [CONTRIBUTING](CONTRIBUTING.md) | 環境・実行・ブランチ・コミットのルール |
 | [研究計画](docs/research-plan.md) | 背景・課題・比較・進め方 |
 | [評価方針](docs/evaluation-protocol.md) | 共通基盤・形式・指標候補 |
+| [検証・探索フロー](docs/experiment-workflow.md) | TOML、Stage A〜D、状態、選択artifact、Notebook間の移動、最終Test |
 | [データセット方針](docs/dataset-investigation.md) | Music4All / TalkPlayの用途・分割 |
 | [DB・取り込み設計](docs/db-design.md) | 保存先・ID・スナップショット・初回取り込みの合意事項 |
 | [テーブル定義](docs/db-schema.md) | カラム・キー・参照整合性・不変性とmanifest形式 |

@@ -33,13 +33,20 @@ def request_options(dataset: BenchmarkDataset) -> list[dict]:
 
 
 def inspect_recommendation(
-    dataset: BenchmarkDataset, *, model: str, request_id: str
+    dataset: BenchmarkDataset,
+    *,
+    model: str,
+    request_id: str,
+    parameters: dict | None = None,
+    seed: int = 0,
 ) -> RecommendationInspection:
     """学習履歴だけでモデルを作り、選択した要求を実行する。正解は参照しない。"""
     request = next((r for r in dataset.requests if r.request_id == request_id), None)
     if request is None:
         raise ValueError(f"unknown request_id: {request_id}")
-    recommender = create_recommender(model, dataset.train_interactions)
+    recommender = create_recommender(
+        model, dataset.train_interactions, parameters=parameters, seed=seed
+    )
     response = recommender.recommend(request)
     counts = Counter(event.item_id for event in dataset.train_interactions)
     user_counts = Counter(
@@ -91,3 +98,24 @@ def audio_player(item_id: str, audio_files: Mapping[str, Path]):
     from IPython.display import Audio
 
     return Audio(filename=str(path), autoplay=False)
+
+
+def feature_comparison(inspection, features):
+    """登録済みの音楽特徴だけを比較する。欠損は0で補完しない。"""
+    features = features or {}
+    rows = []
+    for group, items in (
+        ("history", inspection.request.history),
+        ("recommendation", inspection.response.item_ids),
+    ):
+        for item in items:
+            vector = features.get(item)
+            rows.append(
+                {
+                    "group": group,
+                    "item_id": item,
+                    "feature_status": "取得済み" if vector else "未取得",
+                    **{f"feature:{k}": v for k, v in (vector or {}).items()},
+                }
+            )
+    return rows

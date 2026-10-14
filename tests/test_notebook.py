@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-NOTEBOOKS = ["01_data.ipynb", "02_recommendation.ipynb", "03_analysis.ipynb"]
+NOTEBOOKS = ["01_data.ipynb", "03_recommendation.ipynb", "02_analysis.ipynb"]
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -75,16 +75,16 @@ def test_notebook_runs_from_fresh_kernel(name, empty_validation, tmp_path, monke
     monkeypatch.setenv("MUSIC_RECSYS_PROFILE", str(profile_path))
     assertions = {
         "01_data.ipynb": "assert profile['n_events'] == 10\nassert snapshot.mode == 'fixture'\nassert tracks_df.shape[0] == 4 and users_df.shape[0] == 2\nassert SNAPSHOT_ID is None\nassert all(row['passed'] is not False for row in validation)\nassert snapshot.database_checks is None\nassert candidates['events'][0]['n_events'] == 8",
-        "02_recommendation.ipynb": "assert result.request.user_id == 'u1'\nassert result.response.item_ids == ('track_c', 'track_d')\nassert history_df.item_id.tolist() == ['track_a', 'track_b']\nassert recommendations_df.score.tolist() == [2, 1]\nassert not recommendations_df.in_history.any()\nassert player is None",
-        "03_analysis.ipynb": 'assert len(reports) == 1\nassert performance_df.query(\'metric == "recall"\')["mean"].iloc[0] == 0.625\nassert performance_df.n_users.tolist() == [4, 4]\nassert performance_df.ci_low.notna().all()\nassert efficiency_df.cost_total.isna().all()\nassert not MLFLOW_RUNS',
+        "03_recommendation.ipynb": "assert result.request.user_id == 'u1'\nassert result.response.item_ids == ('track_c', 'track_d')\nassert history_df.item_id.tolist() == ['track_a', 'track_b']\nassert recommendations_df.score.tolist() == [2, 1]\nassert not recommendations_df.in_history.any()\nassert player is None",
+        "02_analysis.ipynb": 'assert len(reports) == 1\nassert performance_df.query(\'metric == "recall"\')["mean"].iloc[0] == 0.625\nassert performance_df.n_users.tolist() == [4, 4]\nassert performance_df.ci_low.notna().all()\nassert efficiency_df.cost_total.isna().all()\nassert not MLFLOW_RUNS',
     }
     notebook = nbformat.read(ROOT / "notebooks" / name, as_version=4)
-    if name == "03_analysis.ipynb":
+    if name == "02_analysis.ipynb":
         notebook.cells.insert(
             0,
             nbformat.v4.new_code_cell(
                 "import music_recsys.evaluation.benchmark as benchmark\n"
-                "def forbidden(*args, **kwargs):\n    raise AssertionError('03 must only read saved results')\n"
+                "def forbidden(*args, **kwargs):\n    raise AssertionError('02 must only read saved results')\n"
                 "benchmark.run_experiment = forbidden\nbenchmark.run_benchmark = forbidden\n"
                 "benchmark.save_report = forbidden\n"
             ),
@@ -120,7 +120,7 @@ def test_analysis_handles_saved_result_variants_without_experiment_execution(cas
         raw["summary"].update(ndcg=None, recall=None, n_evaluated=0, n_excluded=5)
     path = tmp_path / "saved.json"
     path.write_text(json.dumps(raw))
-    notebook = nbformat.read(ROOT / "notebooks/03_analysis.ipynb", as_version=4)
+    notebook = nbformat.read(ROOT / "notebooks/02_analysis.ipynb", as_version=4)
     config = next(
         cell for cell in notebook.cells if "configuration" in cell.metadata.get("tags", [])
     )
@@ -169,7 +169,7 @@ def test_recommendation_accepts_saved_dataset_and_selects_first_request(tmp_path
     monkeypatch.setenv("MUSIC_RECSYS_DATASET_PATH", str(path))
     monkeypatch.setenv("MUSIC_RECSYS_TOP_K", "3")
     monkeypatch.delenv("MUSIC_RECSYS_REQUEST_ID", raising=False)
-    ns = _run_notebook_cells("02_recommendation.ipynb", [2, 4])
+    ns = _run_notebook_cells("03_recommendation.ipynb", [2, 4])
     assert ns["DATASET_PATH"] == path
     assert ns["TOP_K"] == 3
     assert ns["REQUEST_ID"] == ns["dataset"].requests[0].request_id
@@ -178,7 +178,7 @@ def test_recommendation_accepts_saved_dataset_and_selects_first_request(tmp_path
 
 def test_recommendation_accepts_explicit_saved_request(monkeypatch):
     monkeypatch.setenv("MUSIC_RECSYS_REQUEST_ID", "r2")
-    ns = _run_notebook_cells("02_recommendation.ipynb", [2, 4])
+    ns = _run_notebook_cells("03_recommendation.ipynb", [2, 4])
     assert ns["result"].request.request_id == "r2"
 
 
@@ -188,6 +188,6 @@ def test_analysis_reads_environment_report_with_explicit_conditions(tmp_path, mo
     monkeypatch.setenv("MUSIC_RECSYS_REPORT_PATH", str(path))
     monkeypatch.setenv("MUSIC_RECSYS_DATASET_ID", "toy-music-v1")
     monkeypatch.setenv("MUSIC_RECSYS_TOP_K", "2")
-    ns = _run_notebook_cells("03_analysis.ipynb", [2, 3])
+    ns = _run_notebook_cells("02_analysis.ipynb", [2, 3])
     assert ns["REPORT_PATHS"] == {"Popularity": path}
     assert ns["reports"]["Popularity"]["summary"]["recall"] == 0.625

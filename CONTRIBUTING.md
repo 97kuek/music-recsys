@@ -7,7 +7,7 @@
 - 推薦モデル・評価・LLM / Agent・UIを分離する。推薦エンジンを単独で利用できるようにする。
 - 必要なディレクトリ・実装だけを段階的に追加し、過度な抽象化を避ける。
 - Notebookは分析・可視化を中心にし、データ処理・モデル学習・評価は`src/`のPythonコードを呼ぶ。UIは後で作る。
-- `01_data.ipynb`は保存済みデータの読込み・検証・EDA・分割状態の確認、`02_recommendation.ipynb`は推薦の実行・モデルの挙動の理解、`03_analysis.ipynb`は共通指標による性能比較・考察。
+- `01_data.ipynb`はデータ・分割・GroundTruthの確認、`02_analysis.ipynb`はValidation探索・選択・Testの最終比較、`03_recommendation.ipynb`は選択設定の個別確認。実験設定は共通TOMLに置く。
 
 ```bash
 uv sync --locked --python "$(pyenv which python)" --group data --group notebook
@@ -63,7 +63,7 @@ uv sync --locked --python "$(pyenv which python)" --group data --group notebook
 - 実行結果・再現コマンドは、研究方針と分けて必要な分だけ記録する。
 - 論文の未確認の結果・主張を事実として書かず、出典を付ける。
 - Notebookの説明は簡潔な箇条書き・表にし、出力をクリアして管理する。
-- 03では保存済み結果のみを分析する。正式な実験はCLIで実行・保存する。[設定と保存形式](docs/result-analysis.md)
+- 02は保存結果の分析を中心とし、明示した選択・固定のみ共通APIへ委譲する。探索と最終TestはCLIで実行・保存し、03のTest前確認にはValidation入力だけを使う。[検証フロー](docs/experiment-workflow.md)
 
 | Gitに含める | Gitに含めない |
 | --- | --- |

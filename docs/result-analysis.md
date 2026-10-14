@@ -6,13 +6,15 @@
 | --- | --- |
 | Overview | 分析目的・評価対象 |
 | Setup | データセット・保存結果・評価条件の選択と照合 |
-| Performance | NDCG@K・Recall@K、ばらつき・信頼区間・対応差分 |
-| Detailed Analysis | ユーザー別・履歴量別・属性別、追加指標、失敗分析 |
-| Efficiency | 実行時間・推論コスト・性能との関係 |
-| Summary | 結果の解釈・限界・研究上の結論 |
+| Search Results | Validationの探索結果・1D線・2Dヒートマップ |
+| Model Selection | 主指標による最良・次点、03への引継ぎ、設定固定 |
+| Performance Analysis | K別・ユーザー別・CI・効率・トレードオフ。旧保存結果も別条件として維持 |
+| Final Comparison | 固定済み設定のTest比較。探索と分離 |
+| Summary / Next Actions | 所見・限界・次の操作と戻り先 |
 
-- `03_analysis.ipynb`は保存済み結果の読込み・集計・可視化・統計分析を行う。
-- 正式なBenchmark・評価指標の計算は`src/`で実行する。03から実験を実行・保存しない。
+- `02_analysis.ipynb`は保存済み結果の読込み・集計・可視化・統計分析を行う。
+- 正式なBenchmark・評価指標の計算は`src/`で実行する。02の既定は読込みのみ。探索・最終TestはCLI、明示した選択・固定は共通APIへ委譲する。
+- 共通TOML・状態・保存形式は[検証フロー](experiment-workflow.md)。03は同じ選択artifactを読み、Validationの履歴と推薦を確認する。
 - 読込み・条件照合・統計処理は`src/music_recsys/experiment_analysis.py`に置く。
 - Music4AllとTalkPlayDataは独立したベンチマークとして選択・分析する。
 - 説明は簡潔な箇条書き・表にする。
@@ -36,7 +38,7 @@ uv run --locked --group data --group notebook --group tracking jupyter lab
 | `BOOTSTRAP` | 信頼水準・再標本化回数・乱数seed |
 | `HISTORY_EDGES` / `USER_ATTRIBUTE` | 履歴量の区切り・保存済み属性名 |
 
-- 未指定時は[合成データの保存結果](../examples/reports/toy-popularity.json)をK=2で読む。実データへの切替は[Music4Allの実行手順](music4all-benchmark.md)を参照。
+- 探索未実行時の参考表示は[合成データの保存結果](../examples/reports/toy-popularity.json)をK=2で読む。探索では上位20曲からK=1〜20を共通Evaluatorで計算する。旧K=2の出力をK=20の実行として補完しない。実データへの切替は[Music4Allの実行手順](music4all-benchmark.md)を参照。
 - 追加モデル・LLM・Agentも同じ保存形式で読み込む。未実装モデルの値は作らない。
 - MLflow集計のみの場合は平均・集計件数を表示し、ユーザー別分析や信頼区間は未分析とする。
 - `DETAILS_ROOT`指定時はMLflowの`reports/details.json`から詳細を解決し、SHA-256・run ID・集計との一致を検証する。

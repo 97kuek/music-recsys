@@ -38,7 +38,7 @@ uv run --locked --no-sync --env-file .env python -m music_recsys.validation_stud
 - seed 0・42に加え、最後のseedを再実行する。時間を除いた推薦結果・要求別指標のhashを照合する。
 - 成功条件は、出力一致・全runの推薦失敗0・評価対象あり。Popularityには乱数を使う処理がない。
 - 人数・抽出seedの確認は`music-recsys-import --selection history --users 100`／`1000`と`--selection-seed 0`／`42`で4組のsnapshotを作り、それぞれprepare→Validation export→上記検証を実行する。
-- 異なる抽出データは条件が異なるため、03の同条件モデル比較には混ぜない。
+- 異なる抽出データは条件が異なるため、02の同条件モデル比較には混ぜない。
 
 ## Test・Notebook
 
@@ -54,8 +54,8 @@ uv run --locked --no-sync --env-file .env music-recsys-benchmark \
 | Notebook | 環境変数 |
 | --- | --- |
 | 01 | `MUSIC_RECSYS_SNAPSHOT_ID`、`MUSIC_RECSYS_SPLIT_ID`。保存済みデータだけを読む |
-| 02 | `MUSIC_RECSYS_DATASET_PATH`、`MUSIC_RECSYS_TOP_K=10`、任意で`MUSIC_RECSYS_REQUEST_ID` |
-| 03 | `MUSIC_RECSYS_REPORT_PATH`に保存済み`results.json`。Validation・Testは別々に分析 |
+| 02_analysis | `MUSIC_RECSYS_EXPERIMENT_CONFIG`に探索TOML。旧保存結果は`MUSIC_RECSYS_REPORT_PATH`。Validation・Testを別々に分析 |
+| 03_recommendation | 同じ`MUSIC_RECSYS_EXPERIMENT_CONFIG`から選択設定を取得。任意で`MUSIC_RECSYS_REQUEST_ID`。事前確認はValidationのみ |
 
 - `uv run --locked --no-sync --env-file .env jupyter lab`で起動。環境変数未指定では従来の合成データ。
 - 実行済みNotebook・履歴・推薦結果は`data/`配下に保存し、Gitには含めない。
