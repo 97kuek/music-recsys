@@ -1,0 +1,32 @@
+# 合成データで操作を確認する例。研究上のモデル性能ではありません。
+[experiment]
+name = "toy-popularity-workflow"
+validation_dataset = "../examples/toy/workflow-validation.json"
+test_dataset = "../examples/toy/workflow-test.json"
+output = "../data/experiments/toy-popularity"
+
+[model]
+name = "popularity"
+
+[search]
+stage = "A"
+seeds = [0, 42]
+max_trials = 10
+smoke_users = 3
+smoke_train_users = 50
+# Popularityには探索可能なパラメータがないため空。実装済みモデルの値だけを追加する。
+[search.grid]
+
+[selection]
+metric = "ndcg"
+k = 10
+direction = "maximize"
+
+[tracking]
+enabled = false
+
+[comparison]
+configs = []
+
+[inspection.audio_files]
+# track_a = "/absolute/path/to/local-audio.wav"

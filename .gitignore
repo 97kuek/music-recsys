@@ -29,6 +29,7 @@ htmlcov/
 # 学習済みモデル、大容量の実験生成物
 /models/
 /artifacts/
+/mlruns/
 /experiments/**/runs/
 /experiments/**/artifacts/
 

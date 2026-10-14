@@ -15,6 +15,7 @@ music-recsys-benchmark = "music_recsys.evaluation.benchmark:main"
 music-recsys-profile = "music_recsys.music4all:main"
 music-recsys-import = "music_recsys.ingestion.cli:main"
 music-recsys-mlflow = "music_recsys.evaluation.tracking_server:main"
+music-recsys-search = "music_recsys.experiment_search:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/music_recsys"]
@@ -44,6 +45,7 @@ include = [
     "/experiments/music4all/eda/profile.json",
     "/experiments/music4all/eda/daily_counts.csv",
     "/experiments/music4all/eda/time-quality.json",
+    "/experiments/music4all/eda/ground-truth-profile.json",
 ]
 
 [tool.pytest.ini_options]

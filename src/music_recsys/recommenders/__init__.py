@@ -12,7 +12,15 @@ class Recommender(Protocol):
     def recommend(self, request: RecommendationRequest) -> RecommendationResponse: ...
 
 
-def create_recommender(model: str, interactions: Iterable[Interaction]) -> Recommender:
+def create_recommender(
+    model: str,
+    interactions: Iterable[Interaction],
+    *,
+    parameters: dict | None = None,
+    seed: int = 0,
+) -> Recommender:
     if model == "popularity":
+        if parameters:
+            raise ValueError("popularity has no tunable parameters")
         return PopularityRecommender(interactions)
     raise ValueError(f"model '{model}' is not implemented; available: popularity")

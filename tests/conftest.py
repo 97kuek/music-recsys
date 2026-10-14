@@ -5,6 +5,7 @@ import csv
 import hashlib
 import io
 import json
+from pathlib import Path
 
 import pytest
 
@@ -68,3 +69,51 @@ def music4all_factory(tmp_path):
         return {"record": record, "tags": tags, "events": events, "cache": cache}
 
     return create
+
+
+@pytest.fixture
+def study(tmp_path):
+    raw = json.loads(
+        (Path(__file__).resolve().parents[1] / "examples/toy/dataset.json").read_text()
+    )
+    raw["provenance"] = {
+        "phase": "validation",
+        "snapshot_id": "fixture",
+        "split_id": "fixture-split",
+        "training_periods": ["train"],
+    }
+    validation = tmp_path / "validation.json"
+    validation.write_text(json.dumps(raw))
+    test = json.loads(json.dumps(raw))
+    test["provenance"].update(phase="test", training_periods=["train", "validation"])
+    by_id = {r["request_id"]: r for r in raw["requests"]}
+    for truth in raw["ground_truth"]:
+        user = by_id[truth["request_id"]]["user_id"]
+        test["train_interactions"].extend(
+            {"user_id": user, "item_id": item} for item in truth["relevant_item_ids"]
+        )
+    for r in test["requests"]:
+        r["history"] = sorted(
+            {x["item_id"] for x in test["train_interactions"] if x["user_id"] == r["user_id"]}
+        )
+    for truth in test["ground_truth"]:
+        seen = set(by_id[truth["request_id"]]["history"])
+        truth["relevant_item_ids"] = [x for x in raw["catalog_ids"] if x not in seen][:1]
+    (tmp_path / "test.json").write_text(json.dumps(test))
+    config = tmp_path / "study.toml"
+
+    def write(
+        grid="reverse = [false, true]", objective=True, budget=20, seeds="[0, 42]", stage="A"
+    ):
+        config.write_text(
+            '[experiment]\nname="fixture"\nvalidation_dataset="validation.json"\n'
+            'test_dataset="test.json"\noutput="runs"\n'
+            f'[model]\nname="fixture"\n[search]\nstage="{stage}"\nseeds={seeds}\n'
+            f"max_trials={budget}\n[search.grid]\n{grid}\n"
+            + ('[selection]\nmetric="ndcg"\nk=10\ndirection="maximize"\n' if objective else "")
+        )
+        from music_recsys.experiment_search import load_study_config
+
+        return load_study_config(config)
+
+    return write

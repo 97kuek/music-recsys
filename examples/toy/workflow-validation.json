@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "dataset_id": "toy-music-v1",
+  "catalog_ids": [
+    "track_a",
+    "track_b",
+    "track_c",
+    "track_d",
+    "track_e",
+    "track_f"
+  ],
+  "train_interactions": [
+    {
+      "user_id": "u1",
+      "item_id": "track_a"
+    },
+    {
+      "user_id": "u1",
+      "item_id": "track_b"
+    },
+    {
+      "user_id": "u2",
+      "item_id": "track_a"
+    },
+    {
+      "user_id": "u2",
+      "item_id": "track_c"
+    },
+    {
+      "user_id": "u3",
+      "item_id": "track_b"
+    },
+    {
+      "user_id": "u3",
+      "item_id": "track_c"
+    },
+    {
+      "user_id": "u4",
+      "item_id": "track_a"
+    },
+    {
+      "user_id": "u4",
+      "item_id": "track_d"
+    },
+    {
+      "user_id": "u5",
+      "item_id": "track_a"
+    },
+    {
+      "user_id": "u5",
+      "item_id": "track_b"
+    }
+  ],
+  "requests": [
+    {
+      "request_id": "r1",
+      "user_id": "u1",
+      "history": [
+        "track_a",
+        "track_b"
+      ]
+    },
+    {
+      "request_id": "r2",
+      "user_id": "u2",
+      "history": [
+        "track_a",
+        "track_c"
+      ]
+    },
+    {
+      "request_id": "r3",
+      "user_id": "u3",
+      "history": [
+        "track_b",
+        "track_c"
+      ]
+    },
+    {
+      "request_id": "r4",
+      "user_id": "cold_user",
+      "history": []
+    },
+    {
+      "request_id": "r5",
+      "user_id": "no_truth_user",
+      "history": []
+    }
+  ],
+  "ground_truth": [
+    {
+      "request_id": "r1",
+      "relevant_item_ids": [
+        "track_c",
+        "track_e"
+      ]
+    },
+    {
+      "request_id": "r2",
+      "relevant_item_ids": [
+        "track_b"
+      ]
+    },
+    {
+      "request_id": "r3",
+      "relevant_item_ids": [
+        "track_d"
+      ]
+    },
+    {
+      "request_id": "r4",
+      "relevant_item_ids": [
+        "track_e"
+      ]
+    },
+    {
+      "request_id": "r5",
+      "relevant_item_ids": []
+    }
+  ],
+  "provenance": {
+    "phase": "validation",
+    "snapshot_id": "synthetic-workflow-v1",
+    "split_id": "synthetic-workflow-split-v1",
+    "dataset_version_id": "synthetic-v1",
+    "training_periods": [
+      "train"
+    ],
+    "purpose": "hand-authored synthetic workflow fixture; not research evidence"
+  }
+}
