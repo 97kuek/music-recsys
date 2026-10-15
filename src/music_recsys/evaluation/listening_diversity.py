@@ -1,7 +1,7 @@
 """v2の保存された先頭位置だけから、多様性・発見性をタスク別に測る。"""
 
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from statistics import fmean
 
 from music_recsys.candidates import eligible_candidates
@@ -45,6 +45,26 @@ def listening_diversity(dataset, runs, *, ks, features=None) -> dict:
                 else None
             )
             ild = None
+            if failed:
+                output_reason = "generation_failed"
+            elif not eligible:
+                output_reason = "empty_candidates"
+            elif not response["item_ids"]:
+                output_reason = "empty_output"
+            else:
+                output_reason = None
+            if output_reason:
+                ild_reasons = [output_reason]
+            elif k < 2:
+                ild_reasons = ["k_below_two"]
+            elif len(ranked) < 2:
+                ild_reasons = ["insufficient_valid_items"]
+            else:
+                ild_reasons = []
+                if any(x not in features for x in ranked):
+                    ild_reasons.append("features_missing")
+                if any(x in features and not vectors[x] for x in ranked):
+                    ild_reasons.append("features_zero_norm")
             if k >= 2 and len(ranked) >= 2 and all(vectors.get(x) for x in ranked):
                 distances = []
                 for i, a in enumerate(ranked):
@@ -62,6 +82,12 @@ def listening_diversity(dataset, runs, *, ks, features=None) -> dict:
                 "novelty": novelty,
                 "valid_items": len(ranked),
                 "failed": failed,
+                "returned_items": len(response["item_ids"][:k]),
+                "short_output": not failed and len(response["item_ids"]) < min(k, len(eligible)),
+                "ild_exclusion_reasons": ild_reasons,
+                "novelty_exclusion_reason": (output_reason or "no_valid_items")
+                if novelty is None
+                else None,
             }
             details.append(row)
             grouped[(request.task, k)].append((row, ranked))
@@ -75,6 +101,24 @@ def listening_diversity(dataset, runs, *, ks, features=None) -> dict:
             "n_failed": sum(r["failed"] for r, _ in values),
             "candidate_items": len(universe[task]),
             "exposed_items": len(exposed),
+            "n_short_output": sum(r["short_output"] for r, _ in values),
+            "coverage_exclusion_reason": "empty_candidate_union" if not universe[task] else None,
+            "ild_exclusion_counts": dict(
+                sorted(
+                    Counter(
+                        reason for r, _ in values for reason in r["ild_exclusion_reasons"]
+                    ).items()
+                )
+            ),
+            "novelty_exclusion_counts": dict(
+                sorted(
+                    Counter(
+                        r["novelty_exclusion_reason"]
+                        for r, _ in values
+                        if r["novelty_exclusion_reason"] is not None
+                    ).items()
+                )
+            ),
         }
         for name in ("ild", "novelty"):
             users = defaultdict(list)
@@ -95,5 +139,6 @@ def listening_diversity(dataset, runs, *, ks, features=None) -> dict:
             "novelty": "user mean -log2((distinct learning users for item+1)/(learning users+2)); no valid output null",
             "ild": "user mean pairwise cosine distance; K>=2 and all valid items have nonzero features; otherwise null",
             "window_gain": "not applicable: one measurement per task/K, no duplication by evaluation window or day weight",
+            "exclusions": "request reason codes and aggregate request counts; missing and zero-norm features separate; multiple feature causes may overlap",
         },
     }

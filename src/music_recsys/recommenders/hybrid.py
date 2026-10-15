@@ -70,6 +70,14 @@ class HybridRecommender:
 
     def recommend(self, request: RecommendationRequest) -> RecommendationResponse:
         parts = self._parts(request)
+        if len(parts) == 1:
+            # Endpoints preserve the base order even when reciprocal scores round equal.
+            ranks = parts[0][3]
+            ranked = sorted(
+                eligible_candidates(request),
+                key=lambda item: (ranks.get(item, float("inf")), -self._counts[item], item),
+            )
+            return RecommendationResponse(request.request_id, tuple(ranked[: request.top_k]))
         ranked = sorted(
             eligible_candidates(request),
             key=lambda item: (-self._score(item, parts), -self._counts[item], item),

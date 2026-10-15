@@ -68,9 +68,10 @@ class FactorModel:
         self.user_factors = self.rng.normal(0, 0.01, size=(len(self.users), factors))
         self.item_factors = self.rng.normal(0, 0.01, size=(len(self.items), factors))
         self.active_users = set(self.users)
+        self.active_items = set(self.items)
 
     def score(self, user_id: str, item_id: str) -> float | None:
-        if user_id not in self.active_users or item_id not in self.items:
+        if user_id not in self.active_users or item_id not in self.active_items:
             return None
         score = float(
             self.user_factors[self.users[user_id]] @ self.item_factors[self.items[item_id]]

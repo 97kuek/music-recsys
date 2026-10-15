@@ -54,6 +54,8 @@ def load_features(path: Path, *, dataset_id: str, snapshot_id: str | None) -> Fe
         or raw.get("snapshot_id") != snapshot_id
     ):
         raise ValueError("比較条件不一致: featuresの出典")
+    if any(key in raw for key in ("source", "transformation")) and "content_sha256" not in raw:
+        raise ValueError("features checksum is required for exported artifacts")
     if "content_sha256" in raw:
         body = {k: v for k, v in raw.items() if k != "content_sha256"}
         if _checksum(body) != raw["content_sha256"]:

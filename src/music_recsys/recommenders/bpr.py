@@ -60,6 +60,7 @@ class BPRRecommender(FactorModel):
             for ii in observed[ui]
         ]
         self.training_updates = 0
+        updated_items = set()
         try:
             with np.errstate(over="raise", invalid="raise", divide="raise"):
                 for _ in range(iterations):
@@ -75,6 +76,7 @@ class BPRRecommender(FactorModel):
                             regularization=regularization,
                         )
                         self.training_updates += 1
+                        updated_items.update((ii, negative))
                 if (
                     not np.isfinite(self.user_factors).all()
                     or not np.isfinite(self.item_factors).all()
@@ -82,3 +84,4 @@ class BPRRecommender(FactorModel):
                     raise ValueError("non-finite factors")
         except (FloatingPointError, OverflowError):
             raise ValueError("BPR numerical training failure") from None
+        self.active_items = {item for item, index in self.items.items() if index in updated_items}

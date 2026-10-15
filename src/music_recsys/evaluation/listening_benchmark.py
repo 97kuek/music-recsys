@@ -405,7 +405,13 @@ def save_listening_report(report, output_root, *, tracking=None):
             stream = io.StringIO(newline="")
             writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
             writer.writeheader()
-            writer.writerows(rows)
+            writer.writerows(
+                {
+                    key: json.dumps(value, sort_keys=True) if isinstance(value, dict) else value
+                    for key, value in row.items()
+                }
+                for row in rows
+            )
             (target / "beyond-accuracy.csv").write_text(stream.getvalue())
         (target / "summary.md").write_text(format_listening_summary(report))
         if report.tracking:

@@ -160,6 +160,7 @@ def run_benchmark(
     config_sha256: str | None = None,
     model_parameters: dict | None = None,
     tracking: TrackingConfig | None = None,
+    features_sha256: str | None = None,
 ) -> BenchmarkReport:
     """共通Runnerを実行し、有効な場合は集計成果物だけをMLflowへ記録する。"""
     tracking = tracking if tracking is not None else TrackingConfig.from_settings()
@@ -172,6 +173,7 @@ def run_benchmark(
             training_seconds=training_seconds,
             config_sha256=config_sha256,
             model_parameters=model_parameters,
+            features_sha256=features_sha256,
         )
     conditions = {
         "dataset_id": dataset.dataset_id,
@@ -183,6 +185,8 @@ def run_benchmark(
         "seed": seed,
         "config_sha256": config_sha256,
     }
+    if features_sha256 is not None:
+        conditions["features_sha256"] = features_sha256
     with ExperimentRun(tracking, params=conditions) as experiment:
         report = _run_benchmark(
             dataset,
@@ -192,6 +196,7 @@ def run_benchmark(
             training_seconds=training_seconds,
             config_sha256=config_sha256,
             model_parameters=model_parameters,
+            features_sha256=features_sha256,
         )
         metadata = asdict(report.metadata)
         experiment.log_params(
@@ -252,6 +257,7 @@ def _run_benchmark(
     training_seconds: float,
     config_sha256: str | None,
     model_parameters: dict | None,
+    features_sha256: str | None = None,
 ) -> BenchmarkReport:
     """正解を推薦関数へ渡さず、失敗した要求も結果に残す。"""
     validate_id(model_name)
@@ -291,6 +297,7 @@ def _run_benchmark(
             "evaluator_sha256": hashlib.sha256(
                 Path(__file__).with_name("metrics.py").read_bytes()
             ).hexdigest(),
+            **({"features_sha256": features_sha256} if features_sha256 is not None else {}),
         },
         model_parameters=model_parameters,
     )
@@ -392,6 +399,11 @@ def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None)
         config_sha256=config.sha256,
         model_parameters=config.model_parameters,
         tracking=tracking if tracking is not None else config.tracking,
+        features_sha256=hashlib.sha256(
+            json.dumps(features, sort_keys=True, allow_nan=False).encode()
+        ).hexdigest()
+        if features is not None
+        else None,
     )
 
 
