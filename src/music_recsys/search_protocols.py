@@ -108,6 +108,7 @@ def evaluate_trial(
             model_parameters=parameters,
             config_sha256=config_sha256,
             tracking=TrackingConfig(),
+            features=features,
         )
         curves = listening_curves(config, data, report)
         primary = next(row for row in curves["metrics"] if row["k"] == config.primary_k)
@@ -209,6 +210,11 @@ def listening_curves(config, data, report):
                 n_evaluated_users=value["n_evaluated"],
                 n_excluded=value["n_excluded"],
             )
+        beyond_task = "repeat" if task == "repeat" else "new"
+        beyond = report.beyond_accuracy or {}
+        for value in beyond.get("metrics", ()):
+            if value["task"] == beyond_task and value["k"] == k:
+                row.update({name: value[name] for name in ("ild", "novelty", "catalog_coverage")})
         # ndcgは旧表示への別名。v2の主指標名には使用させない。
         row["ndcg"] = row["binary_ndcg"]
         metrics.append(row)
@@ -229,6 +235,7 @@ def listening_curves(config, data, report):
         "protocol": "listening-v2",
         "metrics": metrics,
         "all_metrics": list(report.summary),
+        "beyond_accuracy": report.beyond_accuracy,
         "requests": requests,
         "primary": {
             "task": task,
@@ -243,7 +250,9 @@ def listening_curves(config, data, report):
         },
         "definitions": {
             "protocol": "listening-v2",
-            "beyond_accuracy": "未測定: v2の候補・順位保持に対応する定義で別途計測が必要",
+            "beyond_accuracy": (report.beyond_accuracy or {}).get(
+                "definitions", "未測定: 旧v2成果物"
+            ),
             "usage": metadata["usage"],
         },
     }

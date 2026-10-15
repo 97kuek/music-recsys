@@ -48,6 +48,20 @@ def curve_frame(bundles, model, phase, resamples):
             novelty=None,
             catalog_coverage=None,
         )
+        for name in ("ild", "novelty", "catalog_coverage"):
+            task = "repeat" if key[0] == "repeat" else "new"
+            xs = [
+                next(
+                    (
+                        r[name]
+                        for r in (b.get("beyond_accuracy") or {}).get("metrics", ())
+                        if r["task"] == task and r["k"] == key[2]
+                    ),
+                    None,
+                )
+                for b in bundles
+            ]
+            row[name] = fmean(xs) if all(x is not None for x in xs) else None
         for name in bundles[0]["efficiency"]:
             xs = [b["efficiency"][name] for b in bundles]
             row[name] = fmean(xs) if all(x is not None for x in xs) else None

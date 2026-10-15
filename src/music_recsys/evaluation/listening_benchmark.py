@@ -1,6 +1,7 @@
 """new / repeatを各1回だけ生成し、保存ランキングからv2の全条件を評価する。"""
 
 import csv
+import hashlib
 import io
 import json
 import platform
@@ -28,6 +29,7 @@ class ListeningReport:
     summary: tuple[dict, ...]
     runs: tuple[dict, ...]
     tracking: TrackingResult | None = None
+    beyond_accuracy: dict | None = None
 
 
 def _csv(rows):
@@ -90,6 +92,7 @@ def run_listening_benchmark(
     config_sha256=None,
     model_parameters=None,
     tracking=None,
+    features=None,
 ):
     import duckdb
 
@@ -103,9 +106,19 @@ def run_listening_benchmark(
     ):
         raise ValueError("observations changed after loading")
     tracking = tracking if tracking is not None else TrackingConfig.from_settings()
+    from music_recsys.features import validate_features
+
+    if features is not None:
+        validate_features(features)
     manifest = dataset.manifest
     conditions = {
         "protocol": "listening-v2",
+        "features_sha256": hashlib.sha256(
+            json.dumps(features, sort_keys=True, allow_nan=False).encode()
+        ).hexdigest()
+        if features is not None
+        else None,
+        "beyond_accuracy_version": "listening-diversity-v1",
         "schema_version": 2,
         "phase": manifest["phase"],
         "dataset_sha256": dataset.sha256,
@@ -303,7 +316,10 @@ def run_listening_benchmark(
             latency_p95=quantile(durations, 0.95),
             usage=summarize_usage(generated_responses),
         )
-        report = ListeningReport(2, metadata, tuple(summary), tuple(runs))
+        from music_recsys.evaluation.listening_diversity import listening_diversity
+
+        beyond = listening_diversity(dataset, runs, ks=config.ks, features=features)
+        report = ListeningReport(2, metadata, tuple(summary), tuple(runs), beyond_accuracy=beyond)
         if active:
             active.log_metrics(metadata["usage"]["metrics"])
             active.log_params(
@@ -326,6 +342,14 @@ def run_listening_benchmark(
                     )
                 }
             )
+            for row in beyond["metrics"]:
+                active.log_metrics(
+                    {
+                        f"{row['task']}.{name}": row[name]
+                        for name in ("ild", "novelty", "catalog_coverage")
+                    },
+                    step=row["k"],
+                )
             for row in summary:
                 suffix = "binary" if row["day_weight"] is None else f"weight_{row['day_weight']}"
                 active.log_metrics(
@@ -342,7 +366,15 @@ def run_listening_benchmark(
                 target = Path(directory)
                 (target / "report.json").write_text(
                     json.dumps(
-                        {"schema_version": 2, "metadata": metadata, "summary": summary},
+                        {
+                            "schema_version": 2,
+                            "metadata": metadata,
+                            "summary": summary,
+                            "beyond_accuracy": {
+                                "metrics": beyond["metrics"],
+                                "definitions": beyond["definitions"],
+                            },
+                        },
                         ensure_ascii=False,
                         allow_nan=False,
                     )
@@ -352,7 +384,12 @@ def run_listening_benchmark(
                 for name in ("report.json", "metrics.csv", "summary.md"):
                     active.log_artifact(target / name)
     return ListeningReport(
-        2, metadata, tuple(summary), tuple(runs), experiment.result if experiment else None
+        2,
+        metadata,
+        tuple(summary),
+        tuple(runs),
+        experiment.result if experiment else None,
+        beyond_accuracy=beyond,
     )
 
 
@@ -365,6 +402,13 @@ def save_listening_report(report, output_root, *, tracking=None):
             json.dumps(asdict(report), ensure_ascii=False, indent=2, allow_nan=False) + "\n"
         )
         (target / "metrics.csv").write_text(_csv(report.summary))
+        if report.beyond_accuracy and report.beyond_accuracy["metrics"]:
+            rows = report.beyond_accuracy["metrics"]
+            stream = io.StringIO(newline="")
+            writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+            (target / "beyond-accuracy.csv").write_text(stream.getvalue())
         (target / "summary.md").write_text(format_listening_summary(report))
         if report.tracking:
             if tracking is None or not tracking.enabled:
