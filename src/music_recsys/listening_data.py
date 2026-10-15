@@ -43,9 +43,8 @@ def parquet_schemas():
     return {"learning": learning, "observations": observations}
 
 
-def validate_bundle(bundle):
-    """全観測をPython化せず、型・hash・一意性・warm条件を確認する。"""
-    import duckdb
+def read_bundle(bundle):
+    """manifestと全参照のhash・スキーマを検証する。観測行の値は読まない。"""
     import pyarrow.parquet as pq
 
     bundle = Path(bundle).resolve()
@@ -106,6 +105,15 @@ def validate_bundle(bundle):
         ):
             raise ValueError("artifact schema / row count mismatch")
         paths[role] = path
+    return manifest, paths
+
+
+def validate_bundle(bundle):
+    """観測をPython化せず、一意性・warm条件・回数の整合性を確認する。"""
+    import duckdb
+
+    manifest, paths = read_bundle(bundle)
+    windows = manifest["window_days"]
     with duckdb.connect(config={"memory_limit": "2GB", "threads": 2}) as connection:
         for role, path in paths.items():
             connection.read_parquet(str(path)).create_view(role)

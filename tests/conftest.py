@@ -117,3 +117,10 @@ def study(tmp_path):
         return load_study_config(config)
 
     return write
+
+
+@pytest.fixture
+def listening_study(tmp_path):
+    from listening_workflow_support import make_study
+
+    return make_study(tmp_path)

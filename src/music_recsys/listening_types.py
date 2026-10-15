@@ -90,6 +90,15 @@ class ListeningDataset:
     manifest: dict
     sha256: str
 
+    @property
+    def provenance(self):
+        phase = self.manifest["phase"]
+        return {
+            **self.manifest.get("source", {}),
+            "phase": phase,
+            "training_periods": ["train"] if phase == "validation" else ["train", "validation"],
+        }
+
 
 @dataclass(frozen=True)
 class ListeningScore:

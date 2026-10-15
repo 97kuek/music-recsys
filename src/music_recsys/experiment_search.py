@@ -16,11 +16,16 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from statistics import fmean, stdev
 
-from music_recsys.data import load_dataset
 from music_recsys.evaluation.benchmark import _source_sha256, run_benchmark, save_report
 from music_recsys.evaluation.tracking import ExperimentRun, TrackingConfig, TrackingResult
 from music_recsys.recommenders import create_recommender
-from music_recsys.search_metrics import ranking_metrics
+from music_recsys.search_protocols import (
+    V2_OBJECTIVES,
+    data_fingerprint,
+    evaluate_trial,
+    load_data,
+    validate_test_training,
+)
 
 
 def digest(value):
@@ -82,6 +87,9 @@ class StudyConfig:
     split_id: str | None = None
     smoke_users: int = 3
     smoke_train_users: int = 50
+    protocol: str = "binary-v1"
+    evaluation: object | None = None
+    task: str | None = None
 
 
 def load_study_config(path):
@@ -145,8 +153,30 @@ def load_study_config(path):
             objective.get("k", 10),
             objective.get("direction", "maximize"),
         )
+        protocol, task, evaluation = e.get("protocol", "binary-v1"), objective.get("task"), None
+        if protocol not in {"binary-v1", "listening-v2"}:
+            raise ValueError("unknown experiment protocol")
+        allowed = {None, "ndcg", "recall"}
+        if protocol == "listening-v2":
+            from music_recsys.listening_types import ListeningConfig
+
+            if task is not None and task not in V2_OBJECTIVES:
+                raise ValueError("invalid selection.task")
+            if metric is not None and (task is None or metric not in V2_OBJECTIVES[task]):
+                raise ValueError("selection.task / metric must explicitly match a v2 task")
+            options = dict(raw.get("evaluation", {}))
+            for field in ("window_days", "ks", "day_weights"):
+                if field in options:
+                    options[field] = tuple(options[field])
+            if "primary_k" in options and options["primary_k"] != k:
+                raise ValueError("primary_k must match selection.k")
+            options["primary_k"] = k
+            evaluation = ListeningConfig(**options)
+            allowed = {None, *V2_OBJECTIVES.get(task, ())}
+        elif task is not None:
+            raise ValueError("selection.task requires listening-v2")
         if (
-            metric not in {None, "ndcg", "recall"}
+            metric not in allowed
             or type(k) is not int
             or not 1 <= k <= 20
             or direction not in {"maximize", "minimize"}
@@ -175,13 +205,16 @@ def load_study_config(path):
             e.get("split_id"),
             smoke_users,
             smoke_train_users,
+            protocol,
+            evaluation,
+            task,
         )
     except (KeyError, TypeError) as error:
         raise ValueError("探索TOMLのexperiment/model/search設定を確認してください") from error
 
 
 def context(config):
-    data = load_dataset(config.validation_dataset, top_k=20)
+    data = load_data(config, config.validation_dataset)
     provenance = data.provenance or {}
     if provenance.get("phase") != "validation":
         raise ValueError("Validation入力だけを探索できます。01でphaseを確認してください")
@@ -207,6 +240,20 @@ def context(config):
         "direction": config.direction,
         "features_sha256": file_hash(config.features) if config.features else None,
     }
+    if config.protocol == "listening-v2":
+        source_files = data.manifest.get("source_files", {})
+        if (
+            set(source_files) != {"train", "validation"}
+            or len(data.train_interactions) != source_files["train"]["row_count"]
+        ):
+            raise ValueError("比較条件不一致: Validationのsource / learning")
+        conditions.update(
+            protocol="listening-v2",
+            evaluation=json.loads(json.dumps(asdict(config.evaluation))),
+            primary_task=config.task,
+            source_files=source_files,
+            temporal=data.manifest["temporal"],
+        )
     return data, conditions
 
 
@@ -356,50 +403,35 @@ def _trial(config, study, data, parameters, seed, factory, *, phase="validation"
             start = time.perf_counter()
             model = factory(config.model, data.train_interactions, parameters=parameters, seed=seed)
             training_seconds = time.perf_counter() - start
-            report = run_benchmark(
+            evaluated = evaluate_trial(
+                config,
                 data,
-                model.recommend,
-                model_name=config.model,
-                seed=seed,
-                training_seconds=training_seconds,
-                model_parameters=parameters,
-                config_sha256=digest(study["conditions"]),
-                tracking=TrackingConfig(),
+                model,
+                parameters,
+                seed,
+                training_seconds,
+                digest(study["conditions"]),
+                _features(config, data),
+                run_benchmark,
             )
-            public_conditions = {
-                k: v
-                for k, v in report.metadata.evaluation_conditions.items()
-                if k != "dataset_provenance"
-            }
-            report = replace(
-                report, metadata=replace(report.metadata, evaluation_conditions=public_conditions)
-            )
-            curves = ranking_metrics(data, report, features=_features(config, data))
-            valid = (
-                not report.summary.n_failed
-                and report.summary.n_evaluated
-                and not any(
-                    r.evaluation.invalid_count or r.evaluation.duplicate_count for r in report.runs
-                )
-            )
+            report, curves, valid = evaluated.report, evaluated.curves, evaluated.valid
             if not valid:
-                entry["error_type"] = next(
-                    (r.response.error_type for r in report.runs if r.response.error_type),
-                    "InvalidModelOutput",
-                )
+                entry["error_type"] = evaluated.error_type
                 if active:
                     active.mark_failed()
             if active:
                 metrics = next(r for r in curves["metrics"] if r["k"] == config.primary_k)
-                active.log_metrics({k: v for k, v in metrics.items() if v is not None and k != "k"})
+                active.log_metrics(
+                    {k: v for k, v in metrics.items() if type(v) in (int, float) and k != "k"}
+                )
                 active.log_metrics(curves["efficiency"])
                 with tempfile.TemporaryDirectory() as temp:
                     aggregate = Path(temp) / "report.json"
                     write_json(
                         aggregate,
                         {
-                            "metadata": asdict(report.metadata),
-                            "summary": asdict(report.summary),
+                            "metadata": evaluated.metadata,
+                            "summary": evaluated.summary,
                             "curves": curves["metrics"],
                             "efficiency": curves["efficiency"],
                         },
@@ -470,10 +502,17 @@ def smoke(config, *, factory=create_recommender):
             ]
         )
         interactions = tuple(x for x in data.train_interactions if x.user_id in train_users)
+        extra = (
+            {}
+            if config.protocol == "listening-v2"
+            else {
+                "ground_truth": tuple(t for t in data.ground_truth if t.request_id in request_ids)
+            }
+        )
         data = replace(
             data,
             requests=requests,
-            ground_truth=tuple(t for t in data.ground_truth if t.request_id in request_ids),
+            **extra,
             train_interactions=interactions,
             sha256=digest(
                 {
@@ -656,6 +695,7 @@ def select_best(config):
                     "metric": config.metric,
                     "k": config.primary_k,
                     "direction": config.direction,
+                    "task": config.task,
                 },
                 **ranked[0],
                 "runner_up": ranked[1] if len(ranked) > 1 else None,
@@ -686,7 +726,10 @@ def load_selection(config):
 
 def inspect_selected(config):
     selected = load_selection(config)
-    data = load_dataset(config.validation_dataset, top_k=20)
+    data = load_data(config, config.validation_dataset)
+    if config.protocol == "listening-v2":
+        task = "repeat" if config.task == "repeat" else "new"
+        data = replace(data, requests=tuple(r for r in data.requests if r.task == task))
     return {
         "dataset": data,
         "features": _features(config, data),
@@ -736,7 +779,7 @@ def freeze_selection(config):
                 **{k: v for k, v in selected.items() if k != "content_sha256"},
                 "selection_sha256": selected["content_sha256"],
                 "review_sha256": review["content_sha256"],
-                "test_sha256": file_hash(config.test_dataset),
+                "test_sha256": data_fingerprint(config, config.test_dataset),
             }
         )
         existing = config.output / "locked-selection.json"
@@ -747,10 +790,13 @@ def freeze_selection(config):
 
 
 def _test_data(config, selected, locked):
-    if config.test_dataset is None or file_hash(config.test_dataset) != locked["test_sha256"]:
+    if (
+        config.test_dataset is None
+        or data_fingerprint(config, config.test_dataset) != locked["test_sha256"]
+    ):
         raise ValueError("比較条件不一致: 固定後にTest入力が変わっています")
-    test = load_dataset(config.test_dataset, top_k=20)
-    validation = load_dataset(config.validation_dataset, top_k=20)
+    test = load_data(config, config.test_dataset)
+    validation = load_data(config, config.validation_dataset)
     p = test.provenance or {}
     if p.get("phase") != "test" or p.get("training_periods") != ["train", "validation"]:
         raise ValueError("TestはTrain + Validationで再学習する入力が必要です")
@@ -759,6 +805,9 @@ def _test_data(config, selected, locked):
             raise ValueError("比較条件不一致: Testの出典")
     if test.dataset_id != validation.dataset_id:
         raise ValueError("比較条件不一致: Test dataset")
+    if config.protocol == "listening-v2":
+        validate_test_training(config, test, validation)
+        return test
     before = Counter((x.user_id, x.item_id) for x in validation.train_interactions)
     after = Counter((x.user_id, x.item_id) for x in test.train_interactions)
     requests = {r.request_id: r for r in validation.requests}
@@ -790,7 +839,7 @@ def load_locked_selection(config):
         or review["selection_sha256"] != selected["content_sha256"]
         or review["accepted"] is not True
         or config.test_dataset is None
-        or file_hash(config.test_dataset) != locked["test_sha256"]
+        or data_fingerprint(config, config.test_dataset) != locked["test_sha256"]
     ):
         raise ValueError("比較条件不一致: 固定済み選択・確認記録・Test入力")
     return locked
