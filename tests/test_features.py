@@ -58,3 +58,14 @@ def test_exported_feature_content_checksum_rejects_tampering(tmp_path):
         load_features(p, dataset_id="toy", snapshot_id="s")
     with pytest.raises(FileExistsError):
         write_features(p, dataset_id="toy", snapshot_id="s", features={}, source={})
+
+
+def test_unrepresentable_numeric_features_are_rejected_as_validation_errors(tmp_path):
+    from music_recsys.features import load_features
+
+    p = tmp_path / "huge.json"
+    p.write_text(
+        json.dumps({"dataset_id": "toy", "snapshot_id": "s", "features": {"a": {"rock": 10**400}}})
+    )
+    with pytest.raises(ValueError):
+        load_features(p, dataset_id="toy", snapshot_id="s")

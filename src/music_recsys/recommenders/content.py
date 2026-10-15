@@ -4,17 +4,8 @@ import math
 from collections import Counter, defaultdict
 
 from music_recsys.candidates import eligible_candidates
-from music_recsys.features import validate_features
+from music_recsys.features import unit_vector, validate_features
 from music_recsys.types import RecommendationRequest, RecommendationResponse
-
-
-def unit_vector(vector: dict) -> dict:
-    scale = max(vector.values(), default=0)
-    if not scale:
-        return {}
-    scaled = {k: v / scale for k, v in sorted(vector.items()) if v > 0}
-    norm = math.hypot(*scaled.values())
-    return {k: v / norm for k, v in scaled.items()}
 
 
 class ContentRecommender:

@@ -116,3 +116,16 @@ def test_runner_stores_diversity_once_for_many_windows_and_gains(tmp_path):
     saved = json.loads((path / "results.json").read_text())
     assert saved["beyond_accuracy"]["definitions"]["ranking"]
     assert (path / "beyond-accuracy.csv").exists()
+
+
+def test_large_finite_identical_vectors_have_zero_distance():
+    from music_recsys.evaluation.listening_diversity import listening_diversity
+
+    data, runs, _ = fixture(("a", "b"))
+    features = {
+        "a": {"x": 1e308, "y": 1e308, "z": 1e308, "w": 1e308},
+        "b": {"x": 1e308, "y": 1e308, "z": 1e308, "w": 1e308},
+    }
+    assert listening_diversity(data, runs, ks=(2,), features=features)["metrics"][0][
+        "ild"
+    ] == pytest.approx(0.0, abs=1e-15)

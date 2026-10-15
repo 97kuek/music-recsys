@@ -5,7 +5,7 @@ from collections import defaultdict
 from statistics import fmean
 
 from music_recsys.candidates import eligible_candidates
-from music_recsys.features import validate_features
+from music_recsys.features import unit_vector, validate_features
 
 
 def listening_diversity(dataset, runs, *, ks, features=None) -> dict:
@@ -24,7 +24,7 @@ def listening_diversity(dataset, runs, *, ks, features=None) -> dict:
         universe[request.task].update(eligible_candidates(request))
     if len(runs) != len(requests) or {r["request"]["request_id"] for r in runs} != set(requests):
         raise ValueError("diversity requests must match dataset")
-    norms = {item: math.hypot(*vector.values()) for item, vector in features.items()}
+    vectors = {item: unit_vector(vector) for item, vector in features.items()}
     metrics, details = [], []
     grouped = defaultdict(list)
     for run in runs:
@@ -45,15 +45,12 @@ def listening_diversity(dataset, runs, *, ks, features=None) -> dict:
                 else None
             )
             ild = None
-            if k >= 2 and len(ranked) >= 2 and all(norms.get(x, 0) > 0 for x in ranked):
+            if k >= 2 and len(ranked) >= 2 and all(vectors.get(x) for x in ranked):
                 distances = []
                 for i, a in enumerate(ranked):
                     for b in ranked[i + 1 :]:
                         # Normalize before products to avoid overflow from large finite features.
-                        cosine = math.fsum(
-                            (v / norms[a]) * (features[b].get(t, 0) / norms[b])
-                            for t, v in features[a].items()
-                        )
+                        cosine = math.fsum(v * vectors[b].get(t, 0) for t, v in vectors[a].items())
                         distances.append(1 - min(1.0, max(0.0, cosine)))
                 ild = fmean(distances)
             row = {
