@@ -1,6 +1,7 @@
 """探索のフェーズ制御から、入力形式・Evaluator・表示用変換を分離する。"""
 
 import hashlib
+import json
 from collections import Counter
 from dataclasses import asdict, dataclass, replace
 from functools import lru_cache
@@ -147,6 +148,10 @@ def evaluate_trial(
     public = {
         k: v for k, v in report.metadata.evaluation_conditions.items() if k != "dataset_provenance"
     }
+    if features is not None:
+        public["features_sha256"] = hashlib.sha256(
+            json.dumps(features, sort_keys=True, allow_nan=False).encode()
+        ).hexdigest()
     report = replace(report, metadata=replace(report.metadata, evaluation_conditions=public))
     curves = ranking_metrics(data, report, features=features)
     valid = (

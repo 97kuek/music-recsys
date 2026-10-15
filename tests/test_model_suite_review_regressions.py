@@ -94,6 +94,35 @@ def test_new_feature_export_cannot_silently_fall_back_to_unchecked_legacy(tmp_pa
         load_features(path, dataset_id="toy", snapshot_id="s")
 
 
+def test_binary_search_report_itself_retains_feature_identity(study):
+    from dataclasses import replace
+
+    from music_recsys.experiment_analysis import load_reports
+    from music_recsys.experiment_search import load_study, run_search, smoke
+    from music_recsys.features import write_features
+
+    first = model_config(study(), "content")
+    raw = json.loads(first.features.read_text())
+    changed = first.path.parent / "changed-features.json"
+    write_features(
+        changed,
+        dataset_id=raw["dataset_id"],
+        snapshot_id=raw["snapshot_id"],
+        source={},
+        features={item: {"changed": 1} for item in raw["features"]},
+    )
+    second = replace(first, features=changed, output=first.output.parent / "other-content")
+    reports = {}
+    for label, config in [("first", first), ("second", second)]:
+        smoke(config)
+        run_search(config)
+        saved = load_study(config)
+        trial = saved["trials"][saved["planned"][0]]
+        reports[label] = json.loads((config.output / trial["report"]).read_text())
+    with pytest.raises(ValueError, match="evaluation_conditions"):
+        load_reports(reports, dataset_id=raw["dataset_id"], top_k=20)
+
+
 @pytest.mark.parametrize("weight,base_name", [(0.0, "content"), (1.0, "usercf")])
 def test_hybrid_endpoints_keep_base_order_when_rrf_denominators_round_equal(weight, base_name):
     events = [Interaction("u", "a"), Interaction("v", "a"), Interaction("v", "b")] + [
