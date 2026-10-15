@@ -217,7 +217,9 @@ def _quantile(values: Sequence[float], q: float) -> float | None:
     return values[lower] + (values[upper] - values[lower]) * (position - lower)
 
 
-def cluster_statistics(values: Sequence[tuple[str, float]], config: BootstrapConfig) -> dict:
+def cluster_statistics(
+    values: Sequence[tuple[str, float]], config: BootstrapConfig, *, compute_ci: bool = True
+) -> dict:
     """要求平均を維持し、ユーザーの全要求をまとめて再標本化する。"""
     groups = defaultdict(list)
     for user, value in values:
@@ -241,7 +243,9 @@ def cluster_statistics(values: Sequence[tuple[str, float]], config: BootstrapCon
         "bootstrap_seed": config.seed,
         "ci_method": "user_cluster_percentile",
     }
-    if len(clusters) >= 2:
+    if not compute_ci:
+        result["ci_method"] = "not_requested"
+    if len(clusters) >= 2 and compute_ci:
         rng = random.Random(config.seed)
         sampled = []
         for _ in range(config.resamples):

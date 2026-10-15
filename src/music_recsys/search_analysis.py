@@ -25,6 +25,28 @@ def validation_overview(config):
     import pandas as pd
 
     data, conditions = context(config)
+    if config.protocol == "listening-v2":
+        from music_recsys.listening_analysis import validation_rows
+
+        frame = validation_rows(data, config)
+        task = "repeat" if config.task == "repeat" else "new"
+        selected = frame[frame.task == task]
+        return (
+            conditions,
+            frame,
+            {
+                "phase": "validation",
+                "protocol": "listening-v2",
+                "window_days": config.evaluation.primary_window_days,
+                "task": task,
+                "requests": len(frame),
+                "users": frame.user_id.nunique(),
+                "evaluable_users": selected.loc[selected.positive_count > 0, "user_id"].nunique(),
+                "empty_truth_requests": int((selected.positive_count == 0).sum()),
+                "training_events": len(data.train_interactions),
+                "catalog_items": len(data.catalog_ids),
+            },
+        )
     truths = {t.request_id: set(t.relevant_item_ids) for t in data.ground_truth}
     rows = []
     for request in data.requests:
@@ -213,6 +235,16 @@ def search_table(config):
     )
 
 
+def _evaluation_label(config):
+    if config.protocol != "listening-v2":
+        return ""
+    return (
+        f"listening-v2 | {config.task or 'discovery (diagnostic)'} | "
+        f"{config.evaluation.primary_window_days} days | "
+        f"day weight {config.evaluation.primary_day_weight:g}"
+    )
+
+
 def plot_search(config):
     import matplotlib.pyplot as plt
 
@@ -232,6 +264,8 @@ def plot_search(config):
     title = f"Validation | {config.model} | {metric}@{config.primary_k} | seed mean"
     if config.metric is None:
         title += " (diagnostic; primary metric unset)"
+    if label := _evaluation_label(config):
+        title += f"\n{label}"
     if len(names) == 1:
         key = f"param:{names[0]}"
         stats = valid.groupby(key, dropna=False)[metric].agg(["mean", "std"]).reset_index()
@@ -296,7 +330,9 @@ def parameter_sensitivity(config):
                     "n_seeds": len(measured),
                 }
             )
-    return pd.DataFrame(result)
+    frame = pd.DataFrame(result)
+    frame.attrs["evaluation_label"] = _evaluation_label(config)
+    return frame
 
 
 def plot_sensitivity(frame, *, metric, k):
@@ -311,7 +347,12 @@ def plot_sensitivity(frame, *, metric, k):
         rows = frame[frame.varied_parameter == name]
         ax.plot([str(v) for v in rows.value], rows["mean"].astype(float), "o-", color="#267d85")
         ax.set(
-            title=f"Validation | {metric}@{k} | seed mean\nOther parameters fixed (see table)",
+            title=f"Validation | {metric}@{k} | seed mean\nOther parameters fixed (see table)"
+            + (
+                f"\n{frame.attrs['evaluation_label']}"
+                if frame.attrs.get("evaluation_label")
+                else ""
+            ),
             xlabel=name,
             ylabel=f"{metric}@{k}",
         )
@@ -332,6 +373,13 @@ def selected_curves(config, *, resamples=2000):
 
 def _curve_frame(bundles, model, phase, resamples):
     import pandas as pd
+
+    if any(b.get("protocol") == "listening-v2" for b in bundles):
+        if not all(b.get("protocol") == "listening-v2" for b in bundles):
+            raise ValueError("比較条件不一致: protocols")
+        from music_recsys.listening_analysis import curve_frame
+
+        return curve_frame(bundles, model, phase, resamples)
 
     request_values = defaultdict(list)
     for curves in bundles:
@@ -366,6 +414,16 @@ def history_performance(config):
     import pandas as pd
 
     selected, study = load_selection(config), load_study(config)
+    if config.protocol == "listening-v2":
+        from music_recsys.listening_analysis import history_rows
+
+        return history_rows(
+            [
+                read_json(config.output / study["trials"][key]["curves"])
+                for key in selected["trial_ids"]
+            ],
+            config,
+        )
     grouped = defaultdict(list)
     for key in selected["trial_ids"]:
         for r in read_json(config.output / study["trials"][key]["curves"])["requests"]:
@@ -419,6 +477,11 @@ def final_comparison(configs):
 def plot_performance(frame, *, phase="Validation"):
     import matplotlib.pyplot as plt
 
+    if "task" in frame:
+        from music_recsys.listening_analysis import plot_curves
+
+        return plot_curves(frame, phase=phase)
+
     if frame.empty:
         return None
     fig, axes = plt.subplots(1, 2, figsize=(11, 3.5))
@@ -446,6 +509,11 @@ def plot_performance(frame, *, phase="Validation"):
 
 def plot_final(frame):
     import matplotlib.pyplot as plt
+
+    if "task" in frame:
+        from music_recsys.listening_analysis import plot_curves
+
+        return plot_curves(frame, phase="Test")
 
     if frame.empty:
         return None

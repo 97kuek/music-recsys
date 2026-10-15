@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from music_recsys.candidates import eligible_candidates
 from music_recsys.data import BenchmarkDataset
 from music_recsys.recommenders import create_recommender
 from music_recsys.types import RecommendationRequest, RecommendationResponse
@@ -25,8 +26,9 @@ def request_options(dataset: BenchmarkDataset) -> list[dict]:
         {
             "request_id": request.request_id,
             "user_id": request.user_id,
+            "task": request.task,
             "history_count": len(request.history),
-            "candidate_count": len(set(request.candidate_ids).difference(request.history)),
+            "candidate_count": len(eligible_candidates(request)),
         }
         for request in dataset.requests
     ]
@@ -69,7 +71,7 @@ def inspect_recommendation(
             "in_history": item_id in request.history,
             "score": counts[item_id] if model == "popularity" else None,
             "reason": (
-                f"学習全体で{counts[item_id]}回。未聴候補を再生回数の降順、同数ならID昇順で選択。"
+                f"学習全体で{counts[item_id]}回。{'既聴' if request.task == 'repeat' else '未聴'}候補を再生回数の降順、同数ならID昇順で選択。"
                 if model == "popularity"
                 else None
             ),
