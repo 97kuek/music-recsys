@@ -143,3 +143,30 @@ def test_results_record_window_end_dates_without_requiring_source_bundle(tmp_pat
         model_name="fixed",
     )
     assert report.metadata["evaluation_conditions"]["window_ends"] == {"90": "2017-06-27T00:00:00"}
+
+
+def test_evaluator_prepares_candidates_once_per_request_not_for_every_k_or_gain(
+    tmp_path, monkeypatch
+):
+    import music_recsys.evaluation.listening_metrics as metrics
+    from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
+    from music_recsys.listening_types import ListeningConfig
+
+    data, _ = inputs(tmp_path)
+    calls = []
+    original = metrics.eligible_candidates
+
+    def counted(request):
+        calls.append(request.request_id)
+        return original(request)
+
+    monkeypatch.setattr(metrics, "eligible_candidates", counted)
+    config = ListeningConfig(window_days=(90,), ks=(1, 10, 20), day_weights=(0.0, 1.0, 2.0))
+    report = run_listening_benchmark(
+        data,
+        lambda r: RecommendationResponse(r.request_id, r.candidate_ids),
+        config=config,
+        model_name="fixture",
+    )
+    assert len(calls) == len(data.requests)
+    assert all(r["value"] == 1 for r in report.summary if r["task"] == "discovery")

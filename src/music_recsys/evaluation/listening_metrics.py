@@ -24,58 +24,77 @@ def graded_gain(play_count, active_days, day_weight):
     return math.log2(1 + play_count) + day_weight * math.log2(1 + active_days)
 
 
+class PreparedListeningResponse:
+    """1要求の候補・観測検証を共有する。モデルへは渡さない。"""
+
+    def __init__(self, request, response, observations):
+        if request.top_k != 20:
+            raise ValueError("listening-v2 uses one top-20 ranking")
+        if request.request_id != response.request_id:
+            raise ValueError("request_id mismatch")
+        self.request, self.response = request, response
+        self.eligible, history = set(eligible_candidates(request)), set(request.history)
+        self.observations = tuple(observations)
+        seen = set()
+        for row in self.observations:
+            if row.user_id != request.user_id or (row.learning_play_count > 0) != (
+                row.item_id in history
+            ):
+                raise ValueError("observation user / learning history mismatch")
+            key = (row.item_id, row.window_days)
+            if key in seen:
+                raise ValueError("duplicate observation")
+            seen.add(key)
+        self._gains = {}
+
+    def evaluate(self, *, window_days, k, day_weight):
+        positive_integer(window_days, "window_days")
+        positive_integer(k, "K")
+        validate_weight(day_weight)
+        if k > 20:
+            raise ValueError("listening-v2 uses K=1..20")
+        key = (window_days, day_weight)
+        if key not in self._gains:
+            gains = {
+                row.item_id: graded_gain(
+                    row.evaluation_play_count, row.evaluation_active_days, day_weight
+                )
+                for row in self.observations
+                if row.window_days == window_days and row.item_id in self.eligible
+            }
+            self._gains[key] = gains, sorted(gains.values(), reverse=True)
+        gains, ideal = self._gains[key]
+        prefix = self.response.item_ids[:20][:k]
+        seen, valid, invalid, duplicate, binary_dcg, graded_dcg, hits = set(), 0, 0, 0, 0.0, 0.0, 0
+        for rank, item in enumerate(prefix, 1):
+            if item not in self.eligible:
+                invalid += 1
+            if item in seen:
+                duplicate += 1
+            if item in self.eligible and item not in seen:
+                valid += 1
+                if item in gains:
+                    hits += 1
+                    binary_dcg += 1 / math.log2(rank + 1)
+                    graded_dcg += gains[item] / math.log2(rank + 1)
+            seen.add(item)
+        binary_ideal = sum(1 / math.log2(rank + 1) for rank in range(1, min(k, len(gains)) + 1))
+        graded_ideal = sum(gain / math.log2(rank + 1) for rank, gain in enumerate(ideal[:k], 1))
+        return ListeningScore(
+            binary_dcg / binary_ideal if binary_ideal else None,
+            graded_dcg / graded_ideal if graded_ideal else None,
+            hits / len(gains) if gains else None,
+            len(gains),
+            len(prefix),
+            valid,
+            invalid,
+            duplicate,
+            k - len(prefix),
+            max(0, len(self.response.item_ids) - 20),
+        )
+
+
 def evaluate_listening_response(request, response, observations, *, window_days, k, day_weight):
-    positive_integer(window_days, "window_days")
-    positive_integer(k, "K")
-    validate_weight(day_weight)
-    if k > 20 or request.top_k != 20:
-        raise ValueError("listening-v2 uses one top-20 ranking and K=1..20")
-    if request.request_id != response.request_id:
-        raise ValueError("request_id mismatch")
-    eligible, history = set(eligible_candidates(request)), set(request.history)
-    gains = {}
-    seen_observations = set()
-    for row in observations:
-        if row.user_id != request.user_id or (row.learning_play_count > 0) != (
-            row.item_id in history
-        ):
-            raise ValueError("observation user / learning history mismatch")
-        key = (row.item_id, row.window_days)
-        if key in seen_observations:
-            raise ValueError("duplicate observation")
-        seen_observations.add(key)
-        if row.window_days == window_days and row.item_id in eligible:
-            gains[row.item_id] = graded_gain(
-                row.evaluation_play_count, row.evaluation_active_days, day_weight
-            )
-    prefix = response.item_ids[:20][:k]
-    seen, valid, invalid, duplicate, binary_dcg, graded_dcg, hits = set(), 0, 0, 0, 0.0, 0.0, 0
-    for rank, item in enumerate(prefix, 1):
-        if item not in eligible:
-            invalid += 1
-        if item in seen:
-            duplicate += 1
-        if item in eligible and item not in seen:
-            valid += 1
-            if item in gains:
-                hits += 1
-                binary_dcg += 1 / math.log2(rank + 1)
-                graded_dcg += gains[item] / math.log2(rank + 1)
-        seen.add(item)
-    binary_ideal = sum(1 / math.log2(rank + 1) for rank in range(1, min(k, len(gains)) + 1))
-    graded_ideal = sum(
-        gain / math.log2(rank + 1)
-        for rank, gain in enumerate(sorted(gains.values(), reverse=True)[:k], 1)
-    )
-    return ListeningScore(
-        binary_dcg / binary_ideal if binary_ideal else None,
-        graded_dcg / graded_ideal if graded_ideal else None,
-        hits / len(gains) if gains else None,
-        len(gains),
-        len(prefix),
-        valid,
-        invalid,
-        duplicate,
-        k - len(prefix),
-        max(0, len(response.item_ids) - 20),
+    return PreparedListeningResponse(request, response, observations).evaluate(
+        window_days=window_days, k=k, day_weight=day_weight
     )

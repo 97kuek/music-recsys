@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from music_recsys.evaluation.benchmark import _source_sha256
-from music_recsys.evaluation.listening_metrics import evaluate_listening_response
+from music_recsys.evaluation.listening_metrics import PreparedListeningResponse
 from music_recsys.evaluation.tracking import ExperimentRun, TrackingConfig, TrackingResult
 from music_recsys.listening_data import file_sha256, read_user_observations
 from music_recsys.search_metrics import quantile
@@ -212,14 +212,12 @@ def run_listening_benchmark(
                     duration = time.perf_counter() - started
                     durations.append(duration)
                     generated_responses.append(response)
+                prepared = PreparedListeningResponse(request, response, observations)
                 metrics, diagnostics = [], []
                 for window in config.window_days:
                     for k in config.ks:
                         for index, weight in enumerate(config.day_weights):
-                            score = evaluate_listening_response(
-                                request,
-                                response,
-                                observations,
+                            score = prepared.evaluate(
                                 window_days=window,
                                 k=k,
                                 day_weight=weight,
