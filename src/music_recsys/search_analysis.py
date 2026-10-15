@@ -360,15 +360,31 @@ def plot_sensitivity(frame, *, metric, k):
     return fig
 
 
-def selected_curves(config, *, resamples=2000):
-    selected, study = load_selection(config), load_study(config)
+def _trial_bundles(config, trial_ids):
+    study = load_study(config)
     bundles = []
-    for key in selected["trial_ids"]:
+    for key in trial_ids:
+        if not study or key not in study["planned"] or key not in study["trials"]:
+            raise ValueError("診断trialが見つかりません")
         trial = study["trials"][key]
-        _verified_trial(config, trial)
-        curves = read_json(config.output / trial["curves"])
-        bundles.append(curves)
-    return _curve_frame(bundles, config.model, "validation", resamples)
+        if not _verified_trial(config, trial):
+            raise ValueError("成功済みtrialだけを分析できます")
+        bundles.append(read_json(config.output / trial["curves"]))
+    return bundles
+
+
+def trial_curves(config, trial_id, *, resamples=2000):
+    """指定した1試行の診断用Reader。設定選択やTestの許可を変更しない。"""
+    frame = _curve_frame(_trial_bundles(config, [trial_id]), config.model, "validation", resamples)
+    frame.attrs["diagnostic_trial_id"] = trial_id
+    return frame
+
+
+def selected_curves(config, *, resamples=2000):
+    selected = load_selection(config)
+    return _curve_frame(
+        _trial_bundles(config, selected["trial_ids"]), config.model, "validation", resamples
+    )
 
 
 def _curve_frame(bundles, model, phase, resamples):
@@ -417,13 +433,7 @@ def history_performance(config):
     if config.protocol == "listening-v2":
         from music_recsys.listening_analysis import history_rows
 
-        return history_rows(
-            [
-                read_json(config.output / study["trials"][key]["curves"])
-                for key in selected["trial_ids"]
-            ],
-            config,
-        )
+        return history_rows(_trial_bundles(config, selected["trial_ids"]), config)
     grouped = defaultdict(list)
     for key in selected["trial_ids"]:
         for r in read_json(config.output / study["trials"][key]["curves"])["requests"]:
@@ -568,6 +578,9 @@ def tradeoff_points(config):
     import pandas as pd
 
     study = load_study(config)
+    accuracy_metric = config.metric or (
+        "binary_ndcg" if config.protocol == "listening-v2" else "ndcg"
+    )
     grouped = defaultdict(list)
     if not study:
         return pd.DataFrame()
@@ -589,12 +602,21 @@ def tradeoff_points(config):
                     if len(values) == len(config.seeds)
                     and all(r[metric] is not None for r in values)
                     else None
-                    for metric in ("ndcg", "ild", "novelty", "catalog_coverage")
+                    for metric in tuple(
+                        dict.fromkeys(
+                            ("ndcg", accuracy_metric, "ild", "novelty", "catalog_coverage")
+                        )
+                    )
                 },
             }
         )
     frame = pd.DataFrame(rows)
     frame.attrs["model"] = config.model
+    metric = config.metric or ("binary_ndcg" if config.protocol == "listening-v2" else "ndcg")
+    if not frame.empty:
+        frame["accuracy"] = frame[metric]
+    frame.attrs["accuracy_metric"] = metric
+    frame.attrs["evaluation_label"] = _evaluation_label(config)
     return frame
 
 
@@ -606,7 +628,11 @@ def plot_tradeoffs(frame, *, phase="Validation"):
     rows = frame
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.5))
     for ax, metric in zip(axes, ("ild", "novelty", "catalog_coverage"), strict=True):
-        values = rows.dropna(subset=[metric, "ndcg"])
+        accuracy = "accuracy" if "accuracy" in rows else "ndcg"
+        accuracy_label = frame.attrs.get("accuracy_metric", "ndcg")
+        values = rows.dropna(
+            subset=[metric] if metric == "catalog_coverage" else [metric, accuracy]
+        )
         if values.empty:
             ax.text(0.5, 0.5, "Unmeasured", ha="center", transform=ax.transAxes)
         else:
@@ -614,8 +640,8 @@ def plot_tradeoffs(frame, *, phase="Validation"):
                 ax.bar(range(len(values)), values[metric], color="#267d85")
                 ax.set_xticks(range(len(values)), values.setting_id)
             else:
-                ax.scatter(values[metric], values["ndcg"], color="#267d85")
-                for (x, y), points in values.groupby([metric, "ndcg"]):
+                ax.scatter(values[metric], values[accuracy], color="#267d85")
+                for (x, y), points in values.groupby([metric, accuracy]):
                     ax.annotate(
                         ", ".join(points.setting_id),
                         (x, y),
@@ -632,13 +658,14 @@ def plot_tradeoffs(frame, *, phase="Validation"):
             )
         else:
             ax.set(
-                title=f"{phase} | NDCG@10 × {metric} | seed mean",
+                title=f"{phase} | {accuracy_label}@10 × {metric} | seed mean",
                 xlabel=metric,
-                ylabel="Binary NDCG@10",
+                ylabel=f"{accuracy_label}@10",
             )
         ax.title.set_fontsize(10)
     fig.suptitle(
-        f"{frame.attrs.get('model', 'Model')} | K=10 | all declared seeds; settings in table",
+        f"{frame.attrs.get('model', 'Model')} | K=10 | all declared seeds; settings in table"
+        + (f"\n{frame.attrs['evaluation_label']}" if frame.attrs.get("evaluation_label") else ""),
         fontsize=11,
     )
     fig.tight_layout()

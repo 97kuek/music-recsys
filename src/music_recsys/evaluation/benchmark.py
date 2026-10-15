@@ -333,10 +333,10 @@ def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None)
     """設定からデータを読み、モデルを学習して共通Runnerを呼ぶ。"""
     config = load_config(config_path)
 
-    def feature_args(dataset):
-        from music_recsys.features import FEATURE_MODELS, load_features
+    from music_recsys.features import FEATURE_MODELS, load_features
 
-        features = (
+    def read_features(dataset):
+        return (
             load_features(
                 config.features,
                 dataset_id=dataset.dataset_id,
@@ -345,25 +345,26 @@ def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None)
             if config.features
             else None
         )
-        return {"features": features} if config.model in FEATURE_MODELS else {}
 
     if config.protocol == "listening-v2":
         from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
         from music_recsys.listening_data import load_listening_dataset
 
         dataset = load_listening_dataset(config.dataset_path, config.listening_config)
+        features = read_features(dataset)
         start = time.perf_counter()
         model = create_recommender(
             config.model,
             dataset.train_interactions,
             parameters=config.model_parameters,
             seed=config.seed,
-            **feature_args(dataset),
+            **({"features": features} if config.model in FEATURE_MODELS else {}),
         )
         return run_listening_benchmark(
             dataset,
             model.recommend,
             config=config.listening_config,
+            features=features,
             model_name=config.model,
             seed=config.seed,
             training_seconds=time.perf_counter() - start,
@@ -372,13 +373,14 @@ def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None)
             tracking=tracking if tracking is not None else config.tracking,
         )
     dataset = load_dataset(config.dataset_path, top_k=config.top_k)
+    features = read_features(dataset)
     start = time.perf_counter()
     model = create_recommender(
         config.model,
         dataset.train_interactions,
         parameters=config.model_parameters,
         seed=config.seed,
-        **feature_args(dataset),
+        **({"features": features} if config.model in FEATURE_MODELS else {}),
     )
     training_seconds = time.perf_counter() - start
     return run_benchmark(

@@ -1,0 +1,39 @@
+# 合成データで全7モデルの同条件フローを確認する。研究上の最適値ではない。
+[experiment]
+name = "toy-suite-als"
+protocol = "listening-v2"
+validation_dataset = "../data/benchmarks/toy-listening/validation"
+test_dataset = "../data/benchmarks/toy-listening/test"
+features = "../data/benchmarks/toy-listening/features.json"
+output = "../data/experiments/toy-suite/als"
+
+[model]
+name = "als"
+[model.parameters]
+iterations = 5
+
+[search]
+stage = "B"
+seeds = [0, 42]
+max_trials = 8
+[search.grid]
+factors = [4, 8]
+regularization = [0.1, 1.0]
+
+[evaluation]
+window_days = [30, 90, 180]
+primary_window_days = 90
+day_weights = [0.0, 0.5, 1.0, 2.0]
+primary_day_weight = 1.0
+
+[selection]
+task = "repeat"
+metric = "graded_ndcg"
+k = 10
+direction = "maximize"
+
+[tracking]
+enabled = false
+
+[comparison]
+configs = ["workflow-suite-popularity.toml", "workflow-suite-itemcf.toml", "workflow-suite-usercf.toml", "workflow-suite-bpr.toml", "workflow-suite-content.toml", "workflow-suite-hybrid.toml"]

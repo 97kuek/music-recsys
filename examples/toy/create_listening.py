@@ -72,6 +72,20 @@ def create_example(output):
                 "split_id": "synthetic-temporal-v1",
             },
         )
+    from music_recsys.features import write_features
+
+    write_features(
+        output / "features.json",
+        dataset_id="synthetic-listening-toy",
+        snapshot_id="synthetic-listening-toy-v1",
+        source={"kind": "synthetic-tags"},
+        features={
+            "a": {"rock": 1.0},
+            "b": {"pop": 1.0},
+            "c": {"jazz": 1.0},
+            "d": {"rock": 0.6, "jazz": 0.4},
+        },
+    )
     return output
 
 
