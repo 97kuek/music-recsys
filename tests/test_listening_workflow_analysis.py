@@ -101,3 +101,46 @@ def test_secondary_sensitivity_can_skip_bootstrap_without_imputing_a_ci():
     assert statistics["mean"] == 0.5
     assert statistics["ci_low"] is None
     assert statistics["ci_method"] == "not_requested"
+
+
+def test_seven_model_plot_separates_metrics_and_keeps_legend_off_curves():
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
+    from music_recsys.search_analysis import plot_final
+
+    metrics = [
+        ("discovery", "binary_ndcg"),
+        ("discovery", "recall"),
+        ("retention_proxy", "graded_ndcg"),
+        ("repeat", "graded_ndcg"),
+        ("repeat", "repeat_recall"),
+    ]
+    frame = pd.DataFrame(
+        [
+            dict(
+                experiment=f"model-{model}",
+                task=task,
+                metric=metric,
+                k=k,
+                window_days=90,
+                day_weight=1 if metric == "graded_ndcg" else None,
+                mean=0.4,
+                ci_low=0.3,
+                ci_high=0.5,
+            )
+            for model in range(7)
+            for task, metric in metrics
+            for k in range(1, 21)
+        ]
+    )
+    frame.attrs["primary"] = {"window_days": 90, "day_weight": 1}
+    fig = plot_final(frame)
+    plotted = [ax for ax in fig.axes if ax.lines]
+    assert len(plotted) == 5
+    assert all(len(ax.lines) == 7 and ax.get_legend() is None for ax in plotted)
+    assert all("Test" in ax.get_title() for ax in plotted)
+    legends = [ax.get_legend() for ax in fig.axes if ax.get_legend() is not None]
+    assert len(legends) == 1
+    assert {t.get_text() for t in legends[0].texts} == {f"model-{m}" for m in range(7)}
+    plt.close(fig)

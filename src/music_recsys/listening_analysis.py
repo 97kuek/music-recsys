@@ -87,6 +87,8 @@ def plot_curves(frame, *, phase):
     frame = primary_rows(frame)
     if frame.empty:
         return None
+    if "experiment" in frame and frame.experiment.nunique() > 2:
+        return _plot_model_comparison(frame, phase=phase)
     fig, axes = plt.subplots(1, 2, figsize=(12, 3.8))
     primary = frame.attrs.get("primary", {})
     for ax, tasks, title in (
@@ -128,6 +130,67 @@ def plot_curves(frame, *, phase):
         ax.title.set_fontsize(10)
     fig.suptitle(
         f"listening-v2 | {primary.get('window_days', '?')} days | day weight {primary.get('day_weight', '?')} | seed mean; user 95% CI",
+        fontsize=10,
+    )
+    fig.tight_layout()
+    return fig
+
+
+def _plot_model_comparison(frame, *, phase):
+    """多数モデルは指標ごとに分け、共通凡例を曲線の外へ置く。"""
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    fig, axes = plt.subplots(2, 3, figsize=(14, 8))
+    labels = sorted(frame.experiment.unique())
+    palette = plt.get_cmap("tab10")
+    colors = {label: palette(i % 10) for i, label in enumerate(labels)}
+    panels = (
+        ("discovery", "binary_ndcg", "New | Binary NDCG"),
+        ("discovery", "recall", "New | Recall"),
+        ("retention_proxy", "graded_ndcg", "New | Graded NDCG (provisional)"),
+        ("repeat", "graded_ndcg", "Repeat | Graded NDCG (provisional)"),
+        ("repeat", "repeat_recall", "Repeat | Recall"),
+    )
+    for ax, (task, metric, title) in zip(axes.flat, panels, strict=False):
+        selected = frame[(frame.task == task) & (frame.metric == metric)]
+        for label, rows in selected.groupby("experiment"):
+            rows = rows.dropna(subset=["mean"]).sort_values("k")
+            if rows.empty:
+                continue
+            ax.plot(rows.k, rows["mean"].astype(float), color=colors[label], label=label)
+            ci = rows.dropna(subset=["ci_low", "ci_high"])
+            if not ci.empty:
+                ax.fill_between(
+                    ci.k,
+                    ci.ci_low.astype(float),
+                    ci.ci_high.astype(float),
+                    color=colors[label],
+                    alpha=0.08,
+                )
+        if not ax.lines:
+            ax.text(0.5, 0.5, "No evaluable users", ha="center", transform=ax.transAxes)
+        ax.set(
+            title=f"{phase} | {title}",
+            xlabel="K (same top-20 ranking)",
+            ylabel=metric,
+            ylim=(-0.02, 1.02),
+        )
+        ax.title.set_fontsize(10)
+    legend = axes.flat[-1]
+    legend.set_axis_off()
+    legend.legend(
+        [Line2D([0], [0], color=colors[label]) for label in labels],
+        labels,
+        title="Models / experiments",
+        loc="center",
+        fontsize=9,
+        frameon=False,
+    )
+    primary = frame.attrs.get("primary", {})
+    fig.suptitle(
+        f"listening-v2 | {primary.get('window_days', '?')} days | "
+        f"day weight {primary.get('day_weight', '?')} | seed mean; user 95% CI",
         fontsize=10,
     )
     fig.tight_layout()
