@@ -44,6 +44,7 @@ class BenchmarkConfig:
     model_parameters: dict = field(default_factory=dict)
     protocol: str = "binary-v1"
     listening_config: object | None = None
+    features: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -132,6 +133,9 @@ def load_config(path: Path) -> BenchmarkConfig:
             model_parameters=config.get("parameters", {}),
             protocol=protocol,
             listening_config=listening_config,
+            features=(path.parent / config["features"]).resolve()
+            if config.get("features")
+            else None,
         )
     except (KeyError, TypeError) as error:
         raise ValueError("invalid benchmark configuration") from error
@@ -328,6 +332,21 @@ def _run_benchmark(
 def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None) -> BenchmarkReport:
     """設定からデータを読み、モデルを学習して共通Runnerを呼ぶ。"""
     config = load_config(config_path)
+
+    def feature_args(dataset):
+        from music_recsys.features import FEATURE_MODELS, load_features
+
+        features = (
+            load_features(
+                config.features,
+                dataset_id=dataset.dataset_id,
+                snapshot_id=(dataset.provenance or {}).get("snapshot_id"),
+            )
+            if config.features
+            else None
+        )
+        return {"features": features} if config.model in FEATURE_MODELS else {}
+
     if config.protocol == "listening-v2":
         from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
         from music_recsys.listening_data import load_listening_dataset
@@ -339,6 +358,7 @@ def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None)
             dataset.train_interactions,
             parameters=config.model_parameters,
             seed=config.seed,
+            **feature_args(dataset),
         )
         return run_listening_benchmark(
             dataset,
@@ -358,6 +378,7 @@ def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None)
         dataset.train_interactions,
         parameters=config.model_parameters,
         seed=config.seed,
+        **feature_args(dataset),
     )
     training_seconds = time.perf_counter() - start
     return run_benchmark(

@@ -41,13 +41,17 @@ def inspect_recommendation(
     request_id: str,
     parameters: dict | None = None,
     seed: int = 0,
+    features: dict | None = None,
 ) -> RecommendationInspection:
     """学習履歴だけでモデルを作り、選択した要求を実行する。正解は参照しない。"""
     request = next((r for r in dataset.requests if r.request_id == request_id), None)
     if request is None:
         raise ValueError(f"unknown request_id: {request_id}")
+    from music_recsys.features import FEATURE_MODELS
+
+    feature_args = {"features": features} if model in FEATURE_MODELS else {}
     recommender = create_recommender(
-        model, dataset.train_interactions, parameters=parameters, seed=seed
+        model, dataset.train_interactions, parameters=parameters, seed=seed, **feature_args
     )
     response = recommender.recommend(request)
     counts = Counter(event.item_id for event in dataset.train_interactions)

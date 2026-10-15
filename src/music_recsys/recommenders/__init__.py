@@ -22,6 +22,7 @@ def create_recommender(
     *,
     parameters: dict | None = None,
     seed: int = 0,
+    features: dict | None = None,
 ) -> Recommender:
     if model == "popularity":
         if parameters:

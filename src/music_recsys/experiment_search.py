@@ -322,18 +322,13 @@ def _plans(config):
 def _features(config, data):
     if config.features is None:
         return None
-    raw = read_json(config.features)
-    if raw.get("dataset_id") != data.dataset_id or raw.get("snapshot_id") != data.provenance.get(
-        "snapshot_id"
-    ):
-        raise ValueError("比較条件不一致: featuresの出典")
-    values = raw["features"]
-    for vector in values.values():
-        if not isinstance(vector, dict) or any(
-            type(v) not in (int, float) or not math.isfinite(v) or v < 0 for v in vector.values()
-        ):
-            raise ValueError("特徴は非負の有限値の辞書が必要です")
-    return values
+    from music_recsys.features import load_features
+
+    return load_features(
+        config.features,
+        dataset_id=data.dataset_id,
+        snapshot_id=(data.provenance or {}).get("snapshot_id"),
+    )
 
 
 def _verified_trial(config, entry):
@@ -401,7 +396,17 @@ def _trial(config, study, data, parameters, seed, factory, *, phase="validation"
     try:
         with experiment if experiment is not None else nullcontext() as active:
             start = time.perf_counter()
-            model = factory(config.model, data.train_interactions, parameters=parameters, seed=seed)
+            from music_recsys.features import FEATURE_MODELS
+
+            features = _features(config, data)
+            feature_args = {"features": features} if config.model in FEATURE_MODELS else {}
+            model = factory(
+                config.model,
+                data.train_interactions,
+                parameters=parameters,
+                seed=seed,
+                **feature_args,
+            )
             training_seconds = time.perf_counter() - start
             evaluated = evaluate_trial(
                 config,
@@ -411,7 +416,7 @@ def _trial(config, study, data, parameters, seed, factory, *, phase="validation"
                 seed,
                 training_seconds,
                 digest(study["conditions"]),
-                _features(config, data),
+                features,
                 run_benchmark,
             )
             report, curves, valid = evaluated.report, evaluated.curves, evaluated.valid
