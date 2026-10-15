@@ -6,6 +6,7 @@ from typing import Protocol
 from music_recsys.data import Interaction
 from music_recsys.recommenders.itemcf import ItemCFRecommender
 from music_recsys.recommenders.popularity import PopularityRecommender
+from music_recsys.recommenders.usercf import UserCFRecommender
 from music_recsys.types import RecommendationRequest, RecommendationResponse
 
 
@@ -13,7 +14,7 @@ class Recommender(Protocol):
     def recommend(self, request: RecommendationRequest) -> RecommendationResponse: ...
 
 
-AVAILABLE_MODELS = ("popularity", "itemcf")
+AVAILABLE_MODELS = ("popularity", "itemcf", "usercf")
 
 
 def create_recommender(
@@ -28,11 +29,13 @@ def create_recommender(
         if parameters:
             raise ValueError("popularity has no tunable parameters")
         return PopularityRecommender(interactions)
-    if model == "itemcf":
+    if model in {"itemcf", "usercf"}:
         parameters = parameters or {}
         if set(parameters) - {"neighbors", "similarity"}:
-            raise ValueError("unknown itemcf parameters")
-        return ItemCFRecommender(interactions, **parameters)
+            raise ValueError(f"unknown {model} parameters")
+        return (ItemCFRecommender if model == "itemcf" else UserCFRecommender)(
+            interactions, **parameters
+        )
     raise ValueError(
         f"model '{model}' is not implemented; available: {', '.join(AVAILABLE_MODELS)}"
     )
