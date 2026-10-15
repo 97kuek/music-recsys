@@ -3,7 +3,7 @@
 name = "toy-popularity-workflow"
 validation_dataset = "../examples/toy/workflow-validation.json"
 test_dataset = "../examples/toy/workflow-test.json"
-output = "../data/experiments/toy-popularity"
+output = "../../../data/experiments/toy-popularity"
 
 [model]
 name = "popularity"

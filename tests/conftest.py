@@ -74,7 +74,9 @@ def music4all_factory(tmp_path):
 @pytest.fixture
 def study(tmp_path):
     raw = json.loads(
-        (Path(__file__).resolve().parents[1] / "examples/toy/dataset.json").read_text()
+        (
+            Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json"
+        ).read_text()
     )
     raw["provenance"] = {
         "phase": "validation",

@@ -16,7 +16,7 @@ def test_v2_curves_keep_task_window_gain_and_user_uncertainty(listening_study):
     config, _ = prepared(listening_study)
     frame = selected_curves(config, resamples=100)
     assert set(frame.task) == {"discovery", "retention_proxy", "repeat"}
-    assert set(frame.k) == set(range(1, 21))
+    assert set(frame.k) == set(range(2, 21))
     assert set(frame.window_days) == {30, 90, 180}
     assert set(frame.loc[frame.metric == "graded_ndcg", "day_weight"]) == {0.0, 1.0, 2.0}
     assert frame.loc[frame.metric == "binary_ndcg", "day_weight"].isna().all()
@@ -68,7 +68,7 @@ def test_v2_final_comparison_does_not_mix_protocol_or_gain(listening_study):
     assert len(axes[1].lines) == 4
     for ax in axes:
         for line in ax.lines:
-            assert len(line.get_xdata()) == len(set(line.get_xdata())) == 20
+            assert len(line.get_xdata()) == len(set(line.get_xdata())) == 19
     changed = replace(config, evaluation=replace(config.evaluation, primary_day_weight=2.0))
     with pytest.raises(ValueError, match="条件"):
         final_comparison([config, changed])

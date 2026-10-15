@@ -10,7 +10,7 @@ from music_recsys import recommendation_inspection as inspection
 from music_recsys.data import load_dataset
 from music_recsys.types import GroundTruth
 
-DATA = Path(__file__).resolve().parents[1] / "examples/toy/dataset.json"
+DATA = Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json"
 
 
 def test_selected_user_history_and_popularity_explanation():

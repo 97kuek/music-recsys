@@ -1,20 +1,6 @@
-# Python環境、キャッシュ、ビルド生成物
+# ローカル環境・認証情報
 .venv/
 venv/
-__pycache__/
-*.py[cod]
-*.egg-info/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.uv-cache/
-.coverage
-.coverage.*
-htmlcov/
-/build/
-/dist/
-
-# 秘密情報（サンプルだけ管理対象）
 .env
 .env.*
 !.env.example
@@ -22,17 +8,26 @@ htmlcov/
 *.key
 /.aws/
 
-# データ本体。取得手順や説明は管理する
+# データ・評価結果（説明だけ管理）
 /data/*
 !/data/README.md
-
-# 学習済みモデル、大容量の実験生成物
+/mlruns/
 /models/
 /artifacts/
-/mlruns/
-/experiments/**/runs/
-/experiments/**/artifacts/
 
-# NotebookとmacOSの生成物
+# Pythonの生成物
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.uv-cache/
+.coverage*
+htmlcov/
+/build/
+/dist/
+
+# Notebook・OSの生成物
 .ipynb_checkpoints/
 .DS_Store

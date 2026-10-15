@@ -3,7 +3,7 @@
 name = "toy-itemcf-grid"
 validation_dataset = "../examples/toy/workflow-validation.json"
 test_dataset = "../examples/toy/workflow-test.json"
-output = "../data/experiments/toy-itemcf"
+output = "../../../data/experiments/toy-itemcf"
 
 [model]
 name = "itemcf"

@@ -16,7 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.fixture
 def saved(tmp_path):
-    raw = asdict(run_experiment(ROOT / "configs/toy.toml", tracking=TrackingConfig(enabled=False)))
+    raw = asdict(
+        run_experiment(
+            ROOT / "tests/fixtures/configs/toy.toml", tracking=TrackingConfig(enabled=False)
+        )
+    )
     path = tmp_path / "results.json"
     path.write_text(json.dumps(raw))
     return path

@@ -2,10 +2,10 @@
 [experiment]
 name = "toy-suite-content"
 protocol = "listening-v2"
-validation_dataset = "../data/benchmarks/toy-listening/validation"
-test_dataset = "../data/benchmarks/toy-listening/test"
-features = "../data/benchmarks/toy-listening/features.json"
-output = "../data/experiments/toy-suite/content"
+validation_dataset = "../../../data/benchmarks/toy-listening/validation"
+test_dataset = "../../../data/benchmarks/toy-listening/test"
+features = "../../../data/benchmarks/toy-listening/features.json"
+output = "../../../data/experiments/toy-suite/content"
 
 [model]
 name = "content"

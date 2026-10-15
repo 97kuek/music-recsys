@@ -1,71 +1,71 @@
 # 研究室サーバーでの運用
 
-## 構成
+## 環境
 
-- プロジェクト内のPython仮想環境・Parquet・JSON・SQLiteで完結する。Docker・PostgreSQL・sudoは不要。
-- MacはSSH接続とブラウザ表示に使い、計算はサーバーで行う。
-- 元データは `data/raw/`、全量Parquetは `data/processed/`、100ユーザーの入力は `data/benchmarks/lab-100/`。
-- 100ユーザーは動作確認・予備分析用。本格評価の人数・抽出方法・主タスク・主指標は未決定。
-- データ保存場所・容量制限・長時間処理のルール・アカウント利用期限・バックアップの有無は研究室に確認する。
+- Python仮想環境・Parquet・JSONで動作、Docker・sudo不要
+- 計算はサーバー、MacからはSSHとブラウザで接続
+- 設定は `configs/popularity-plays.json`、保存先は[構成](architecture.md)を参照
+- 元データを取得済みなら再ダウンロードせずchecksumを確認して再利用
 
-## 初回準備と再開
+## 準備と評価
 
-リポジトリのルートで実行する。
+リポジトリのルートで実行する
 
 ```bash
 uv sync --locked --group data --group models --group notebook --group tracking
-mkdir -p data/lab-setup
-tmux new-session -d -s music-recsys-prepare \
-  'OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 .venv/bin/python -u -m music_recsys.lab_data >> data/lab-setup/prepare.log 2>&1'
-tail -n 20 data/lab-setup/prepare.log
+.venv/bin/python -u -m music_recsys.lab_data
+.venv/bin/python -u -m music_recsys.full_popularity --config configs/popularity-plays.json
 ```
 
-- 取得途中の `.part` を再利用し、配布サイズ・MD5一致後に確定名へ変更する。
-- 全量イベントをバッチ変換し、元ファイルとParquetのSHA-256をmanifestへ保存する。
-- Train境界 `2017-03-29T00:00:00` より前に履歴があるユーザーを元ID順に100人選ぶ。未来の活動量で選ばない。Validation/Test境界は `2018-09-21T00:00:00`。
-- コホートの全期間履歴、分割、listening-v2のValidation/Test入力、タグ特徴を保存する。Test入力の生成は評価の実行ではない。
-- 全量変換時のDuckDB設定は2スレッド・2GB。プロセス全体のメモリ上限ではない。変換開始前に空き15GiBを確認するが、必要容量の保証ではないため `df -h .` も確認する。
-- 失敗したらログ末尾を確認し、原因を解消して同じコマンドを再実行する。既存の完了データは全hashを照合して再利用する。入力や処理版が変わった場合は別の `--output` を指定する。
-- `data/benchmarks/lab-100/ready.json` が完了の目印。これがない間は未完了。準備処理はモデル評価を実行しない。
-- `tmux has-session -t music-recsys-prepare` で稼働を確認する。同名セッションがある場合は重複起動しない。
+- `lab_data` は学習期間に観測された全ユーザーを対象とする
+- `--users N` は明示した小規模試験だけで使用
+- 学習境界は2017-03-29、Validation/Test境界は2018-09-21
+- 未来の再生有無でユーザーを選ばない
+- `data/benchmarks/music4all/ready.json` がデータ準備完了の目印
+- Test入力の生成はTest評価の実行ではない
+- 人気順は学習期間の再生回数、同数なら曲ID順
+- 全件処理はCPUで実行、DuckDBは原則2スレッド・2GB
+- 評価はユーザー単位で処理し、全再生イベントをPythonオブジェクトに展開しない
 
-## Notebookへの接続
-
-サーバー側で実行する。常駐Notebookにも `tmux` を利用できる。
+長時間処理はtmux内で実行する
 
 ```bash
-bash scripts/lab-notebook.sh
+tmux new -s popularity
+OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 \
+  .venv/bin/python -u -m music_recsys.full_popularity --config configs/popularity-plays.json
 ```
 
-Macのターミナルから、普段使っているSSH接続先を指定する。
+- `Ctrl-b d` で切断、`tmux attach -t popularity` で再接続
+- 実行ログは `data/experiments/popularity-plays/run.log`
+- `result.json` は評価・図の生成が成功した後に保存
+- 失敗時はログと実行プロセスを確認し、原因を直して再実行
+- 成功済みの結果は上書き拒否、別条件は別のoutputを指定
+- 実行中の入力・設定・コードは変更しない
+
+## Notebook
 
 ```bash
-ssh -N -L 8888:127.0.0.1:8888 <普段のSSH接続先>
+.venv/bin/jupyter lab --no-browser --ip=127.0.0.1 --port=8888
 ```
 
-サーバーのJupyterが表示するトークン付きURLをMacのブラウザで開く。トークンは共有しない。8888が使用中なら `bash scripts/lab-notebook.sh --port=8889` とし、SSH転送先も8889に揃える。
+Mac側の接続例
 
-1. `00_lab_start.ipynb`：取得・整備状況と実データの出典を確認。準備完了後に、手動でSmokeまたはValidation診断を開始する。
-2. `01_data.ipynb`：共有設定のValidation入力だけを読み、hash・観測分布・評価可能性を確認する。未準備なら案内して停止する。
-3. `02_analysis.ipynb`：保存済み診断結果・K別・ユーザー別の結果を見る。未実行の状態は未実行として表示する。
-4. `03_recommendation.ipynb`：設定選択後の推薦確認に使用する。主指標未指定の段階では選択できず、03は未選択として停止する。
+```bash
+ssh -L 8888:127.0.0.1:8888 <研究室サーバー>
+```
 
-各Notebookでimportと設定選択セルを実行し、選択欄からTOMLを選んで「読み込む」を押す。初期状態は未選択で、既定ファイル・環境変数からの自動選択は行わない。別のNotebookでも同じTOMLを選ぶ。
+- Jupyterが表示するURLをブラウザで開く、トークンは共有しない
+- 各Notebookで `popularity-plays.json` を明示選択して読み込む
+- 00は準備状態、01は母集団と分布、02は保存済みの4観点の結果
+- 00の `ACTION = "evaluate"` は評価開始、既定のNoneでは実行しない
+- 03は小規模共通Runnerで選択済みの設定を確認する機能
+- 全件Popularityの個別推薦は `recommendations.parquet` に保存
+- Jupyterの一時ファイルは標準のユーザー用保存先を使用
 
-- 初回の予備分析には `workflow-lab-popularity.toml` を選ぶ
-- 「読込み済み」を確認して、次の設定確認セルから順に実行する
-- ファイル追加後は「一覧を更新」、設定を編集した場合は再読込みする
-- 設定を変更したら後続セルを順に再実行し、古い表示を新しい実験の結果と解釈しない
+## 保管
 
-00の評価開始セルは既定 `ACTION = None`。明示した `smoke` / `search` だけを別プロセスで実行する。NotebookやSSHが切れてもログ・成果物はサーバーに残る。各実行は共通Runnerのロック・成功試行再利用を使用する。通常はSmoke確認後にValidationへ進む。
-
-`configs/workflow-lab-popularity.toml` は主タスク・主指標未指定の予備分析用。期間30/90/180日、日数重み0/0.5/1/2を診断し、既定表示は90日・重み1・K=10。これを本格評価の最適条件として扱わない。最良選択・固定・Test評価へ進む際は目的から条件を事前に決め、別の実験出力先を使う。
-
-## 保管と拡張
-
-- コード・設定・Notebook・共有用集計はGit管理。生履歴・加工データ・個別推薦・認証情報はGitへ追加しない。
-- ダウンロード可能な元データと、再取得できない実験結果を分けて保管する。結果・設定は実行終了後にMacなどへコピーする。サーバー上だけのコピーはバックアップと見なさない。
-- 結果移行時は `data/experiments/lab-100/` のSQLiteと成果物を一緒に、書込み処理の終了後にコピーする。入力の `ready.json` とmanifestも残す。
-- 複数プロセスによる多数の同時書込みや共同利用が必要になった時点で、研究室の許可を得てMLflowサーバーやPostgreSQLを検討する。
-- PopularityはCPUで動く。GPUを使うモデルを導入するときは研究室のGPU割当て・実行時間のルールを先に確認する。
-- 将来データ保存先を移す場合は `lab_data --raw /path/... --cache /path/... --output /path/...` とTOMLの入力パスを揃える。保存物を照合してから旧保存先を整理する。
+- コード・設定をGitで管理、元データ・個別履歴・結果は管理外
+- 成功後は実験フォルダと入力manifestを別媒体へコピー
+- サーバー内だけのコピーはバックアップと見なさない
+- データ保存先を移す場合はlab_dataの各パスとJSONの入力パスを揃える
+- 保存物を照合してから旧保存先を削除する

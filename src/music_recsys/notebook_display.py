@@ -21,6 +21,14 @@ LABELS = {
     "bin": "区間",
     "pairs": "ユーザー・曲ペア数",
     "window_days": "評価期間（日）",
+    "latency_mean": "平均レイテンシ（秒）",
+    "input_tokens": "入力トークン",
+    "output_tokens": "出力トークン",
+    "api_cost": "API料金（USD）",
+    "llm_calls": "LLM呼出し数",
+    "tool_calls": "tool呼出し数",
+    "generation_calls": "生成要求数",
+    "n_excluded": "除外数",
     "task": "タスク",
     "metric": "指標",
     "k": "K",
@@ -85,58 +93,25 @@ def show_state(state):
     print("次:", state["next_action"])
 
 
-def metric_groups(frame, config):
-    """主条件の曲線を主指標と補助指標に分ける / 未指定時は全て診断。"""
-    from music_recsys.listening_analysis import primary_rows
-
-    rows = primary_rows(frame)
-    primary = (rows.task == config.task) & (rows.metric == config.metric)
-    return rows[primary].copy(), rows[~primary].copy()
-
-
 def show_metric_group(frame, title, filename):
     """図を先に表示し、その直下に全Kの正確な値を置く。"""
-    import matplotlib.pyplot as plt
+    from music_recsys.evaluation_figures import accuracy_figures, show_figures
 
     if frame.empty:
         print(f"{title}: 未指定または未測定")
         return
-    groups = list(frame.groupby(["task", "metric"], sort=False))
-    cols = min(2, len(groups))
-    row_count = (len(groups) + cols - 1) // cols
-    fig, axes = plt.subplots(row_count, cols, figsize=(6 * cols, 3.5 * row_count), squeeze=False)
-    for ax in list(axes.flat)[len(groups) :]:
-        ax.set_visible(False)
-    for ax, ((task, metric), rows) in zip(axes.flat, groups, strict=False):
-        curves = rows.groupby("experiment", sort=False) if "experiment" in rows else [(None, rows)]
-        for label, values in curves:
-            values = values.sort_values("k")
-            line = ax.plot(values.k, values["mean"], label=label)[0]
-            ci = values.dropna(subset=["ci_low", "ci_high"])
-            ax.fill_between(
-                ci.k.to_numpy(float),
-                ci.ci_low.to_numpy(float),
-                ci.ci_high.to_numpy(float),
-                color=line.get_color(),
-                alpha=0.12,
-            )
-        task_label = {"discovery": "New", "repeat": "Repeat", "retention_proxy": "New (proxy)"}[
-            task
-        ]
-        metric_label = {
-            "binary_ndcg": "Binary NDCG",
-            "graded_ndcg": "Graded NDCG",
-            "repeat_recall": "Recall",
-            "recall": "Recall",
-        }[metric]
-        ax.set(
-            title=f"{task_label} · {metric_label}", xlabel="K", ylabel="Score", ylim=(-0.02, 1.02)
-        )
-        if "experiment" in rows:
-            ax.legend(fontsize=8)
-    fig.tight_layout()
-    plt.show()
-    columns = ["experiment", "task", "metric", "k", "mean", "ci_low", "ci_high", "n_evaluated"]
+    show_figures(accuracy_figures(frame))
+    columns = [
+        "experiment",
+        "task",
+        "metric",
+        "k",
+        "mean",
+        "ci_low",
+        "ci_high",
+        "n_evaluated",
+        "n_excluded",
+    ]
     columns = [c for c in columns if c in frame]
     show_table(
         frame[columns].sort_values(

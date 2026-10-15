@@ -248,6 +248,11 @@ def listening_curves(config, data, report):
             "day_weight": evaluation.primary_day_weight,
         },
         "efficiency": {
+            "latency_mean": metadata["total_recommendation_seconds"]
+            / metadata["n_generation_calls"]
+            if metadata["n_generation_calls"]
+            else None,
+            "generation_calls": metadata["n_generation_calls"],
             "latency_p50": metadata["latency_p50"],
             "latency_p95": metadata["latency_p95"],
             "training_seconds": metadata["training_seconds"],

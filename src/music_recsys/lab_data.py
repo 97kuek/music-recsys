@@ -95,7 +95,7 @@ def verify_prepared(output):
     return ready
 
 
-def prepare_files(cache, tags, output, *, users=100, source=None):
+def prepare_files(cache, tags, output, *, users=None, source=None):
     """Trainの元ID順コホートを抽出。DBに登録せず同じexporterを使用する。"""
     import duckdb
 
@@ -103,7 +103,7 @@ def prepare_files(cache, tags, output, *, users=100, source=None):
     from music_recsys.features import write_features
     from music_recsys.listening_export import export_listening_phase
 
-    if type(users) is not int or users <= 0:
+    if users is not None and (type(users) is not int or users <= 0):
         raise ValueError("users must be positive")
     temporal = TemporalConfig()
     identity = {
@@ -111,7 +111,9 @@ def prepare_files(cache, tags, output, *, users=100, source=None):
         "cache_sha256": file_sha256(cache),
         "tags_sha256": file_sha256(tags),
         "users": users,
-        "selection": "train-observed-source-id-ascending",
+        "selection": "all-train-observed"
+        if users is None
+        else "train-observed-source-id-ascending",
         "temporal": asdict(temporal),
         "code": source_version(
             Path(__file__).parent,
@@ -145,10 +147,13 @@ def prepare_files(cache, tags, output, *, users=100, source=None):
             c.read_parquet(str(cache)).create_view("all_events")
             c.execute(
                 "CREATE TEMP TABLE cohort AS SELECT DISTINCT user_id FROM all_events "
-                "WHERE event_time < ? ORDER BY user_id LIMIT ?",
-                [datetime.fromisoformat(temporal.train_end), users],
+                "WHERE event_time < ? ORDER BY user_id" + (" LIMIT ?" if users is not None else ""),
+                [datetime.fromisoformat(temporal.train_end)]
+                + ([users] if users is not None else []),
             )
-            if c.execute("SELECT count(*) FROM cohort").fetchone()[0] != users:
+            selected_users = c.execute("SELECT count(*) FROM cohort").fetchone()[0]
+            log(f"Selected {selected_users:,} train-observed users")
+            if not selected_users or (users is not None and selected_users != users):
                 raise ValueError("Train観測ユーザーが指定人数より少ないです")
             c.execute(
                 "COPY (SELECT e.* FROM all_events e JOIN cohort USING(user_id) "
@@ -206,7 +211,7 @@ def prepare_files(cache, tags, output, *, users=100, source=None):
             "identity": identity,
             "snapshot_id": snapshot,
             "split_id": split,
-            "users": users,
+            "users": selected_users,
             "tracks": len(items),
             "evaluation_executed": False,
             "tags_missing": len(items - payloads.keys()),
@@ -229,8 +234,8 @@ def main():
     parser.add_argument(
         "--cache", type=Path, default=Path("data/processed/music4all-onion-v2/events.parquet")
     )
-    parser.add_argument("--output", type=Path, default=Path("data/benchmarks/lab-100"))
-    parser.add_argument("--users", type=int, default=100)
+    parser.add_argument("--output", type=Path, default=Path("data/benchmarks/music4all"))
+    parser.add_argument("--users", type=int, default=None, help="省略時は学習履歴のある全ユーザー")
     parser.add_argument("--download-only", action="store_true")
     args = parser.parse_args()
     args.raw.mkdir(parents=True, exist_ok=True)

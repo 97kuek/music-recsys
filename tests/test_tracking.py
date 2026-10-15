@@ -26,7 +26,7 @@ def test_runner_records_conditions_metrics_and_aggregate_artifacts(tracking, tmp
 
     from music_recsys.evaluation.benchmark import run_experiment, save_report
 
-    report = run_experiment(ROOT / "configs/toy.toml", tracking=tracking)
+    report = run_experiment(ROOT / "tests/fixtures/configs/toy.toml", tracking=tracking)
     run = MlflowClient(tracking_uri=tracking.tracking_uri).get_run(report.tracking.run_id)
     assert run.info.status == "FINISHED"
     assert run.data.params["seed"] == "42"
@@ -66,7 +66,7 @@ def test_failed_recommendations_mark_mlflow_run_failed(tracking):
         raise RuntimeError("private message")
 
     report = run_benchmark(
-        load_dataset(ROOT / "examples/toy/dataset.json", top_k=2),
+        load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2),
         recommend,
         model_name="failed",
         tracking=tracking,
@@ -105,7 +105,7 @@ def test_tracking_failure_is_explicit_and_redacts_exception(monkeypatch, trackin
 
     monkeypatch.setattr(MlflowClient, "log_batch", fail)
     with pytest.raises(TrackingError) as failure:
-        run_experiment(ROOT / "configs/toy.toml", tracking=tracking)
+        run_experiment(ROOT / "tests/fixtures/configs/toy.toml", tracking=tracking)
     assert "private" not in str(failure.value)
     client = MlflowClient(tracking_uri=tracking.tracking_uri)
     experiment = client.get_experiment_by_name("tracking-tests")
@@ -134,7 +134,7 @@ def test_disabled_tracking_preserves_runner_without_mlflow(monkeypatch):
     from music_recsys.evaluation.benchmark import run_experiment
 
     monkeypatch.delenv("MUSIC_RECSYS_TRACKING", raising=False)
-    assert run_experiment(ROOT / "configs/toy.toml").tracking is None
+    assert run_experiment(ROOT / "tests/fixtures/configs/toy.toml").tracking is None
 
 
 @pytest.mark.parametrize("setting", ["bad", "1"])
@@ -143,7 +143,7 @@ def test_invalid_tracking_toggle_is_rejected(monkeypatch, setting):
 
     monkeypatch.setenv("MUSIC_RECSYS_TRACKING", setting)
     with pytest.raises(ValueError):
-        load_config(ROOT / "configs/toy.toml")
+        load_config(ROOT / "tests/fixtures/configs/toy.toml")
 
 
 def test_server_refuses_domain_database(monkeypatch):
@@ -183,7 +183,7 @@ def test_undefined_ranking_metrics_are_not_logged_as_zero(tracking):
     from music_recsys.recommenders.popularity import PopularityRecommender
     from music_recsys.types import GroundTruth
 
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=2)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     dataset = replace(
         dataset,
         ground_truth=tuple(GroundTruth(request.request_id, ()) for request in dataset.requests),
@@ -240,7 +240,7 @@ def test_saved_details_are_linked_by_manifest_without_uploading_histories(tracki
     from music_recsys.evaluation.benchmark import run_experiment, save_report
     from music_recsys.experiment_analysis import read_mlflow_report
 
-    report = run_experiment(ROOT / "configs/toy.toml", tracking=tracking)
+    report = run_experiment(ROOT / "tests/fixtures/configs/toy.toml", tracking=tracking)
     root = tmp_path / "results"
     saved = save_report(report, root, tracking=tracking)
     client = MlflowClient(tracking_uri=tracking.tracking_uri)

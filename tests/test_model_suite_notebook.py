@@ -64,7 +64,7 @@ def test_new_models_and_diagnostic_views_run_in_fresh_kernels(
     check = (
         "assert not recommendations_df.empty\nassert recommendations_df.reason.notna().all()"
         if name.startswith("03")
-        else "assert not workflow_curves.empty\nassert not tradeoff_df.empty\nassert workflow_curves.novelty.notna().any()"
+        else "assert not workflow_curves.empty\nassert not beyond_df.empty\nassert workflow_curves.novelty.notna().any()"
     )
     notebook.cells.append(nbformat.v4.new_code_cell(check))
     executed = NotebookClient(

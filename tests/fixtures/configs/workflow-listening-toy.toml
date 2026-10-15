@@ -2,9 +2,9 @@
 [experiment]
 name = "toy-listening-popularity"
 protocol = "listening-v2"
-validation_dataset = "../data/benchmarks/toy-listening/validation"
-test_dataset = "../data/benchmarks/toy-listening/test"
-output = "../data/experiments/toy-listening-popularity"
+validation_dataset = "../../../data/benchmarks/toy-listening/validation"
+test_dataset = "../../../data/benchmarks/toy-listening/test"
+output = "../../../data/experiments/toy-listening-popularity"
 
 [model]
 name = "popularity"

@@ -2,10 +2,10 @@
 [experiment]
 name = "toy-suite-usercf"
 protocol = "listening-v2"
-validation_dataset = "../data/benchmarks/toy-listening/validation"
-test_dataset = "../data/benchmarks/toy-listening/test"
-features = "../data/benchmarks/toy-listening/features.json"
-output = "../data/experiments/toy-suite/usercf"
+validation_dataset = "../../../data/benchmarks/toy-listening/validation"
+test_dataset = "../../../data/benchmarks/toy-listening/test"
+features = "../../../data/benchmarks/toy-listening/features.json"
+output = "../../../data/experiments/toy-suite/usercf"
 
 [model]
 name = "usercf"

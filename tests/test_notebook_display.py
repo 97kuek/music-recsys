@@ -1,11 +1,11 @@
 import base64
 import io
 import re
-from types import SimpleNamespace
 
 import pandas as pd
 
-from music_recsys.notebook_display import metric_groups, table_html
+from music_recsys.evaluation_views import accuracy_groups, diversity_table, efficiency_table
+from music_recsys.notebook_display import table_html
 
 
 def test_csv_retains_every_row_precision_and_column_order():
@@ -21,17 +21,24 @@ def test_csv_retains_every_row_precision_and_column_order():
     assert "<details>" in html and "overflow:auto" in html
 
 
-def test_primary_metric_unset_does_not_promote_auxiliary(listening_study):
+def test_fixed_metrics_do_not_depend_on_selection_objective(listening_study):
     from test_listening_workflow import prepared
 
     from music_recsys.search_analysis import selected_curves
 
     config, _ = prepared(listening_study)
     frame = selected_curves(config, resamples=100)
-    primary, auxiliary = metric_groups(frame, config)
-    assert set(primary.task) == {config.task}
-    assert set(primary.metric) == {config.metric}
-    assert not ((auxiliary.task == config.task) & (auxiliary.metric == config.metric)).any()
-    empty, diagnostic = metric_groups(frame, SimpleNamespace(task=None, metric=None))
-    assert empty.empty
-    assert len(diagnostic) == len(primary) + len(auxiliary)
+    groups = accuracy_groups(frame)
+    assert set(groups["新規発見"].metric) == {"binary_ndcg", "recall"}
+    assert set(groups["継続的な嗜好"].metric) == {"graded_ndcg", "repeat_recall"}
+    assert set(groups["継続的な嗜好"].task) == {"repeat", "retention_proxy"}
+    for rows in groups.values():
+        assert set(rows.k) == set(range(2, 21))
+    diversity = diversity_table(frame)
+    assert len(diversity) == 38
+    assert set(diversity.task) == {"new", "repeat"}
+    assert set(diversity.k) == set(range(2, 21))
+    efficiency = efficiency_table(frame)
+    assert len(efficiency) == 1
+    assert efficiency.input_tokens.isna().all()
+    assert efficiency.latency_mean.notna().all()

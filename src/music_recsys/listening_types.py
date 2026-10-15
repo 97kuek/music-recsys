@@ -22,7 +22,7 @@ def day_weight(value):
 class ListeningConfig:
     window_days: tuple[int, ...] = (30, 90, 180)
     primary_window_days: int = 90
-    ks: tuple[int, ...] = tuple(range(1, 21))
+    ks: tuple[int, ...] = tuple(range(2, 21))
     primary_k: int = 10
     day_weights: tuple[float, ...] = (1.0,)
     primary_day_weight: float = 1.0

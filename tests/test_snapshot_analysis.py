@@ -8,7 +8,7 @@ import pytest
 pytest.importorskip("pandas", reason="install the data dependency group")
 from music_recsys import snapshot_analysis as analysis
 
-FIXTURE = Path(__file__).resolve().parents[1] / "examples/catalog/snapshot.json"
+FIXTURE = Path(__file__).resolve().parents[1] / "tests/fixtures/examples/catalog/snapshot.json"
 
 
 def test_saved_fixture_loads_frames_without_claiming_database_verification():

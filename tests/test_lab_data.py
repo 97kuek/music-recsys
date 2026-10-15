@@ -50,7 +50,7 @@ def test_file_preparation_train_only_selection_reuse_and_tamper(tmp_path):
     from music_recsys.search_protocols import load_data, validate_test_training
 
     config = replace(
-        load_study_config(Path(__file__).parents[1] / "configs/workflow-lab-popularity.toml"),
+        load_study_config(Path(__file__).parents[1] / "configs/popularity-plays.json"),
         validation_dataset=output / "validation",
         test_dataset=output / "test",
         features=output / "features.json",

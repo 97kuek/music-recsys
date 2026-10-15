@@ -7,12 +7,12 @@ flowchart LR
     Z[Music4All-Onion v2] --> R[raw: 元TSVと配布情報]
     R --> L[lab_data / music4all]
     L --> P[全量events.parquet]
-    P --> C[Train観測100ユーザーの履歴]
+    P --> C[Train観測全ユーザーの履歴]
     C --> T[temporal: 時系列分割]
     T --> E[listening_export: 観測集計]
     E --> B[Validation / Test bundle]
     R --> F[タグ特徴JSON]
-    B --> S[experiment_search]
+    B --> S[full_popularity / 小規模experiment_search]
     F --> S
     S --> M[recommenders]
     M --> V[Evaluator]
@@ -24,6 +24,8 @@ flowchart LR
 
 | 場所 | 責務 |
 | --- | --- |
+| `full_popularity.py` / `streaming_metrics.py` | 集約履歴の順次読込み・全件Popularity評価 |
+| `full_analysis.py` | 全件の母集団・保存結果の読込み |
 | `notebook_config.py` | 設定選択UI・明示的な読込み・変更検知 |
 | `lab_data.py` | 取得・照合・ファイル保存のみのコホート生成 |
 | `music4all.py` | 全量Parquet変換・全量EDA |
@@ -44,11 +46,11 @@ flowchart LR
 | --- | --- |
 | `data/raw/music4all-onion-v2/` | 元TSV.bz2・record.json・取得途中の.part |
 | `data/processed/music4all-onion-v2/` | 全量Parquet・変換manifest |
-| `data/benchmarks/lab-100/` | 履歴・分割・v2入力・features.json・ready.json |
-| `data/experiments/lab-100/` | 試行・結果・ログ・tracking.db |
-| `configs/workflow-lab-popularity.toml` | 研究室の予備分析用設定 |
-| `configs/workflow-suite-*.toml` | 合成データで7モデルを確認する設定 |
-| `examples/` | 自動テスト・明示した操作確認用の合成fixture |
+| `data/benchmarks/music4all/` | 履歴・分割・v2入力・features.json・ready.json |
+| `data/experiments/` | 試行・結果・ログ・tracking.db |
+| `configs/popularity-plays.json` | 全件Popularityの設定 |
+| `tests/fixtures/configs/workflow-suite-*.toml` | 合成データで7モデルを確認する設定 |
+| `tests/fixtures/examples/` | 自動テスト・明示した操作確認用の合成fixture |
 
 ## 保存と再現性
 

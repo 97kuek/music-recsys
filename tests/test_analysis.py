@@ -17,7 +17,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.fixture
 def report():
-    return run_experiment(ROOT / "configs/toy.toml", tracking=TrackingConfig(enabled=False))
+    return run_experiment(
+        ROOT / "tests/fixtures/configs/toy.toml", tracking=TrackingConfig(enabled=False)
+    )
 
 
 def test_comparison_accepts_saved_full_and_mlflow_aggregate_reports(report, tmp_path):
@@ -62,7 +64,7 @@ def test_request_analysis_keeps_undefined_metrics_and_omits_user_ids(report):
 
 
 def test_recommendation_analysis_uses_training_popularity_and_separate_truth(report):
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=2)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     rows = analysis.recommendation_rows(dataset, report)
     assert rows[:2] == [
         {
@@ -85,7 +87,7 @@ def test_recommendation_analysis_uses_training_popularity_and_separate_truth(rep
 
 
 def test_recommendation_analysis_rejects_a_different_dataset(report):
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=3)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=3)
     with pytest.raises(ValueError, match="top_k"):
         analysis.recommendation_rows(dataset, report)
 
@@ -108,7 +110,7 @@ def test_tag_analysis_counts_tracks_and_preserves_weight_without_users():
 
 
 def test_popularity_analysis_includes_zero_count_catalog_tracks(report):
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=2)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     rows = analysis.popularity_rows(dataset, report)
     # track_aは履歴にない要求3と、履歴なしの要求4・5に現れる。
     assert rows[0] == {"item_id": "track_a", "train_events": 4, "recommended_count": 3}
@@ -117,7 +119,7 @@ def test_popularity_analysis_includes_zero_count_catalog_tracks(report):
 
 
 def test_dataset_request_analysis_does_not_expose_user_or_history():
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=2)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     rows = analysis.dataset_request_rows(dataset)
     assert rows[0] == {"request_index": 1, "history_count": 2, "candidate_count": 4, "top_k": 2}
     assert rows[-1] == {"request_index": 5, "history_count": 0, "candidate_count": 6, "top_k": 2}

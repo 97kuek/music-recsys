@@ -84,7 +84,7 @@ def test_existing_benchmark_cli_accepts_itemcf_parameters(tmp_path):
 
     from music_recsys.evaluation.benchmark import run_experiment
 
-    dataset = Path(__file__).resolve().parents[1] / "examples/toy/dataset.json"
+    dataset = Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json"
     config = tmp_path / "benchmark.toml"
     config.write_text(
         f'[benchmark]\ndataset="{dataset}"\nmodel="itemcf"\ntop_k=10\nseed=42\n[benchmark.parameters]\nneighbors=2\nsimilarity="jaccard"\n'
@@ -102,7 +102,7 @@ def test_inspection_exposes_itemcf_scores_and_history_evidence():
     from music_recsys.recommendation_inspection import inspect_recommendation
 
     dataset = load_dataset(
-        Path(__file__).resolve().parents[1] / "examples/toy/dataset.json", top_k=20
+        Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json", top_k=20
     )
     result = inspect_recommendation(
         dataset, model="itemcf", parameters={"neighbors": 2}, request_id="r1"

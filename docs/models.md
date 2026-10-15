@@ -61,8 +61,8 @@ HybridのCFは`cf_model="itemcf"`または`"usercf"`。スコアは`cf_weight/(r
 ## 合成データで全工程を確認する
 
 ```bash
-uv run --locked --group data --group models python examples/toy/create_listening.py
-export MUSIC_RECSYS_EXPERIMENT_CONFIG="$PWD/configs/workflow-suite-usercf.toml"
+uv run --locked --group data --group models python tests/fixtures/examples/toy/create_listening.py
+export MUSIC_RECSYS_EXPERIMENT_CONFIG="$PWD/tests/fixtures/configs/workflow-suite-usercf.toml"
 uv run --locked --group data --group models --group tracking python -m music_recsys.experiment_search --config "$MUSIC_RECSYS_EXPERIMENT_CONFIG" smoke
 uv run --locked --group data --group models --group tracking python -m music_recsys.experiment_search --config "$MUSIC_RECSYS_EXPERIMENT_CONFIG" search
 uv run --locked --group data --group models --group tracking python -m music_recsys.experiment_search --config "$MUSIC_RECSYS_EXPERIMENT_CONFIG" select

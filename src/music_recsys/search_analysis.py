@@ -24,29 +24,11 @@ def validation_overview(config):
     """01で探索と同じ入力・候補・正解の評価可能性を確認する。"""
     import pandas as pd
 
-    data, conditions = context(config)
     if config.protocol == "listening-v2":
-        from music_recsys.listening_analysis import validation_rows
+        from music_recsys.full_analysis import overview
 
-        frame = validation_rows(data, config)
-        task = "repeat" if config.task == "repeat" else "new"
-        selected = frame[frame.task == task]
-        return (
-            conditions,
-            frame,
-            {
-                "phase": "validation",
-                "protocol": "listening-v2",
-                "window_days": config.evaluation.primary_window_days,
-                "task": task,
-                "requests": len(frame),
-                "users": frame.user_id.nunique(),
-                "evaluable_users": selected.loc[selected.positive_count > 0, "user_id"].nunique(),
-                "empty_truth_requests": int((selected.positive_count == 0).sum()),
-                "training_events": len(data.train_interactions),
-                "catalog_items": len(data.catalog_ids),
-            },
-        )
+        return overview(config)
+    data, conditions = context(config)
     truths = {t.request_id: set(t.relevant_item_ids) for t in data.ground_truth}
     rows = []
     for request in data.requests:
@@ -77,6 +59,32 @@ def validation_overview(config):
 
 
 def workflow_state(config):
+    from music_recsys.full_analysis import is_full, read_result
+
+    if is_full(config):
+        if not (config.output / "result.json").exists():
+            return {
+                "status": "running_or_interrupted",
+                "label": "全件評価の結果は未確定",
+                "next_action": "run.logと実行プロセスを確認",
+                "warnings": [],
+            }
+        try:
+            result = read_result(config)
+        except ValueError as error:
+            return {
+                "status": "mismatch",
+                "label": "条件不一致",
+                "next_action": str(error),
+                "warnings": [],
+            }
+        return {
+            "status": "validation_complete",
+            "label": "全件Validation完了",
+            "next_action": "02で4観点を確認 / 最終Testは未実行",
+            "warnings": [],
+            "users": result["population"]["users"],
+        }
     commands = f"python -m music_recsys.experiment_search --config {shlex.quote(str(config.path))}"
     result = {
         "status": "not_run",

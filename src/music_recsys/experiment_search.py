@@ -6,7 +6,6 @@ import hashlib
 import itertools
 import json
 import math
-import os
 import tempfile
 import time
 import tomllib
@@ -37,30 +36,21 @@ def digest(value):
 
 
 def file_hash(path):
-    with Path(path).open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
+    from music_recsys.experiment_store import value_hash
+
+    return value_hash(path)
 
 
 def read_json(path):
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    from music_recsys.experiment_store import read_value
+
+    return read_value(path)
 
 
 def write_json(path, value):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        mode="w", dir=path.parent, encoding="utf-8", delete=False
-    ) as stream:
-        temporary = Path(stream.name)
-        try:
-            json.dump(value, stream, ensure_ascii=False, indent=2, allow_nan=False)
-            stream.write("\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        except BaseException:
-            temporary.unlink(missing_ok=True)
-            raise
-    os.replace(temporary, path)
+    from music_recsys.experiment_store import write_value
+
+    write_value(path, value)
 
 
 @dataclass(frozen=True)
@@ -94,7 +84,9 @@ class StudyConfig:
 
 def load_study_config(path):
     path = Path(path).resolve()
-    raw = tomllib.loads(path.read_text())
+    raw = (
+        json.loads(path.read_text()) if path.suffix == ".json" else tomllib.loads(path.read_text())
+    )
     e, m, s, objective = (raw.get(x, {}) for x in ("experiment", "model", "search", "selection"))
 
     def resolve(value):
@@ -283,10 +275,17 @@ def _plan_configuration(config):
 def load_study(config, *, allow_plan_change=False):
     _, conditions = context(config)
     path = config.output / "study.json"
-    if not path.exists():
+    from music_recsys.experiment_store import exists
+
+    if not exists(path):
         return None
     result = read_json(path)
-    if result.get("conditions") != conditions or result.get("model") != config.model:
+    saved = result.get("conditions", {})
+    comparable = dict(conditions)
+    if (config.output / "result.json").exists():
+        # 原本コード版を保持したまま過去結果を閲覧 / 再実行は_unlockedで拒否
+        comparable["source_sha256"] = saved.get("source_sha256")
+    if saved != comparable or result.get("model") != config.model:
         raise ValueError(
             "比較条件不一致。データ・コード・主指標を確認し、別の出力先を指定してください"
         )
@@ -332,13 +331,15 @@ def _features(config, data):
 
 
 def _verified_trial(config, entry):
+    from music_recsys.experiment_store import exists as artifact_exists
+
     if entry.get("status") != "succeeded":
         return False
     for role in ("report", "curves"):
         p = (config.output / entry[role]).resolve()
         if (
             not p.is_relative_to(config.output)
-            or not p.is_file()
+            or not artifact_exists(p)
             or file_hash(p) != entry[f"{role}_sha256"]
         ):
             raise ValueError("比較条件不一致: 保存済みtrialの改変・欠損")
@@ -489,6 +490,12 @@ def _trial(config, study, data, parameters, seed, factory, *, phase="validation"
 
 
 def _unlocked(config):
+    if (config.output / "result.json").exists():
+        saved = read_json(config.output / "study.json")
+        if saved["conditions"]["source_sha256"] != _source_sha256():
+            raise ValueError(
+                "保存時とコードが異なります / 閲覧は可能 / 再評価は別のoutputを指定してください"
+            )
     if (config.output / "locked-selection.json").exists():
         raise ValueError("固定済み設定は探索・再選択できません。別の実験として開始してください")
 
@@ -955,7 +962,36 @@ def main():
             if args.action == "review"
             else actions[args.action](config)
         )
+        if args.action != "status" and config.protocol == "listening-v2":
+            from music_recsys.experiment_store import compact
+
+            with study_lock(config):
+                compact(config)
+        if (
+            args.action == "search"
+            and config.protocol == "listening-v2"
+            and result.get("status") == "succeeded"
+            and len(
+                {
+                    str(t["parameters"])
+                    for t in result["trials"].values()
+                    if t["phase"] == "validation"
+                }
+            )
+            == 1
+        ):
+            from music_recsys.evaluation_report import build_report
+
+            build_report(config.path)
         state = workflow_state(config)
+        if args.action != "status":
+            with (config.output / "run.log").open("a") as log:
+                log.write(
+                    json.dumps(
+                        {"action": args.action, "status": state["status"]}, ensure_ascii=False
+                    )
+                    + "\n"
+                )
         print(
             json.dumps(
                 {

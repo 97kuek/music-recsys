@@ -1,6 +1,7 @@
-"""Notebookで明示的に実験TOMLを選ぶUI。データ読込み・評価は行わない。"""
+"""Notebookで明示的に実験JSONを選ぶUI。データ読込み・評価は行わない。"""
 
 import html
+import json
 import tomllib
 from pathlib import Path
 
@@ -45,11 +46,15 @@ class ExperimentConfigPicker:
 
     def refresh(self, button=None):
         options = [("未選択", None)]
-        for path in sorted(self.directory.glob("*.toml")):
+        for path in sorted([*self.directory.glob("*.json"), *self.directory.glob("*.toml")]):
             try:
-                raw = tomllib.loads(path.read_text())
+                raw = (
+                    json.loads(path.read_text())
+                    if path.suffix == ".json"
+                    else tomllib.loads(path.read_text())
+                )
             except (OSError, ValueError):
-                # 壊れたTOMLも選択でき、読込み時にエラーを明示する
+                # 壊れたJSONも選択でき、読込み時にエラーを明示する
                 options.append((path.name + " [形式要確認]", str(path)))
                 continue
             if raw.get("experiment", {}).get("protocol") == "listening-v2":
@@ -59,7 +64,7 @@ class ExperimentConfigPicker:
         self._changed()
         if len(options) == 1:
             self.status.value = (
-                "設定ファイルなし / configs内にlistening-v2の実験TOMLを用意してください"
+                "設定ファイルなし / configs内にlistening-v2の実験JSONを用意してください"
             )
 
     def _load(self, button=None):
@@ -71,7 +76,7 @@ class ExperimentConfigPicker:
             content = path.read_bytes()
             config = load_study_config(path)
             if config.protocol != "listening-v2":
-                raise ValueError("listening-v2の実験TOMLを選んでください")
+                raise ValueError("listening-v2の実験JSONを選んでください")
             if path.read_bytes() != content:
                 raise ValueError("設定が変更されました / 再読込みしてください")
         except (OSError, ValueError) as error:

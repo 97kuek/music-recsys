@@ -8,7 +8,7 @@ def test_deterministic_model_repeated_seeds(tmp_path):
     from music_recsys.evaluation.tracking import TrackingConfig
     from music_recsys.validation_study import repeat_validation
 
-    data = load_dataset(Path("examples/toy/dataset.json"), top_k=2)
+    data = load_dataset(Path("tests/fixtures/examples/toy/dataset.json"), top_k=2)
     data = replace(data, provenance={"phase": "validation"})
     result = repeat_validation(data, tmp_path, seeds=(0, 42), tracking=TrackingConfig())
     assert result["deterministic"] is True
@@ -28,7 +28,8 @@ def test_stability_never_uses_test(tmp_path):
     from music_recsys.validation_study import repeat_validation
 
     data = replace(
-        load_dataset(Path("examples/toy/dataset.json"), top_k=2), provenance={"phase": "test"}
+        load_dataset(Path("tests/fixtures/examples/toy/dataset.json"), top_k=2),
+        provenance={"phase": "test"},
     )
     with pytest.raises(ValueError, match="validation"):
         repeat_validation(data, tmp_path, seeds=(42,), tracking=TrackingConfig())
@@ -47,7 +48,8 @@ def test_repeated_identical_failures_are_not_a_success(tmp_path, monkeypatch):
 
     monkeypatch.setattr(PopularityRecommender, "recommend", fail)
     data = replace(
-        load_dataset(Path("examples/toy/dataset.json"), top_k=2), provenance={"phase": "validation"}
+        load_dataset(Path("tests/fixtures/examples/toy/dataset.json"), top_k=2),
+        provenance={"phase": "validation"},
     )
     result = repeat_validation(data, tmp_path, seeds=(42,), tracking=TrackingConfig())
     assert result["deterministic"] is True

@@ -17,7 +17,7 @@ def test_runner_matches_truth_by_id_instead_of_row_order():
     from music_recsys.evaluation.benchmark import run_benchmark
     from music_recsys.recommenders.popularity import PopularityRecommender
 
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=2)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     shuffled = replace(dataset, ground_truth=tuple(reversed(dataset.ground_truth)))
     report = run_benchmark(
         shuffled,
@@ -36,7 +36,7 @@ def test_all_empty_truth_has_undefined_macro_metrics():
     from music_recsys.recommenders.popularity import PopularityRecommender
     from music_recsys.types import GroundTruth
 
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=2)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     dataset = replace(
         dataset,
         ground_truth=tuple(GroundTruth(request.request_id, ()) for request in dataset.requests),
@@ -59,7 +59,7 @@ def test_runner_rejects_mixed_top_k():
     from music_recsys.evaluation.benchmark import run_benchmark
     from music_recsys.recommenders.popularity import PopularityRecommender
 
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=2)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     requests = (replace(dataset.requests[0], top_k=3), *dataset.requests[1:])
     dataset = replace(dataset, requests=requests)
     with pytest.raises(ValueError, match="top_k"):
@@ -75,7 +75,7 @@ def test_runner_macro_average_excludes_only_requests_without_truth():
     from music_recsys.evaluation.benchmark import run_benchmark
     from music_recsys.recommenders.popularity import PopularityRecommender
 
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=2)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     model = PopularityRecommender(dataset.train_interactions)
     report = run_benchmark(dataset, model.recommend, model_name="popularity", seed=42)
     assert report.summary.ndcg == pytest.approx(0.561019236584229)
@@ -97,7 +97,7 @@ def test_runner_keeps_failed_requests_in_accuracy_denominator():
     from music_recsys.evaluation.benchmark import run_benchmark
     from music_recsys.recommenders.popularity import PopularityRecommender
 
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=2)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     model = PopularityRecommender(dataset.train_interactions)
 
     def recommend(request):
@@ -120,7 +120,7 @@ def test_all_failed_requests_score_zero_and_are_not_dropped():
     def recommend(request):
         raise RuntimeError("failure")
 
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=2)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     report = run_benchmark(dataset, recommend, model_name="failing")
     assert report.summary.ndcg == 0.0
     assert report.summary.recall == 0.0
@@ -133,7 +133,7 @@ def test_wrong_response_request_id_is_recorded_as_failure():
     from music_recsys.evaluation.benchmark import run_benchmark
     from music_recsys.types import RecommendationResponse
 
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=2)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     report = run_benchmark(
         dataset,
         lambda request: RecommendationResponse("wrong", ("track_a",)),
@@ -148,10 +148,10 @@ def test_load_config_resolves_dataset_relative_to_config(tmp_path, monkeypatch):
     from music_recsys.evaluation.benchmark import load_config, run_experiment
 
     monkeypatch.chdir(tmp_path)
-    config = load_config(ROOT / "configs/toy.toml")
-    assert config.dataset_path == ROOT / "examples/toy/dataset.json"
-    first = run_experiment(ROOT / "configs/toy.toml")
-    second = run_experiment(ROOT / "configs/toy.toml")
+    config = load_config(ROOT / "tests/fixtures/configs/toy.toml")
+    assert config.dataset_path == ROOT / "tests/fixtures/examples/toy/dataset.json"
+    first = run_experiment(ROOT / "tests/fixtures/configs/toy.toml")
+    second = run_experiment(ROOT / "tests/fixtures/configs/toy.toml")
     assert first.summary.ndcg == second.summary.ndcg
     assert first.summary.recall == second.summary.recall
     assert [run.response for run in first.runs] == [run.response for run in second.runs]
@@ -175,7 +175,7 @@ def test_config_rejects_invalid_experiment_conditions(tmp_path, field, value):
 def test_save_report_keeps_existing_results_and_serializes_undefined_metrics(tmp_path):
     from music_recsys.evaluation.benchmark import run_experiment, save_report
 
-    report = run_experiment(ROOT / "configs/toy.toml")
+    report = run_experiment(ROOT / "tests/fixtures/configs/toy.toml")
     first = save_report(report, tmp_path)
     first_contents = (first / "results.json").read_bytes()
     second = save_report(report, tmp_path)
@@ -195,7 +195,7 @@ def test_error_message_is_not_persisted(tmp_path):
     def recommend(request):
         raise RuntimeError("sensitive error contents must not be saved")
 
-    dataset = load_dataset(ROOT / "examples/toy/dataset.json", top_k=2)
+    dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     path = save_report(run_benchmark(dataset, recommend, model_name="failing"), tmp_path)
     contents = (path / "results.json").read_text()
     assert "sensitive error contents" not in contents
@@ -209,7 +209,7 @@ def test_cli_runs_from_another_working_directory(tmp_path):
             "-m",
             "music_recsys.evaluation.benchmark",
             "--config",
-            str(ROOT / "configs/toy.toml"),
+            str(ROOT / "tests/fixtures/configs/toy.toml"),
             "--output",
             str(tmp_path / "runs"),
         ],

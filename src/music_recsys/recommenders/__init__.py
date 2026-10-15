@@ -26,9 +26,10 @@ def create_recommender(
     features: dict | None = None,
 ) -> Recommender:
     if model == "popularity":
-        if parameters:
-            raise ValueError("popularity has no tunable parameters")
-        return PopularityRecommender(interactions)
+        parameters = parameters or {}
+        if parameters.keys() - {"basis"}:
+            raise ValueError("unknown popularity parameters")
+        return PopularityRecommender(interactions, **parameters)
     if model in {"itemcf", "usercf"}:
         parameters = parameters or {}
         if set(parameters) - {"neighbors", "similarity"}:

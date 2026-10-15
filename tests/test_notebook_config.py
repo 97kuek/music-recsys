@@ -63,7 +63,7 @@ def test_notebooks_do_not_use_environment_as_selection(name, monkeypatch):
 
     monkeypatch.setenv(
         "MUSIC_RECSYS_EXPERIMENT_CONFIG",
-        str(Path("configs/workflow-lab-popularity.toml").resolve()),
+        str(Path("configs/popularity-plays.json").resolve()),
     )
     with pytest.raises(ValueError, match="未指定"):
         _run_notebook_cells(name + ".ipynb", 3)

@@ -31,11 +31,11 @@ def test_runner_generates_only_two_rankings_per_user_for_all_conditions(tmp_path
     report = run_listening_benchmark(data, recommend, config=config, model_name="fixed")
     assert calls == [("u", "new"), ("u", "repeat"), ("v", "new"), ("v", "repeat")]
     assert report.metadata["n_generation_calls"] == 4
-    assert {r["k"] for r in report.summary} == set(range(1, 21))
+    assert {r["k"] for r in report.summary} == set(range(2, 21))
     discovery = [
         r for r in report.summary if r["task"] == "discovery" and r["metric"] == "binary_ndcg"
     ]
-    assert len(discovery) == 20
+    assert len(discovery) == 19
     assert all(
         r["day_weight"] is None
         and r["value"] == 1

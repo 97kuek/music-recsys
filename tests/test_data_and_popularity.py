@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-TOY_PATH = Path(__file__).resolve().parents[1] / "examples/toy/dataset.json"
+TOY_PATH = Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json"
 
 
 def test_popularity_counts_training_events_and_breaks_ties_by_id():

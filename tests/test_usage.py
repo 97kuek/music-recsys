@@ -58,7 +58,7 @@ def test_real_runner_search_metrics_and_mlflow_aggregate_usage(tmp_path):
     from music_recsys.types import RecommendationUsage
 
     dataset = load_dataset(
-        Path(__file__).resolve().parents[1] / "examples/toy/dataset.json", top_k=20
+        Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json", top_k=20
     )
 
     def recommend(request):

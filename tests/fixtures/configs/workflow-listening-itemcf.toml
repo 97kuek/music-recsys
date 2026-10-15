@@ -2,9 +2,9 @@
 [experiment]
 name = "toy-listening-itemcf"
 protocol = "listening-v2"
-validation_dataset = "../data/benchmarks/toy-listening/validation"
-test_dataset = "../data/benchmarks/toy-listening/test"
-output = "../data/experiments/toy-listening-itemcf"
+validation_dataset = "../../../data/benchmarks/toy-listening/validation"
+test_dataset = "../../../data/benchmarks/toy-listening/test"
+output = "../../../data/experiments/toy-listening-itemcf"
 
 [model]
 name = "itemcf"

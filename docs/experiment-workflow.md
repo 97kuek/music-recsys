@@ -1,99 +1,87 @@
 # 検証手順
 
-## 操作の流れ
+## 全件Popularity
 
 ```mermaid
 flowchart TD
-    A[00: データ準備状態を確認] --> B{ready.jsonあり}
-    B -- なし --> C[取得・変換ログを確認]
-    C --> A
-    B -- あり --> D[01: 入力・観測分布を確認]
-    D --> E[00: ACTION = smoke]
-    E --> F{Smoke成功}
-    F -- いいえ --> G[ログ・入力・実装を確認]
-    G --> E
-    F -- はい --> H[00: ACTION = search]
-    H --> I[02: Validation結果を分析]
-    I --> J{主タスク・主指標を事前指定済み}
-    J -- いいえ --> K[予備分析として確認 / 本実験は別出力先]
-    J -- はい --> L[02: select]
-    L --> M[03: 推薦と根拠を確認]
-    M -- 見直し --> I
-    M -- accept --> N[02またはCLI: freeze]
-    N --> O[CLI: Testを実行]
-    O --> P[02: 同条件モデルの最終比較]
+    A[学習履歴のある全ユーザー] --> B[時系列分割・観測集計]
+    B --> C[ready.jsonと入力hashを検証]
+    C --> D[全学習再生から人気順位を作成]
+    D --> E[ユーザーごとに未聴・既聴の上位20曲を生成]
+    E --> F[K 2〜20・期間・日数重みごとに採点]
+    F --> G[4観点の集計・CSV・単独PNG]
+    G --> H[02またはPNGで考察]
+    H --> I[最終Testの条件決定は別段階]
 ```
-
-## 設定と役割
-
-- 各Notebookの選択欄で同じTOMLを選び、「読み込む」で確定
-- 初期状態は未選択、環境変数や既定ファイルから自動選択しない
-- CLIは同じファイルを `--config` で明示する
-- TOMLの入力・出力パスはTOMLの位置を基準に解決
-- 研究室の予備分析用ファイルは `configs/workflow-lab-popularity.toml` / 使用時に選択する
-- このファイルは100ユーザーの予備分析用、主タスク・主指標は未指定
-- 予備分析結果から主条件を事後選択せず、本実験では目的から条件を決めて別出力先を使用
-
-| Notebook | 入力 | 操作・出力 |
-| --- | --- | --- |
-| 00 | ready.json・TOML | 準備確認、明示したSmoke / Searchを別プロセスで起動 |
-| 01 | 選択したValidation | 品質・分布・評価可能性 |
-| 02 | 保存済み試行 | 表・曲線・SELECT / FREEZEを明示した選択と固定 |
-| 03 | selection.json・Validation | 個別推薦・根拠・明示した確認記録 |
-
-01はTOMLで選択したValidationだけを読む / 全Notebookでlistening-v2を明示し、旧形式は拒否
-03は学習履歴・候補だけを推薦へ渡し、Testの正解を表示しない
-
-## CLIでの操作
-
-リポジトリのルートで、導入済み `.venv` を使用する
 
 ```bash
-export MUSIC_RECSYS_EXPERIMENT_CONFIG="$PWD/configs/workflow-lab-popularity.toml"
-.venv/bin/python -m music_recsys.experiment_search --config "$MUSIC_RECSYS_EXPERIMENT_CONFIG" status
-.venv/bin/python -m music_recsys.experiment_search --config "$MUSIC_RECSYS_EXPERIMENT_CONFIG" smoke
-.venv/bin/python -m music_recsys.experiment_search --config "$MUSIC_RECSYS_EXPERIMENT_CONFIG" search
+.venv/bin/python -m music_recsys.full_popularity --config configs/popularity-plays.json
 ```
 
-以下は主タスク・主指標を事前指定した実験だけで実行する
+- 学習期間に履歴がある全119,133人が対象
+- 評価期間に正解がある人数は指標・期間ごとに集計
+- 人気順位は決定的なので1回評価、seedを変えた同一推薦を複製しない
+- 期間30/90/180日、日数重み0/0.5/1/2を保存
+- 主表示は90日・重み1、Kは2〜20の整数
+- 選択用の主タスク・主指標は未指定、固定・最終Testは未実行
+- 4観点の定義は[評価仕様](listening-evaluation.md)に従う
 
-```bash
-.venv/bin/python -m music_recsys.experiment_search --config "$MUSIC_RECSYS_EXPERIMENT_CONFIG" select
-# 03で実際に確認した後に実行
-.venv/bin/python -m music_recsys.experiment_search --config "$MUSIC_RECSYS_EXPERIMENT_CONFIG" review --accept --note "確認内容"
-.venv/bin/python -m music_recsys.experiment_search --config "$MUSIC_RECSYS_EXPERIMENT_CONFIG" freeze
-.venv/bin/python -m music_recsys.experiment_search --config "$MUSIC_RECSYS_EXPERIMENT_CONFIG" test
-```
+## 設定と保存物
 
-## 探索と再開
+- 総再生回数版は `configs/popularity-plays.json`、ユニーク再生ユーザー数版は `configs/popularity-users.json`
+- `model.parameters.basis` は `play_count`（省略時）または `user_count`
+- user_countは学習期間のユーザー・曲の組を1件として集計、同じ人の再生回数は加算しない
+- 両者は同じ入力・期間・候補・指標で評価し、出力先を分ける
+- 入力・出力パスは設定ファイルの位置を基準に解決
+- Notebookでも同じJSONを選択し「読み込む」を押す
+- 初期状態は未選択、環境変数から自動選択しない
 
-| 条件 | 動作 |
+実験直下に保存する
+
+| ファイル | 用途 |
 | --- | --- |
-| Stage A | 1変数以下、Popularityは探索パラメータなし |
-| Stage B | 小規模な組合せGrid |
-| Stage C | parentで指定した探索の範囲を絞る |
-| 成功済み試行 | 条件と内容hashを照合して再利用 |
-| 失敗・予算切れ | ログを確認しsearchを再実行 |
-| 主指標未指定 | 診断結果を表示、選択・固定・Testは不可 |
-| 固定済み | 探索・再選択を禁止、Testは固定条件だけ |
+| config.json | 実行時の解決済み設定・入力出典・コードhash |
+| result.json | 母集団・条件別集計・定義・個別結果への参照 |
+| metrics.csv | 正確な値を条件別に並べた集計 |
+| recommendations.parquet | 全ユーザーの未聴・既聴の推薦曲と時間 |
+| scores.parquet | 正解があるユーザーの条件別スコア、K順の配列 |
+| run.log | 実行進捗 |
+| PNG | 1指標につき1グラフ |
 
-- `max_trials` はseedを含む試行数の上限
-- 時間予算は試行開始前に確認、実行中の試行を強制終了しない
-- 入力・コード・主指標の変更は新しい `experiment.output` で開始
-- 02の `DIAGNOSTIC_TRIAL_ID` はセル内で指定する診断表示対象、未指定なら最初の成功試行
-- `[comparison].configs` へ同条件の実験TOMLを指定して最終比較
-- 保存先は `study.json`・`selection.json`・確認/固定artifact・試行ごとの結果
+- 個別履歴を巨大なJSONに複製せずParquetへ分離
+- scoresのday_weight=-1は適用なし、未記録のユーザー条件は正解なし
+- scoresの配列順はconfigのksと一致
+- 未測定はnull、正解なしを0点として平均しない
+- index.html・設定の二重コピー・logs/report/trials階層は作らない
 
-## 結果の読み方
+## 図の読み方
 
-- K曲線は主期間・主日数重みに限定、補助条件と平均しない
-- 95% CIはユーザー単位bootstrap、seed間標準偏差と区別
-- 正解なし・未実行・失敗・特徴欠損の件数を指標と一緒に確認
-- Testから探索範囲・モデル設定を変更しない
-- 指標と候補の定義は[評価仕様](listening-evaluation.md)、接続・再開は[運用](lab-operation.md)
+- 点は実測した整数K、細い線は点の関係を読みやすくする補助
+- 縦軸は0始まりで指標ごとに拡大、図間の比較は目盛りを確認
+- 帯はユーザー単位bootstrapの95%区間、seed間のばらつきではない
+- ヒートマップはK × 評価期間、日数重みは主表示条件
+- ヒートマップの色範囲は図ごとに異なるためカラーバーの数値を確認
+- graded_ndcg_newは未聴曲の評価期間内の嗜好強度で、因果的な定着を示さない
+- 多様性は未来の正解の有無にかかわらず全ユーザーで測定
+- 表は折りたたみ・スクロール表示、CSVは全行・全精度を保存
 
-- Notebookは図を先に表示し、表はクリックで開いて縦横スクロール
-- 各表のCSV保存は同じ列順の全行・全精度を出力（UTF-8 BOM付き）
-- CSVはブラウザのダウンロード先に保存 / 実験artifactは変更しない
-- 表示名は日本語、CSVの列名は元の識別名 / 欠測値はCSVでは空欄
-- 02は主指標と補助指標を分離 / 主指標未指定なら全て診断表示
+## 他モデルの探索とTest
+
+小規模共通RunnerはJSON/TOML設定と次の操作に対応する
+
+```bash
+.venv/bin/python -m music_recsys.experiment_search --config <設定ファイル> smoke
+.venv/bin/python -m music_recsys.experiment_search --config <設定ファイル> search
+.venv/bin/python -m music_recsys.experiment_search --config <設定ファイル> select
+.venv/bin/python -m music_recsys.experiment_search --config <設定ファイル> review --accept --note '<確認内容>'
+.venv/bin/python -m music_recsys.experiment_search --config <設定ファイル> freeze
+.venv/bin/python -m music_recsys.experiment_search --config <設定ファイル> test
+```
+
+- 主タスク・主指標を事前指定してから選択・固定・Testへ進む
+- 同一条件の成功試行はhashを照合して再利用
+- 既存Runnerは2,000人・500万再生まで、全件への展開は別途対応が必要
+- 合成入力とモデル別設定例は `tests/fixtures/`、実データの代用にしない
+- 全件Popularityは `full_popularity`、小規模探索は `experiment_search` を使用
+
+- 全値が未測定の指標はPNGを生成・表示しない / 実測0は表示 / JSONのnullは保持

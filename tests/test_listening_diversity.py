@@ -111,7 +111,7 @@ def test_runner_stores_diversity_once_for_many_windows_and_gains(tmp_path):
         features={"a": {"rock": 1}, "b": {"jazz": 1}},
     )
     assert len(calls) == 4
-    assert len(report.beyond_accuracy["metrics"]) == 40
+    assert len(report.beyond_accuracy["metrics"]) == 38
     path = save_listening_report(report, tmp_path / "results")
     saved = json.loads((path / "results.json").read_text())
     assert saved["beyond_accuracy"]["definitions"]["ranking"]
