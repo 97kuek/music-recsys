@@ -10,15 +10,15 @@
 - `01_data.ipynb`はデータ・分割・GroundTruthの確認、`02_analysis.ipynb`はValidation探索・選択・Testの最終比較、`03_recommendation.ipynb`は選択設定の個別確認。実験設定は共通TOMLに置く。
 
 ```bash
-uv sync --locked --python "$(pyenv which python)" --group data --group notebook
+uv sync --locked --python "$(pyenv which python)" --group data --group models --group notebook
 ```
 
 | 用途 | コマンド |
 | --- | --- |
 | 合成データの評価 | `uv run --locked music-recsys-benchmark --config configs/toy.toml` |
 | MLflowで評価を記録 | `uv run --locked --group tracking music-recsys-benchmark --config configs/toy-mlflow.toml` |
-| Notebook | `uv run --locked --group data --group notebook --group tracking jupyter lab` |
-| 全テスト | `uv run --locked --group data --group notebook --group tracking pytest` |
+| Notebook | `uv run --locked --group data --group models --group notebook --group tracking jupyter lab` |
+| 全テスト | `uv run --locked --group data --group models --group notebook --group tracking pytest` |
 | 静的解析 | `uv run --locked ruff check src tests notebooks migrations` |
 | 整形確認 | `uv run --locked ruff format --check src tests notebooks migrations` |
 | ビルド | `uv build` |
@@ -72,3 +72,5 @@ uv sync --locked --python "$(pyenv which python)" --group data --group notebook
 | データ出典・取得手順 | APIキー・認証情報・`.env`の値 |
 
 - コードのライセンスは未選定。既存の空の`LICENSE`は保持する。
+
+- 因子モデルは`models`依存groupのNumPyを使用する。全モデルの定義・特徴export・同条件の設定例は[models.md](docs/models.md)を参照する。

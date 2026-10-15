@@ -13,14 +13,16 @@
 ## 現在の状態
 
 - Python 3.12、uv、srcレイアウト。
-- 合成データ・Popularity・ItemCF・共通Runner・NDCG / Recall・Notebookを実装済み。
+- Popularity・ItemCF・UserCF・ALS・BPR・Content-Based・Hybridと共通Runner・Notebookを実装済み（[モデル定義と操作](docs/models.md)）。
 - Music4All-Onion v2の時刻付きイベントを取得・全量集計済み。履歴コホート・全量取り込みと保存済み時系列分割に対応。
 - 初期評価はTrainに履歴のある100ユーザー、Popularity、NDCG@10・Recall@10。全量での推薦性能評価は未実施。
 - PostgreSQL + pgvectorのローカルDocker環境とAlembicを構築済み。
 - MLflowを共通Runnerへ接続し、ローカルサーバーへの条件・指標・成果物・実行状態の記録を確認済み。
 - ValidationのGrid探索・成功試行の再利用・設定選択／確認／固定・最終Testを、同じTOMLと保存artifactで管理する。
+- listening-v2のILD・Novelty・Catalog Coverageを、未聴・既聴タスク別に計測。特徴欠損や未測定を0で埋めない。
+- 従来7モデルを同じ100ユーザーのValidationで診断済み（[測定値と制約](experiments/music4all/model-suite-validation.md)）。主指標は未指定で、実データの最適設定選択・Test評価は未実施。
 - 再生回数・日数の観測を保持する`listening-v2`を、共通Grid探索・選択・固定・Testと01〜03のNotebookから使用できる（[評価仕様](docs/listening-evaluation.md) / [合成例と操作手順](docs/listening-workflow.md)）。
-- LLM・Agentの実測使用量を受け取る接続口を追加。LLM・Agent自体・UIは今後実装。UIより先に検証基盤を整える。
+- LLM・Agentの実測使用量を受け取る接続口を追加。LLM・Agentのモデル実装は保留。UIは今後実装。UIより先に検証基盤を整える。
 
 ## 文書
 
@@ -53,6 +55,7 @@ uv run --locked --group data --group tracking python -m music_recsys.experiment_
 | 文書 | 内容 |
 | --- | --- |
 | [CONTRIBUTING](CONTRIBUTING.md) | 環境・実行・ブランチ・コミットのルール |
+| [従来7モデル](docs/models.md) | モデル定義・探索パラメータ・共通特徴・合成データの実行手順 |
 | [研究計画](docs/research-plan.md) | 背景・課題・比較・進め方 |
 | [評価方針](docs/evaluation-protocol.md) | 共通基盤・形式・指標候補 |
 | [検証・探索フロー](docs/experiment-workflow.md) | TOML、Stage A〜D、状態、選択artifact、Notebook間の移動、最終Test |
@@ -68,3 +71,4 @@ uv run --locked --group data --group tracking python -m music_recsys.experiment_
 | [データ取得](data/README.md) | 出典・照合・加工コマンド |
 | [Music4All調査結果](experiments/music4all/summary.md) | 分割前の全量集計・時刻品質 |
 | [Music4All初期評価](experiments/music4all/smoke.md) | 100ユーザーの動作確認結果・限界 |
+| [従来7モデルのValidation診断](experiments/music4all/model-suite-validation.md) | 同条件13設定・2seedの実測値、出典、再現手順、評価人数の制約 |

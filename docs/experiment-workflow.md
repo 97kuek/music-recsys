@@ -45,7 +45,7 @@
 
 ## 実装範囲
 
-- 将来のモデルは既存のfactory経由でパラメータ・seedを受け取れるようにする。実装済みモデルはPopularityとItemCF。ItemCFの定義・補完規則は[itemcf.md](itemcf.md)を参照する。
+- 将来のモデルは既存のfactory経由でパラメータ・seedを受け取れるようにする。実装済みモデルはPopularity・ItemCF・UserCF・ALS・BPR・Content-Based・Hybrid（[定義と手順](models.md)）。ItemCFの定義・補完規則は[itemcf.md](itemcf.md)を参照する。
 - 探索の1D/2D、多seed、失敗・再開、選択、固定、Test禁止条件はテスト用の合成モデルを使って検証する。実在モデルの測定結果を捏造しない。
 - 旧Notebook名の参照・テストを新名へ更新する。既存データ・実験履歴は変更しない。コミット・pushは依頼があるまで行わない。
 

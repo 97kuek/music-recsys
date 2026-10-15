@@ -2,7 +2,7 @@
 
 - 作成日：2026-10-14。対象は依頼された①評価仕様、②GroundTruth生成、③Evaluator・Runnerの拡張。
 - 状態：2026-10-14にユーザー確認済み。既存の二値・未聴曲評価をv1、新しい評価を`listening-v2`として区別する。
-- 実装状況：2026-10-15にEvaluator・GroundTruth生成・Loader・CLI・Trackingを実装。今回の[検証・探索フロー](experiment-workflow.md)は既存Binary評価で実装し、Gradedは未測定として区別する。検証フローのK感度は最新依頼に従い1〜20とする。
+- 実装状況：Evaluator・GroundTruth生成・Loader・CLI・Trackingに加え、[共通探索とNotebook](listening-workflow.md)・v2多様性・[従来7モデル](models.md)を実装。以下の「今回含めないもの」は初回v2仕様の範囲を記したもので、後続の承認済み拡張は上記手順を参照する。
 - 根拠：[Train／Validationの分析](../experiments/music4all/ground-truth.md)、[一次資料の整理](../experiments/music4all/ground-truth-methods.md)。DBのテーブル統合はこの依頼に含めない。
 
 ## 目的と完了条件

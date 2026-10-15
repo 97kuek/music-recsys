@@ -71,11 +71,19 @@ direction = "maximize"
 - `results.json`は既存v2形式、`curves.json`は全タスク・期間・K・日数重みのlong形式の集計と要求別指標を保存する。探索表の主指標は事前指定の条件だけを参照する。`study.json`・`selection.json`・確認・固定artifactは既存と同じ動線で使用する。
 - 02のK曲線は主期間・主日数重みに限定し、未聴曲のBinary / Graded / Recallと既聴曲のGraded / Repeat Recallを別パネルで表示する。各ユーザーの値をseed平均してから、ユーザー単位bootstrapで95% CIを求める。ユーザーが2人未満ならCIは未測定。
 - 期間・日数重みの補助条件も`selected_curves(config)`のlong形式に残す。重複したbootstrap計算を避け、補助条件の平均・評価人数は計算するがCIは求めない。主条件と混ぜて平均しない。
-- v2のILD・Novelty・Catalog Coverageは現在未測定。v1とは候補・不正順位の扱いが違うため、定義を決めて追加する。Latency P50/P95・Training Timeは実測値を表示する。Tokens / API Cost / Calls / Memoryはモデルが実測値を返した場合だけ集計する。
+- v2のILD・Novelty・Catalog Coverageは、先頭K位置を維持し、new / repeat別に計測する。Catalog Coverageの分母はタスクの候補和集合。Noveltyは学習のユニークユーザー数を平滑化した自己情報量。ILDは共通の非負タグ特徴のCosine距離で、K>=2・全有効曲の非ゼロ特徴が必要。正解のないユーザーも多様性集計から除外しない。Latency P50/P95・Training Timeは実測値を表示する。Tokens / API Cost / Calls / Memoryはモデルが実測値を返した場合だけ集計する。
 - v1/v2や、異なる期間・gain・データ・コード条件のモデル結果を直接比較しない。不一致は02で案内する。v2を選んだ状態で旧Binaryの参考結果へ暗黙に切り替えない。
 
 `tracking.enabled=true`なら各試行をMLflowに保存する。モデル呼出しは各ユーザーのnew/repeatごとに一度で、窓・K・重みや表示の再読込みでは呼出しを増やさない。成功済み同条件試行を再利用する。生の履歴・要求・観測値はローカル成果物に保持する。
 
-## 検証記録（2026-10-15）
+## 初回v2接続時の検証記録（2026-10-15）
 
 全テスト286件成功・3件スキップ。v2の01/02/03とTest後02をfresh kernelで実行し、実MLflow SQLiteの成功・失敗・再利用を確認した。合成データのItemCF・PopularityでCLI全工程と二モデルの最終比較を実行し、観測分布・Grid・Validation・Testの図を確認した。静的解析・配布物ビルドも成功。今回、実DB・大規模生成の任意試験は再実行していない。実データの最適設定や全量推薦性能を示す結果ではない。
+
+全7モデルの同条件合成例、特徴の共有、主指標未指定の診断Readerは[モデル手順](models.md)を参照する。追加指標は`beyond_accuracy`と別CSVに保存し、窓・λごとに同じ観測を重複計上しない。旧v2結果に値がなければ未測定表示を維持する。
+
+要求別には`ild_exclusion_reasons`・`novelty_exclusion_reason`・返却数・短い出力を保存し、集計には除外理由ごとの件数とCoverageの空分母理由を残す。特徴未登録とゼロノルムを区別できる。`beyond-accuracy.csv`の理由別件数はJSON形式の列として読める。3モデル以上の比較曲線は指標ごとに分け、共通凡例を曲線の外へ配置する。
+
+## 従来7モデルへの拡張後の検証記録（2026-10-15）
+
+全テスト388件成功・3件スキップ、隔離DB129件・大規模生成2件成功。全7モデルのCLI Smoke→探索→再利用→選択→Validation推薦確認→固定→合成Test→最終比較を確認した。Notebookのfresh kernel実行、1変数の線・2変数のヒートマップ・多モデルの図の目視も実施した。独立レビュー1回の指摘5件は再現テストで対応した。実データは[Validation診断](../experiments/music4all/model-suite-validation.md)として別途記録し、主指標未指定のため選択・Testへ進めていない。
