@@ -1382,6 +1382,9 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
+models = [
+    { name = "numpy" },
+]
 notebook = [
     { name = "ipykernel" },
     { name = "jupyterlab" },
@@ -1412,6 +1415,7 @@ dev = [
     { name = "pytest", specifier = ">=8,<10" },
     { name = "ruff", specifier = ">=0.13,<1" },
 ]
+models = [{ name = "numpy", specifier = ">=2,<3" }]
 notebook = [
     { name = "ipykernel", specifier = ">=6,<8" },
     { name = "jupyterlab", specifier = ">=4,<5" },

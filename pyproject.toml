@@ -63,6 +63,7 @@ line-length = 100
 select = ["E4", "E7", "E9", "F", "I"]
 
 [dependency-groups]
+models = ["numpy>=2,<3"]
 data = [
     "duckdb>=1.4,<2",
     "pandas==3.0.6",
