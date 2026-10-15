@@ -30,6 +30,7 @@ from music_recsys.types import (
     validate_id,
     validate_top_k,
 )
+from music_recsys.usage import summarize_usage
 
 
 @dataclass(frozen=True)
@@ -82,6 +83,7 @@ class BenchmarkSummary:
     n_short: int
     total_recommendation_seconds: float
     mean_recommendation_seconds: float
+    usage: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -201,6 +203,9 @@ def run_benchmark(
             }
         )
         metrics = asdict(report.summary)
+        usage = metrics.pop("usage", None)
+        if usage:
+            metrics.update(usage["metrics"])
         metrics[f"ndcg_at_{report.metadata.top_k}"] = metrics.pop("ndcg")
         metrics[f"recall_at_{report.metadata.top_k}"] = metrics.pop("recall")
         metrics["training_seconds"] = training_seconds
@@ -315,6 +320,7 @@ def _run_benchmark(
         n_short=sum(run.evaluation.returned_count < top_k for run in runs),
         total_recommendation_seconds=sum(durations),
         mean_recommendation_seconds=fmean(durations),
+        usage=summarize_usage(run.response for run in runs),
     )
     return BenchmarkReport(metadata, summary, tuple(runs))
 

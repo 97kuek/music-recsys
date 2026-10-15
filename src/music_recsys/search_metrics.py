@@ -6,6 +6,7 @@ from dataclasses import replace
 from statistics import fmean
 
 from music_recsys.evaluation.metrics import evaluate_response
+from music_recsys.usage import summarize_usage
 
 
 def quantile(values, q):
@@ -94,12 +95,7 @@ def ranking_metrics(dataset, report, *, features=None):
             "latency_p50": quantile(durations, 0.5),
             "latency_p95": quantile(durations, 0.95),
             "training_seconds": report.metadata.training_seconds,
-            "peak_memory": None,
-            "input_tokens": None,
-            "output_tokens": None,
-            "api_cost": None,
-            "llm_calls": None,
-            "tool_calls": None,
+            **(report.summary.usage or summarize_usage(r.response for r in report.runs))["metrics"],
         },
         "definitions": {
             "ranking": "binary-v1: filter invalid/duplicate IDs before truncation; generated once at K=20",
@@ -107,6 +103,7 @@ def ranking_metrics(dataset, report, *, features=None):
             "novelty": "user mean of -log2((distinct learning users for item+1)/(learning users+2))",
             "ild": "user mean pairwise cosine distance; full features and >=2 valid items required",
             "graded_ndcg": "未測定: 関連度定義は別条件として確定が必要",
-            "unmeasured": "Peak Memory / Tokens / API Cost / LLM Calls / Tool Callsは未測定",
+            "unmeasured": "未測定はnull。usageに計測件数を保存。API CostはUSD、Peak Memoryは推薦要求内の最大bytes（学習は含まない）",
+            "usage": report.summary.usage,
         },
     }

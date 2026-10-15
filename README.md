@@ -13,13 +13,14 @@
 ## 現在の状態
 
 - Python 3.12、uv、srcレイアウト。
-- 合成データ・Popularity・共通Runner・NDCG / Recall・Notebookを実装済み。
+- 合成データ・Popularity・ItemCF・共通Runner・NDCG / Recall・Notebookを実装済み。
 - Music4All-Onion v2の時刻付きイベントを取得・全量集計済み。履歴コホート・全量取り込みと保存済み時系列分割に対応。
 - 初期評価はTrainに履歴のある100ユーザー、Popularity、NDCG@10・Recall@10。全量での推薦性能評価は未実施。
 - PostgreSQL + pgvectorのローカルDocker環境とAlembicを構築済み。
 - MLflowを共通Runnerへ接続し、ローカルサーバーへの条件・指標・成果物・実行状態の記録を確認済み。
 - ValidationのGrid探索・成功試行の再利用・設定選択／確認／固定・最終Testを、同じTOMLと保存artifactで管理する。
-- LLM・Agent・UIは今後実装。UIより先に検証基盤を整える。
+- 再生回数・日数の観測を保持する`listening-v2`と、明示的なCLI実行を追加（[手順](docs/listening-evaluation.md)）。
+- LLM・Agentの実測使用量を受け取る接続口を追加。LLM・Agent自体・UIは今後実装。UIより先に検証基盤を整える。
 
 ## 文書
 
@@ -35,7 +36,7 @@
 
 ## 合成データで検証フローを試す
 
-同じ設定ファイルを各コマンドで使う。Popularityには探索可能なパラメータがないため、この例はseed反復と導線の確認。1変数／2変数の探索基盤は合成モデルのテストで検証する。
+同じ設定ファイルを各コマンドで使う。Popularityには探索可能なパラメータがないため、この例はseed反復と導線の確認。ItemCFの実モデル探索は`configs/workflow-toy-itemcf.toml`を使用する（[モデル仕様](docs/itemcf.md)）。
 
 ```bash
 uv run --locked --group data --group tracking python -m music_recsys.experiment_search --config configs/workflow-toy.toml smoke
