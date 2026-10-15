@@ -45,7 +45,7 @@
 
 ## 実装範囲
 
-- 将来のモデルは既存のfactory経由でパラメータ・seedを受け取れるようにする。実装する推薦モデルはPopularityのまま。
+- 将来のモデルは既存のfactory経由でパラメータ・seedを受け取れるようにする。実装済みモデルはPopularityとItemCF。ItemCFの定義・補完規則は[itemcf.md](itemcf.md)を参照する。
 - 探索の1D/2D、多seed、失敗・再開、選択、固定、Test禁止条件はテスト用の合成モデルを使って検証する。実在モデルの測定結果を捏造しない。
 - 旧Notebook名の参照・テストを新名へ更新する。既存データ・実験履歴は変更しない。コミット・pushは依頼があるまで行わない。
 
@@ -89,7 +89,7 @@ python -m music_recsys.experiment_search --config "$MUSIC_RECSYS_EXPERIMENT_CONF
 
 ### Stage A / B / Cの指定
 
-次はItemCFを**今後実装した後**の設定例。現在のPopularityにこのgridを指定すると未対応パラメータとして失敗する。
+次は実装済みItemCFの設定例。`model.name="itemcf"`を使う。Popularityにこのgridを指定すると未対応パラメータとして失敗する。
 
 ```toml
 [search]

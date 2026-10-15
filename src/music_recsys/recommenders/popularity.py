@@ -3,6 +3,7 @@
 from collections import Counter
 from collections.abc import Iterable
 
+from music_recsys.candidates import eligible_candidates
 from music_recsys.data import Interaction
 from music_recsys.types import RecommendationRequest, RecommendationResponse
 
@@ -12,6 +13,6 @@ class PopularityRecommender:
         self._counts = Counter(interaction.item_id for interaction in interactions)
 
     def recommend(self, request: RecommendationRequest) -> RecommendationResponse:
-        candidates = set(request.candidate_ids).difference(request.history)
+        candidates = eligible_candidates(request)
         ranked = sorted(candidates, key=lambda item_id: (-self._counts[item_id], item_id))
         return RecommendationResponse(request.request_id, tuple(ranked[: request.top_k]))

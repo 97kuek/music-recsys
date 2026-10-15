@@ -3,6 +3,7 @@
 import math
 from collections.abc import Collection, Sequence
 
+from music_recsys.candidates import eligible_candidates
 from music_recsys.types import (
     EvaluationResult,
     GroundTruth,
@@ -47,7 +48,7 @@ def evaluate_response(
 ) -> EvaluationResult:
     if request.request_id != response.request_id or request.request_id != truth.request_id:
         raise ValueError("request_id mismatch")
-    candidates = set(request.candidate_ids).difference(request.history)
+    candidates = set(eligible_candidates(request))
     relevant = candidates.intersection(truth.relevant_item_ids)
     valid: list[str] = []
     seen: set[str] = set()

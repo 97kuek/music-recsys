@@ -1,5 +1,6 @@
 """推薦関数と評価器で共有する、JSONへ保存可能なデータ形式。"""
 
+import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -30,6 +31,7 @@ class RecommendationRequest:
     history: tuple[str, ...]
     candidate_ids: tuple[str, ...]
     top_k: int
+    task: Literal["new", "repeat"] = "new"
 
     def __post_init__(self) -> None:
         validate_id(self.request_id)
@@ -37,6 +39,35 @@ class RecommendationRequest:
         validate_ids(self.history)
         validate_ids(self.candidate_ids)
         validate_top_k(self.top_k)
+        if self.task not in ("new", "repeat"):
+            raise ValueError("task must be new or repeat")
+
+
+@dataclass(frozen=True)
+class RecommendationUsage:
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    api_cost_usd: float | None = None
+    llm_calls: int | None = None
+    tool_calls: int | None = None
+    peak_memory_bytes: int | None = None
+
+    def __post_init__(self):
+        for name in (
+            "input_tokens",
+            "output_tokens",
+            "llm_calls",
+            "tool_calls",
+            "peak_memory_bytes",
+        ):
+            value = getattr(self, name)
+            if value is not None and (type(value) is not int or value < 0):
+                raise ValueError(f"{name} must be a non-negative measured integer or None")
+        cost = self.api_cost_usd
+        if cost is not None and (
+            type(cost) not in (int, float) or not math.isfinite(cost) or cost < 0
+        ):
+            raise ValueError("api_cost_usd must be finite non-negative USD or None")
 
 
 @dataclass(frozen=True)
@@ -45,10 +76,13 @@ class RecommendationResponse:
     item_ids: tuple[str, ...]
     status: Literal["ok", "error"] = "ok"
     error_type: str | None = None
+    usage: RecommendationUsage | None = None
 
     def __post_init__(self) -> None:
         validate_id(self.request_id)
         validate_ids(self.item_ids, unique=False)
+        if self.usage is not None and not isinstance(self.usage, RecommendationUsage):
+            raise ValueError("usage must be RecommendationUsage or None")
         if self.status not in ("ok", "error"):
             raise ValueError("status must be ok or error")
         if self.status == "ok" and self.error_type is not None:

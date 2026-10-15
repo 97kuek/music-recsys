@@ -73,6 +73,7 @@ def inspect_recommendation(
                 if model == "popularity"
                 else None
             ),
+            **(recommender.explain(request, item_id) if hasattr(recommender, "explain") else {}),
         }
         for item_id in response.item_ids
     ]

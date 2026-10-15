@@ -8,7 +8,7 @@ import tempfile
 import time
 import tomllib
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
 from importlib.metadata import version
 from pathlib import Path
@@ -22,7 +22,7 @@ from music_recsys.evaluation.tracking import (
     TrackingError,
     TrackingResult,
 )
-from music_recsys.recommenders import create_recommender
+from music_recsys.recommenders import AVAILABLE_MODELS, create_recommender
 from music_recsys.types import (
     EvaluationResult,
     RecommendationRequest,
@@ -40,6 +40,7 @@ class BenchmarkConfig:
     seed: int
     sha256: str
     tracking: TrackingConfig = TrackingConfig()
+    model_parameters: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -99,8 +100,10 @@ def load_config(path: Path) -> BenchmarkConfig:
         validate_top_k(config["top_k"])
         if type(config["seed"]) is not int or config["seed"] < 0:
             raise ValueError("seed must be a non-negative integer")
-        if config["model"] != "popularity":
-            raise ValueError("only the popularity model is currently supported by the CLI")
+        if config["model"] not in AVAILABLE_MODELS:
+            raise ValueError(f"available models: {', '.join(AVAILABLE_MODELS)}")
+        if not isinstance(config.get("parameters", {}), dict):
+            raise ValueError("benchmark.parameters must be a table")
         return BenchmarkConfig(
             dataset_path=(path.parent / config["dataset"]).resolve(),
             model=config["model"],
@@ -108,6 +111,7 @@ def load_config(path: Path) -> BenchmarkConfig:
             seed=config["seed"],
             sha256=hashlib.sha256(content).hexdigest(),
             tracking=TrackingConfig.from_settings(raw.get("tracking")),
+            model_parameters=config.get("parameters", {}),
         )
     except (KeyError, TypeError) as error:
         raise ValueError("invalid benchmark configuration") from error
@@ -224,6 +228,8 @@ def _run_benchmark(
 ) -> BenchmarkReport:
     """正解を推薦関数へ渡さず、失敗した要求も結果に残す。"""
     validate_id(model_name)
+    if any(request.task != "new" for request in dataset.requests):
+        raise ValueError("repeat evaluation requires listening-v2")
     if type(seed) is not int or seed < 0:
         raise ValueError("seed must be a non-negative integer")
     top_ks = {request.top_k for request in dataset.requests}
@@ -296,11 +302,16 @@ def _run_benchmark(
 
 
 def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None) -> BenchmarkReport:
-    """設定からデータを読み、Popularityを学習して共通Runnerを呼ぶ。"""
+    """設定からデータを読み、モデルを学習して共通Runnerを呼ぶ。"""
     config = load_config(config_path)
     dataset = load_dataset(config.dataset_path, top_k=config.top_k)
     start = time.perf_counter()
-    model = create_recommender(config.model, dataset.train_interactions)
+    model = create_recommender(
+        config.model,
+        dataset.train_interactions,
+        parameters=config.model_parameters,
+        seed=config.seed,
+    )
     training_seconds = time.perf_counter() - start
     return run_benchmark(
         dataset,
@@ -309,7 +320,7 @@ def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None)
         seed=config.seed,
         training_seconds=training_seconds,
         config_sha256=config.sha256,
-        model_parameters={},
+        model_parameters=config.model_parameters,
         tracking=tracking if tracking is not None else config.tracking,
     )
 
