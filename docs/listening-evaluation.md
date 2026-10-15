@@ -31,7 +31,7 @@ uv run --locked --group data --group tracking python -m music_recsys.evaluation.
 
 結果は`results.json`（生ランキング・要求別指標・診断）、`metrics.csv`（条件別の集計）、`summary.md`（主条件）。CSVの比較キーは`task / window_days / k / day_weight / metric`。Binaryのday_weightは空欄で、λごとに重複保存しない。MLflowには集計だけを送り、生ID・履歴・観測値はローカルに保持する。
 
-v1とv2では候補・gain・不正出力の位置処理が異なるため、同条件として比較しない。既存の02のv1結果Readerはv2を明示拒否する。v2の専用Notebook表示・探索との統合は今回の承認済みv2仕様の対象外で、まず条件別CSVで分析する。Testによるパラメータ探索は行わず、Validationで条件を確定してから最終評価する。
+v1とv2では候補・gain・不正出力の位置処理が異なるため、同条件として比較しない。単独の結果CSVに加え、共通RunnerのGrid探索・選択・固定・Testと01〜03のNotebookで扱える（[v2探索の手順](listening-workflow.md)）。既存v1の結果Readerとv2の条件別Readerを分け、異なるprotocolの比較を拒否する。Testによるパラメータ探索は行わず、Validationで条件を確定してから最終評価する。
 
 ## 将来モデルの実測値
 

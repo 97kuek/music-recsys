@@ -19,7 +19,7 @@
 - PostgreSQL + pgvectorのローカルDocker環境とAlembicを構築済み。
 - MLflowを共通Runnerへ接続し、ローカルサーバーへの条件・指標・成果物・実行状態の記録を確認済み。
 - ValidationのGrid探索・成功試行の再利用・設定選択／確認／固定・最終Testを、同じTOMLと保存artifactで管理する。
-- 再生回数・日数の観測を保持する`listening-v2`と、明示的なCLI実行を追加（[手順](docs/listening-evaluation.md)）。
+- 再生回数・日数の観測を保持する`listening-v2`を、共通Grid探索・選択・固定・Testと01〜03のNotebookから使用できる（[評価仕様](docs/listening-evaluation.md) / [合成例と操作手順](docs/listening-workflow.md)）。
 - LLM・Agentの実測使用量を受け取る接続口を追加。LLM・Agent自体・UIは今後実装。UIより先に検証基盤を整える。
 
 ## 文書

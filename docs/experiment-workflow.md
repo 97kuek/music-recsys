@@ -1,6 +1,6 @@
 # 検証・パラメータ探索フロー
 
-- 今回の仕様はユーザーが指定した検証フローを採用する。既存Binary評価を使用し、Gradedの研究案は別条件として保持する。Kは主設定10・感度1〜20、ILDは2以上。
+- ユーザーが指定した検証フローを採用する。既存Binary評価に加え、明示した`listening-v2`では再生回数・日数によるGraded評価を別条件として扱う（[v2の設定と操作](listening-workflow.md)）。Kは主設定10・感度1〜20、ILDは測定する場合2以上。
 - 01でデータと評価可能性を確認 → CLIでSmoke → Validation探索 → 02で比較・選択 → 03でValidationの履歴と推薦を観察 → 設定固定 → CLIでTrain＋Validationの再学習とTest → 02で最終比較。
 
 ## Notebook
@@ -109,7 +109,7 @@ Stage Bでは`stage="B"`とし、固定パラメータから`similarity`を外�
 
 `experiment.features`はJSONへのパスで、形式は`{"dataset_id":"...","snapshot_id":"...","features":{"track_id":{"rock":0.8,"pop":0.2}}}`。非負・有限の実測特徴だけを指定し、ILDと03の特徴比較に使用する。特徴欠損のある要求はILD対象外とし、評価数も保存する。`[inspection.audio_files]`は`track_id="/absolute/path/to/audio.wav"`というローカル音源の対応表。
 
-95%信頼区間はユーザー単位bootstrap、seed間標準偏差は実行間のばらつきとして別に表示する。Gradedは関連度定義・Evaluatorが未確定のためBinaryとの比較グラフを作らず、未測定理由を表示する。Peak Memory・Tokens・API Cost・LLM Calls・Tool Callsも現時点ではnull。LLM/Agent追加時は共通Runnerの実測値を接続する。
+95%信頼区間はユーザー単位bootstrap、seed間標準偏差は実行間のばらつきとして別に表示する。既存Binary入力にはGradedに必要な観測がないため未測定とする。listening-v2では明示したgain条件ごとにGradedを表示する。Peak Memory・Tokens・API Cost・LLM Calls・Tool Callsは、モデルアダプタが返した実測値だけを集計し、未取得はnullとする。LLM/Agent自体や課金API呼出しは追加していない。
 
 ## 開発時の確認
 
