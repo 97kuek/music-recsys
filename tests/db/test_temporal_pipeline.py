@@ -40,3 +40,13 @@ def test_snapshot_split_export_round_trip(db, music4all_factory, tmp_path):
     assert dataset.provenance["split_id"] == str(split_id)
     assert dataset.provenance["snapshot_id"] == str(snapshot.snapshot_id)
     assert len(dataset.train_interactions) == 3
+
+    from music_recsys.listening_data import load_listening_dataset
+    from music_recsys.listening_types import ListeningConfig
+
+    bundle = tmp_path / "listening-test"
+    export_split(db, root, split_id, bundle, phase="test", protocol="listening-v2")
+    listening = load_listening_dataset(bundle, ListeningConfig())
+    assert listening.manifest["source"]["split_id"] == str(split_id)
+    assert listening.manifest["source"]["snapshot_id"] == str(snapshot.snapshot_id)
+    assert len(listening.train_interactions) == 3

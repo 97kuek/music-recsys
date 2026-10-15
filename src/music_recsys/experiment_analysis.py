@@ -46,6 +46,10 @@ def _read(path: Path) -> Report:
 
 
 def _validate(raw: Report) -> None:
+    if raw.get("schema_version") == 2:
+        raise ValueError(
+            "listening-v2 requires separate condition-keyed CSV analysis; do not mix with v1 reports"
+        )
     metadata, summary = raw["metadata"], raw["summary"]
     conditions = metadata.get("evaluation_conditions")
     required = {

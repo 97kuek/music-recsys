@@ -41,6 +41,8 @@ class BenchmarkConfig:
     sha256: str
     tracking: TrackingConfig = TrackingConfig()
     model_parameters: dict = field(default_factory=dict)
+    protocol: str = "binary-v1"
+    listening_config: object | None = None
 
 
 @dataclass(frozen=True)
@@ -104,6 +106,20 @@ def load_config(path: Path) -> BenchmarkConfig:
             raise ValueError(f"available models: {', '.join(AVAILABLE_MODELS)}")
         if not isinstance(config.get("parameters", {}), dict):
             raise ValueError("benchmark.parameters must be a table")
+        protocol = config.get("protocol", "binary-v1")
+        if protocol not in {"binary-v1", "listening-v2"}:
+            raise ValueError("unknown evaluation protocol")
+        listening_config = None
+        if protocol == "listening-v2":
+            from music_recsys.listening_types import ListeningConfig
+
+            if config["top_k"] != 20:
+                raise ValueError("listening-v2 requires top_k=20")
+            options = dict(raw.get("evaluation", {}))
+            for name in ("window_days", "ks", "day_weights"):
+                if name in options:
+                    options[name] = tuple(options[name])
+            listening_config = ListeningConfig(**options)
         return BenchmarkConfig(
             dataset_path=(path.parent / config["dataset"]).resolve(),
             model=config["model"],
@@ -112,6 +128,8 @@ def load_config(path: Path) -> BenchmarkConfig:
             sha256=hashlib.sha256(content).hexdigest(),
             tracking=TrackingConfig.from_settings(raw.get("tracking")),
             model_parameters=config.get("parameters", {}),
+            protocol=protocol,
+            listening_config=listening_config,
         )
     except (KeyError, TypeError) as error:
         raise ValueError("invalid benchmark configuration") from error
@@ -304,6 +322,29 @@ def _run_benchmark(
 def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None) -> BenchmarkReport:
     """設定からデータを読み、モデルを学習して共通Runnerを呼ぶ。"""
     config = load_config(config_path)
+    if config.protocol == "listening-v2":
+        from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
+        from music_recsys.listening_data import load_listening_dataset
+
+        dataset = load_listening_dataset(config.dataset_path, config.listening_config)
+        start = time.perf_counter()
+        model = create_recommender(
+            config.model,
+            dataset.train_interactions,
+            parameters=config.model_parameters,
+            seed=config.seed,
+        )
+        return run_listening_benchmark(
+            dataset,
+            model.recommend,
+            config=config.listening_config,
+            model_name=config.model,
+            seed=config.seed,
+            training_seconds=time.perf_counter() - start,
+            config_sha256=config.sha256,
+            model_parameters=config.model_parameters,
+            tracking=tracking if tracking is not None else config.tracking,
+        )
     dataset = load_dataset(config.dataset_path, top_k=config.top_k)
     start = time.perf_counter()
     model = create_recommender(
@@ -326,6 +367,11 @@ def run_experiment(config_path: Path, *, tracking: TrackingConfig | None = None)
 
 
 def format_summary(report: BenchmarkReport) -> str:
+    if getattr(report, "schema_version", None) == 2:
+        from music_recsys.evaluation.listening_benchmark import format_listening_summary
+
+        return format_listening_summary(report)
+
     def metric(value: float | None) -> str:
         return "undefined" if value is None else f"{value:.6f}"
 
@@ -360,6 +406,10 @@ def save_report(
     report: BenchmarkReport, output_root: Path, *, tracking: TrackingConfig | None = None
 ) -> Path:
     """新しい実行ディレクトリへ保存する。既存結果は上書きしない。"""
+    if getattr(report, "schema_version", None) == 2:
+        from music_recsys.evaluation.listening_benchmark import save_listening_report
+
+        return save_listening_report(report, output_root, tracking=tracking)
     serialized = json.dumps(asdict(report), ensure_ascii=False, indent=2, allow_nan=False)
     root = Path(output_root)
     root.mkdir(parents=True, exist_ok=True)

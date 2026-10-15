@@ -116,26 +116,61 @@ def split_snapshot(
         return publish_split(engine, storage_root, snapshot_id, identity, artifacts, result.summary)
 
 
-def export_split(engine, storage_root: Path, split_id: UUID, output: Path, *, phase: str) -> None:
+def export_split(
+    engine,
+    storage_root: Path,
+    split_id: UUID,
+    output: Path,
+    *,
+    phase: str,
+    protocol: str = "binary-v1",
+    windows: tuple[int, ...] = (30, 90, 180),
+) -> None:
     saved = load_split(engine, storage_root, split_id)
     if saved["dataset_key"] != "music4all-onion":
         raise ValidationError("this export supports Music4All-Onion only")
     config = TemporalConfig(**{k: saved["config"][k] for k in asdict(TemporalConfig())})
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
+    provenance = {
+        "dataset_key": saved["dataset_key"],
+        "dataset_version_id": str(saved["dataset_version_id"]),
+        "version_label": saved["version_label"],
+        "snapshot_id": str(saved["snapshot_id"]),
+        "split_id": str(split_id),
+        "preprocessing": saved["config"],
+    }
+    if protocol == "listening-v2":
+        from music_recsys.listening_export import export_listening_phase
+
+        roles = (
+            ("train", "validation") if phase == "validation" else ("train", "validation", "test")
+        )
+        provenance["source_artifacts"] = {
+            role: {
+                "storage_key": saved["artifacts"][role].storage_key,
+                "sha256": saved["artifacts"][role].sha256,
+                "row_count": saved["artifacts"][role].row_count,
+            }
+            for role in roles
+        }
+        export_listening_phase(
+            {k: a.path for k, a in saved["artifacts"].items()},
+            output,
+            config,
+            phase=phase,
+            windows=windows,
+            provenance=provenance,
+        )
+        return
+    if protocol != "binary-v1":
+        raise ValueError("unknown evaluation protocol")
     export_phase(
         {k: a.path for k, a in saved["artifacts"].items()},
         output,
         config,
         phase=phase,
-        provenance={
-            "dataset_key": saved["dataset_key"],
-            "dataset_version_id": str(saved["dataset_version_id"]),
-            "version_label": saved["version_label"],
-            "snapshot_id": str(saved["snapshot_id"]),
-            "split_id": str(split_id),
-            "preprocessing": saved["config"],
-        },
+        provenance=provenance,
     )
 
 
@@ -152,6 +187,8 @@ def main() -> int:
     export.add_argument("--split-id", type=UUID, required=True)
     export.add_argument("--phase", choices=("validation", "test"), required=True)
     export.add_argument("--output", type=Path, required=True)
+    export.add_argument("--protocol", choices=("binary-v1", "listening-v2"), default="binary-v1")
+    export.add_argument("--window-days", type=int, nargs="+", default=[30, 90, 180])
     args = parser.parse_args()
     engine = None
     try:
@@ -166,7 +203,15 @@ def main() -> int:
             )
             print(json.dumps({"split_id": str(split)}))
         else:
-            export_split(engine, args.storage_root, args.split_id, args.output, phase=args.phase)
+            export_split(
+                engine,
+                args.storage_root,
+                args.split_id,
+                args.output,
+                phase=args.phase,
+                protocol=args.protocol,
+                windows=tuple(args.window_days),
+            )
             print(json.dumps({"status": "exported", "phase": args.phase}))
         return 0
     except Exception as error:

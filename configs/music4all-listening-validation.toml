@@ -1,0 +1,17 @@
+# listening-v2 bundleを先にexportする。既存BinaryのJSONを指定しない。
+[benchmark]
+protocol = "listening-v2"
+dataset = "../data/benchmarks/music4all-listening/validation"
+model = "popularity"
+top_k = 20
+seed = 42
+
+[evaluation]
+window_days = [30, 90, 180]
+primary_window_days = 90
+primary_k = 10
+day_weights = [0.0, 0.5, 1.0, 2.0]
+primary_day_weight = 1.0
+
+[tracking]
+enabled = false
