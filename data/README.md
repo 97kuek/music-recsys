@@ -1,47 +1,18 @@
-# データ取得・加工
+# データ
 
-## Music4All-Onion v2
+- 本体・中間生成物・実験結果はGit管理外
+- 取得・再開・保存先の変更は[運用手順](../docs/lab-operation.md)
+- 保存構成は[実装構成](../docs/architecture.md)、評価入力は[評価仕様](../docs/listening-evaluation.md)
 
-| 項目 | 記録 |
+| 出典 | 内容 |
 | --- | --- |
-| 出典 | [Zenodo 15394646](https://zenodo.org/records/15394646)、v2、2025-05-13公開 |
-| 取得ファイル | `userid_trackid_timestamp.tsv.bz2`、`id_tags_dict.tsv.bz2` |
-| イベントファイルの公式サイズ | 2,211,449,511 bytes |
-| イベントファイルの公式MD5 | `dfe82201036765f7463e6f3ce3d0f991` |
-| 取得・照合 | 2026-10-12、サイズ・MD5一致 |
-| 配布メタデータのライセンス | `cc-by-4.0`。取得時の`record.json`をraw配下に保存 |
-| 列 | `user_id`, `track_id`, `timestamp` |
-| 時刻 | 秒までの日時文字列。タイムゾーンは未確認、配布表記のまま扱う |
-| 未取得 | 曲名・アーティスト名の基本カタログ、ユーザー属性、音響特徴・Embedding、TalkPlay本体 |
+| Zenodo record 15394646 / Music4All-Onion v2 | 再生履歴・重み付きタグ |
+| userid_trackid_timestamp.tsv.bz2 | 2,211,449,511 bytes / MD5 dfe82201036765f7463e6f3ce3d0f991 |
+| id_tags_dict.tsv.bz2 | 14,817,003 bytes / MD5 9c1ca4a3e04a9696b9449ec54ac40cd5 |
 
-- タグファイルはサイズ14,817,003 bytes、公式MD5 `9c1ca4a3e04a9696b9449ec54ac40cd5`と一致。
-- 実カラム・重複・取得可能な情報は [取り込み元確認](../docs/music4all-import-sources.md) を参照。
-
-```bash
-mkdir -p data/raw/music4all-onion-v2
-curl --location --fail --retry 3 --continue-at - \
-  --output data/raw/music4all-onion-v2/userid_trackid_timestamp.tsv.bz2.part \
-  'https://zenodo.org/records/15394646/files/userid_trackid_timestamp.tsv.bz2?download=1'
-md5 -q data/raw/music4all-onion-v2/userid_trackid_timestamp.tsv.bz2.part
-wc -c < data/raw/music4all-onion-v2/userid_trackid_timestamp.tsv.bz2.part
-```
-
-- サイズ・MD5一致を確認してから、末尾の`.part`を取り除く。
-- データ本体・Parquet・中間データはGit管理外。
-
-## 全量集計
-
-```bash
-uv run --locked --group data music-recsys-profile \
-  --source data/raw/music4all-onion-v2/userid_trackid_timestamp.tsv.bz2 \
-  --parquet data/processed/music4all-onion-v2/events.parquet \
-  --output experiments/music4all/eda/runs
-```
-
-- PyArrowのバッチ読込とDuckDBでParquet化し、日別件数・履歴量・分割候補・未聴正解対象数を集計する。
-- 元ファイル・ParquetのSHA-256を保存し、キャッシュ再利用時に照合する。
-- DuckDB設定：メモリ上限2GB、2スレッド、processed配下に一時領域。これはプロセス全体のメモリ上限ではない。
-- 出力：`runs/<実行ID>/profile.json`、`daily_counts.csv`、`summary.md`。
-- 指定境界を調べる場合：`--train-end YYYY-MM-DD --validation-end YYYY-MM-DD`。
-- [調査結果](../experiments/music4all/summary.md) に共有用集計を保存。
-- [01_data Notebook](../notebooks/01_data.ipynb) は保存済み`experiments/music4all/eda/profile.json`を読む。別のJSONは環境変数`MUSIC_RECSYS_PROFILE`に絶対パスを指定する。
+- 配布情報は取得時のrecord.jsonに保存
+- 再生履歴の列はuser_id・track_id・timestamp
+- 元IDは文字列を維持、時刻のタイムゾーンは未確認
+- 曲名・アーティスト名・ユーザー属性・音源はこの取り込みの対象外
+- `lab_data` はサイズ・MD5・加工物SHA-256を照合
+- ready.jsonの公開後も、再利用時に全保存物のhashを確認

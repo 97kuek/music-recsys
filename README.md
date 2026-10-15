@@ -1,74 +1,49 @@
 # music-recsys
 
-- プロジェクト研究B：音楽推薦システム × LLM × AIエージェント
-- 従来型推薦にLLM・Agentを加えることで、何がどの程度改善するか、有効性と限界を定量・定性評価する。
-- 研究テーマ・仮説は、先行研究と予備実験から絞り込む。
+音楽推薦システムの研究用実装
+従来モデルを共通条件で検証し、LLM・Agentの追加効果を比較するための基盤
+LLM・Agent・Web UIは未実装
 
-| 構成 | 方針 |
-| --- | --- |
-| A：従来型推薦 | Popularity・CF・内容ベース・行列分解・Hybridから選定 |
-| B：従来型推薦 + LLM | 嗜好抽出・条件構造化・説明・再ランキングを固定の処理順で実行 |
-| C：従来型推薦 + LLM + Agent | 状況に応じて推薦・検索ツールを動的に選択・実行 |
+## 現在の構成
 
-## 現在の状態
+- Python 3.12・uv・srcレイアウト
+- Popularity / ItemCF / UserCF / ALS / BPR / Content / Hybrid
+- Music4All-Onion v2の再生履歴・タグを使用
+- 研究室での標準運用はParquet・JSON・SQLite、Docker・管理者権限不要
+- listening-v2で未聴曲の発見・定着の代理指標・既聴曲の再聴を評価
+- 共通RunnerがSmoke・Validation探索・選択・確認・固定・Testを管理
+- 100ユーザーは動作確認・予備分析用、本格評価の母集団・主指標は未決定
 
-- Python 3.12、uv、srcレイアウト。
-- Popularity・ItemCF・UserCF・ALS・BPR・Content-Based・Hybridと共通Runner・Notebookを実装済み（[モデル定義と操作](docs/models.md)）。
-- Music4All-Onion v2の時刻付きイベントを取得・全量集計済み。履歴コホート・全量取り込みと保存済み時系列分割に対応。
-- 初期評価はTrainに履歴のある100ユーザー、Popularity、NDCG@10・Recall@10。全量での推薦性能評価は未実施。
-- PostgreSQL + pgvectorのローカルDocker環境とAlembicを構築済み。
-- MLflowを共通Runnerへ接続し、ローカルサーバーへの条件・指標・成果物・実行状態の記録を確認済み。
-- ValidationのGrid探索・成功試行の再利用・設定選択／確認／固定・最終Testを、同じTOMLと保存artifactで管理する。
-- listening-v2のILD・Novelty・Catalog Coverageを、未聴・既聴タスク別に計測。特徴欠損や未測定を0で埋めない。
-- 従来7モデルを同じ100ユーザーのValidationで診断済み（[測定値と制約](experiments/music4all/model-suite-validation.md)）。主指標は未指定で、実データの最適設定選択・Test評価は未実施。
-- 再生回数・日数の観測を保持する`listening-v2`を、共通Grid探索・選択・固定・Testと01〜03のNotebookから使用できる（[評価仕様](docs/listening-evaluation.md) / [合成例と操作手順](docs/listening-workflow.md)）。
-- LLM・Agentの実測使用量を受け取る接続口を追加。LLM・Agentのモデル実装は保留。UIは今後実装。UIより先に検証基盤を整える。
+## 開始
 
-## 文書
+```bash
+uv sync --locked --group data --group models --group notebook --group tracking
+.venv/bin/python -m music_recsys.lab_data
+bash scripts/lab-notebook.sh
+```
+
+Notebookの選択欄でTOMLを選び「読み込む」を押す / 初期状態は未選択
+研究室の予備分析には `workflow-lab-popularity.toml` を選択
+
+長時間処理のtmux起動・SSH接続は[研究室の運用](docs/lab-operation.md)を参照
+データ準備完了の目印は `data/benchmarks/lab-100/ready.json`
 
 | Notebook | 用途 |
 | --- | --- |
-| [01_data](notebooks/01_data.ipynb) | 保存済みデータのSQL/DataFrame読込み・検証・EDA・分割状態の確認 |
-| [02_analysis](notebooks/02_analysis.ipynb) | 検証の中心：探索結果、設定選択、K別・ユーザー別分析、Testの最終比較 |
-| [03_recommendation](notebooks/03_recommendation.ipynb) | 選択設定を引継ぎ、Validationの履歴・推薦・根拠・特徴・ローカル音源を確認 |
+| [00_lab_start](notebooks/00_lab_start.ipynb) | 準備状態確認・Smoke / Validationの手動開始 |
+| [01_data](notebooks/01_data.ipynb) | 入力・観測分布・分割の確認 |
+| [02_analysis](notebooks/02_analysis.ipynb) | 結果分析・設定選択・固定・最終比較 |
+| [03_recommendation](notebooks/03_recommendation.ipynb) | 選択設定のValidation推薦を確認 |
 
-- 3冊とも独立実行可能。既定は合成データと参考EDA。01のDB操作は読込みのみ。
-- 02・03・CLIは`MUSIC_RECSYS_EXPERIMENT_CONFIG`で同じTOMLを読む。モデル・パラメータを03へ再入力しない。02の既定操作は読込みで、明示した選択・固定だけを共通APIへ委譲する。
-- **01で確認 → CLI Smoke → Validation探索 → 02で選択 → 03で確認 → 固定 → CLI最終Test → 02で比較**。[検証フロー](docs/experiment-workflow.md) / [既存結果の分析](docs/result-analysis.md)
-
-## 合成データで検証フローを試す
-
-同じ設定ファイルを各コマンドで使う。Popularityには探索可能なパラメータがないため、この例はseed反復と導線の確認。ItemCFの実モデル探索は`configs/workflow-toy-itemcf.toml`を使用する（[モデル仕様](docs/itemcf.md)）。
-
-```bash
-uv run --locked --group data --group tracking python -m music_recsys.experiment_search --config configs/workflow-toy.toml smoke
-uv run --locked --group data --group tracking python -m music_recsys.experiment_search --config configs/workflow-toy.toml search
-uv run --locked --group data --group tracking python -m music_recsys.experiment_search --config configs/workflow-toy.toml select
-```
-
-次に03で推薦を確認し、同じTOMLに対して`review --accept --note "確認内容"`、`freeze`、`test`の順に実行する。各コマンドは状態・次の操作を表示する。Testは固定済み設定だけで実行し、探索には使用しない。
-
-- 設定・主指標は実験開始前に指定する。未指定なら自動選択・Testを止める。
-- 成功試行は内容hashを検証して再利用する。失敗・予算切れは`search`で再開できる。データ・コード・主指標が変わった場合は別の出力先で開始する。
-- 出力はGit管理外の`data/experiments/`。実験結果の未測定値は0で補わない。
+## 文書
 
 | 文書 | 内容 |
 | --- | --- |
-| [CONTRIBUTING](CONTRIBUTING.md) | 環境・実行・ブランチ・コミットのルール |
-| [従来7モデル](docs/models.md) | モデル定義・探索パラメータ・共通特徴・合成データの実行手順 |
-| [研究計画](docs/research-plan.md) | 背景・課題・比較・進め方 |
-| [評価方針](docs/evaluation-protocol.md) | 共通基盤・形式・指標候補 |
-| [検証・探索フロー](docs/experiment-workflow.md) | TOML、Stage A〜D、状態、選択artifact、Notebook間の移動、最終Test |
-| [データセット方針](docs/dataset-investigation.md) | Music4All / TalkPlayの用途・分割 |
-| [DB・取り込み設計](docs/db-design.md) | 保存先・ID・スナップショット・初回取り込みの合意事項 |
-| [テーブル定義](docs/db-schema.md) | カラム・キー・参照整合性・不変性とmanifest形式 |
-| [ローカルDB](docs/local-db.md) | Docker Compose・環境変数・Alembicの手順 |
-| [取り込み元確認](docs/music4all-import-sources.md) | Music4Allの実配布ファイル・カラム・取得状況 |
-| [Music4All取り込み](docs/music4all-import.md) | メタデータ・履歴コホート・全量の取り込みとsnapshot読込み |
-| [Music4All Benchmark](docs/music4all-benchmark.md) | 保存済み分割・Benchmark・Notebookの実行 |
-| [MLflow](docs/mlflow.md) | 共通実験管理の設定・実行 |
-| [先行研究](docs/papers/README.md) | 調査候補と記録テンプレート |
-| [データ取得](data/README.md) | 出典・照合・加工コマンド |
-| [Music4All調査結果](experiments/music4all/summary.md) | 分割前の全量集計・時刻品質 |
-| [Music4All初期評価](experiments/music4all/smoke.md) | 100ユーザーの動作確認結果・限界 |
-| [従来7モデルのValidation診断](experiments/music4all/model-suite-validation.md) | 同条件13設定・2seedの実測値、出典、再現手順、評価人数の制約 |
+| [構成](docs/architecture.md) | モジュール・保存物・データの流れ |
+| [運用](docs/lab-operation.md) | 環境・取得・接続・再開・保管 |
+| [検証手順](docs/experiment-workflow.md) | Notebook・CLI・状態遷移 |
+| [評価仕様](docs/listening-evaluation.md) | 候補・正解・指標・集計・制限 |
+| [モデル](docs/models.md) | 学習・スコア・探索パラメータ |
+| [任意のDB機能](docs/optional-storage.md) | PostgreSQL・取り込み・分割の接続口 |
+| [開発](CONTRIBUTING.md) | 依存・テスト・変更管理 |
+| [エージェント指示](AGENTS.md) | 作業ルール・文書とNotebookの書式 |

@@ -1,6 +1,6 @@
 # 従来モデル一式
 
-全モデルが同じRequest / Response、new / repeat候補、Benchmark / Search Runnerを使う。モデル名はTOMLの`model.name`、単発Benchmarkでは`benchmark.model`に指定する。LLM・Agentはユーザー指示により保留している。
+全モデルが同じRequest / Response、new / repeat候補、Benchmark / Search Runnerを使う。モデル名はTOMLの`model.name`、単発Benchmarkでは`benchmark.model`に指定する。LLM・Agentは未実装。
 
 | モデル | 学習・スコア | 主な探索パラメータ |
 | --- | --- | --- |
@@ -20,9 +20,20 @@
 - `explain`は数値スコア・寄与・補完を返し、03に表示する。因子内積から架空のジャンルや因果理由を作らない。
 - モデルの学習と推薦はTrainだけを入力する。Validation／Testの観測はEvaluatorだけが読む。
 
+## ItemCF
+
+`itemcf`は、学習期間のユーザー×楽曲を二値化したItem-based Collaborative Filtering。繰り返し再生は類似度の重みを増やさない。再生回数を使うモデルは別条件として追加する。
+
+曲iを聴いた学習ユーザー集合をU(i)とし、Cosineは`|U(i)∩U(j)| / sqrt(|U(i)|*|U(j)|)`、Jaccardは`|U(i)∩U(j)| / |U(i)∪U(j)|`。自己類似度を除き、各曲について正の類似度の上位`neighbors`曲を学習時に保存する。近傍の同点はID昇順。全曲×全曲の密行列は作らないが、共起集計の時間は履歴の密度に依存する。
+
+推薦スコアは、本人の各履歴曲の保存近傍に候補曲が含まれる場合の類似度合計。候補ごとに近傍を選び直さない。スコア降順、同点は学習再生回数降順・ID昇順。根拠がない候補のスコアは0で、Popularityにより補完する。03では`fallback="popularity"`と理由を表示する。選択したデータ・seedは保存するが、このモデル自体は決定的である。
+
+参考：[Sarwar et al., Item-Based Collaborative Filtering Recommendation Algorithms](https://files.grouplens.org/papers/www10_sarwar.pdf)。本実装の二値化・近傍の切り方・補完規則は上記の研究用ベースライン仕様に固定する。
+
+
 ## UserCF
 
-本人の曲集合と他ユーザーの曲集合のCosine / Jaccardを計算する。各ユーザーについて正の類似度の上位`neighbors`人を学習時に保存し、候補曲を聴いた近傍の類似度を足す。再生重複は類似度を増やさない。全ユーザー×曲の密行列を保持しない。既存ItemCFの定義は[itemcf.md](itemcf.md)を参照する。
+本人の曲集合と他ユーザーの曲集合のCosine / Jaccardを計算する。各ユーザーについて正の類似度の上位`neighbors`人を学習時に保存し、候補曲を聴いた近傍の類似度を足す。再生重複は類似度を増やさない。全ユーザー×曲の密行列を保持しない。ItemCFの定義は以下を参照する。
 
 ## ALS・BPR
 
@@ -38,9 +49,8 @@ BPRは1 iterationで学習の全ユニーク正例ペアをseed付きで並べ�
 
 特徴artifactは`dataset_id / snapshot_id / features`を持つ既存JSON形式を使用する。新exportは元メタデータhashと変換版、必須の内容checksumも持つ。新形式でchecksumだけ欠けたファイルは拒否する。単発・探索のbinary-v1とlistening-v2の保存結果にも特徴hashを記録し、異なる特徴の結果を同条件として比較しない。
 
-```bash
-uv run --locked --no-sync --env-file .env python -m music_recsys.features --snapshot-id <UUID> --output data/benchmarks/my-study/features.json
-```
+ファイル運用では `lab_data` がfeatures.jsonを生成する
+DB経路のexportは[任意のDB機能](optional-storage.md)を参照
 
 探索では`experiment.features`、単発Benchmarkでは`benchmark.features`へパスを指定する。同じartifactを全モデルのILDにも使用する。異なる出典・特徴hashの実験は直接比較しない。
 
@@ -62,8 +72,4 @@ uv run --locked --group data --group models --group tracking python -m music_rec
 
 01→02→03で確認し、`review --accept`→`freeze`→`test`へ進む。全モデルを固定・Test評価した場合、02で同条件の最終比較ができる。既存の生成済み合成bundleは上書きしないため、古い例にfeatures.jsonがなければ新しい出力先を指定してTOMLのパスを揃える。
 
-主指標未指定の診断探索では、02に指定trial（未指定なら最初の成功trial）を表示できる。`MUSIC_RECSYS_TRIAL_ID`で変更する。この表示は最良設定の選択ではなく、選択・固定・Testは引き続き禁止する。CLIは結果を保存し、Notebookを閉じても失われない。
-
-## 実データの診断結果
-
-既存100ユーザー・同じSnapshot / Splitで全7モデルを確認した[Validation診断](../experiments/music4all/model-suite-validation.md)を参照する。実データの主タスク・主指標は未指定で、最良設定やTest結果を確定していない。3モデル以上の最終比較は指標ごとにパネルを分け、共通凡例を曲線の外へ表示する。
+主指標未指定の診断探索では、02に指定trial（未指定なら最初の成功trial）を表示できる。02の`DIAGNOSTIC_TRIAL_ID`で変更する。この表示は最良設定の選択ではなく、選択・固定・Testは引き続き禁止する。CLIは結果を保存し、Notebookを閉じても失われない。

@@ -317,9 +317,9 @@ def plot_observations(frame):
             )
         ax.set_xticks(range(len(bins)), bins)
         ax.set(
-            title=f"Validation | {metric} | {int(frame.window_days.iloc[0])} days",
+            title="Play count" if metric == "evaluation_play_count" else "Active days",
             xlabel="Observed value",
-            ylabel="Positive user-item pairs",
+            ylabel="User-track pairs",
         )
         ax.title.set_fontsize(10)
         ax.legend()

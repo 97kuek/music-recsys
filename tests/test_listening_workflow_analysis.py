@@ -28,8 +28,7 @@ def test_v2_curves_keep_task_window_gain_and_user_uncertainty(listening_study):
     history = history_performance(config)
     assert set(history.metric) == {"graded_ndcg"}
     title = plot_search(config).axes[0].get_title()
-    for condition in ("listening-v2", "repeat", "90 days", "day weight 1"):
-        assert condition in title
+    assert title == f"Validation · {config.metric}@{config.primary_k}"
 
 
 def test_v2_final_comparison_does_not_mix_protocol_or_gain(listening_study):

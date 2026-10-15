@@ -58,6 +58,9 @@ def test_new_models_and_diagnostic_views_run_in_fresh_kernels(
     monkeypatch.setenv("MUSIC_RECSYS_EXPERIMENT_CONFIG", str(path))
     monkeypatch.setenv("MUSIC_RECSYS_DATASET_PATH", str(config.test_dataset))
     notebook = nbformat.read(ROOT / "notebooks" / name, as_version=4)
+    from notebook_support import choose_config
+
+    choose_config(notebook, config.path)
     check = (
         "assert not recommendations_df.empty\nassert recommendations_df.reason.notna().all()"
         if name.startswith("03")

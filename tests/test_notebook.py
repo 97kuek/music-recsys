@@ -1,4 +1,4 @@
-"""3冊を独立したカーネルで実行し、外部サービスなしの分析を検証する。"""
+"""現行Notebookの明示入力・読込み専用既定・欠損時の動作を確認する。"""
 
 import ast
 import json
@@ -6,188 +6,135 @@ from pathlib import Path
 
 import pytest
 
-NOTEBOOKS = ["01_data.ipynb", "03_recommendation.ipynb", "02_analysis.ipynb"]
 ROOT = Path(__file__).resolve().parents[1]
+NOTEBOOKS = sorted(p.name for p in (ROOT / "notebooks").glob("*.ipynb"))
 
 
-@pytest.mark.parametrize("name", NOTEBOOKS)
-def test_notebook_python_cells_compile_and_outputs_are_clear(name):
+def _run_notebook_cells(name, count=None, config_path=None):
     notebook = json.loads((ROOT / "notebooks" / name).read_text())
-    for cell in notebook["cells"]:
-        if cell["cell_type"] == "code":
-            ast.parse("".join(cell["source"]))
-            assert cell["execution_count"] is None
-            assert cell["outputs"] == []
-
-
-@pytest.mark.notebook
-@pytest.mark.parametrize(
-    "name,empty_validation", [(name, False) for name in NOTEBOOKS] + [("01_data.ipynb", True)]
-)
-def test_notebook_runs_from_fresh_kernel(name, empty_validation, tmp_path, monkeypatch):
-    nbformat = pytest.importorskip("nbformat", reason="install the notebook dependency group")
-    nbclient = pytest.importorskip("nbclient", reason="install the notebook dependency group")
-    # 環境変数で記録が有効でも、既定Notebookは常駐MLflowに接続しない。
-    monkeypatch.setenv("MUSIC_RECSYS_TRACKING", "true")
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:1")
-    profile_path = tmp_path / "profile.json"
-    profile_path.write_text(
-        json.dumps(
-            {
-                "n_events": 10,
-                "n_users": 1,
-                "n_items": 1,
-                "min_time": "2020-01-01T12:00:00",
-                "max_time": "2020-01-10T12:00:00",
-                "boundaries": {
-                    "train_end": "2020-01-09T00:00:00",
-                    "validation_end": "2020-01-10T00:00:00",
-                },
-                "split_events": {"train": 8, "validation": 1, "test": 1},
-                "split_fractions": {"train": 0.8, "validation": 0.1, "test": 0.1},
-                "daily_counts": [
-                    {"day": f"2020-01-{day:02d}", "n_events": 1} for day in range(1, 11)
-                ],
-                "train": {"n_users": 1, "n_items": 1, "unique_tracks_quantiles": {"0.5": 1.0}},
-                **{
-                    key: {
-                        "novel_users": 0,
-                        "novel_pairs": 0,
-                        "pair_reasons": {"seen": 1},
-                        "users_with_truth_by_min_history": {"1": 0},
-                    }
-                    for key in ("validation", "test_train_only", "test_refit_train_validation")
-                },
-                "provenance": {"source_sha256": "synthetic-test-fixture"},
-            }
-        )
-    )
-    if empty_validation:
-        profile = json.loads(profile_path.read_text())
-        profile["validation"]["pair_reasons"] = {}
-        profile["split_events"].update({"validation": 0, "test": 2})
-        profile["split_fractions"].update({"validation": 0.0, "test": 0.2})
-        profile["daily_counts"] = [
-            row for row in profile["daily_counts"] if row["day"] != "2020-01-09"
-        ]
-        profile["daily_counts"][-1]["n_events"] = 2
-        profile_path.write_text(json.dumps(profile))
-    monkeypatch.setenv("MUSIC_RECSYS_PROFILE", str(profile_path))
-    assertions = {
-        "01_data.ipynb": "assert profile['n_events'] == 10\nassert snapshot.mode == 'fixture'\nassert tracks_df.shape[0] == 4 and users_df.shape[0] == 2\nassert SNAPSHOT_ID is None\nassert all(row['passed'] is not False for row in validation)\nassert snapshot.database_checks is None\nassert candidates['events'][0]['n_events'] == 8",
-        "03_recommendation.ipynb": "assert result.request.user_id == 'u1'\nassert result.response.item_ids == ('track_c', 'track_d')\nassert history_df.item_id.tolist() == ['track_a', 'track_b']\nassert recommendations_df.score.tolist() == [2, 1]\nassert not recommendations_df.in_history.any()\nassert player is None",
-        "02_analysis.ipynb": 'assert len(reports) == 1\nassert performance_df.query(\'metric == "recall"\')["mean"].iloc[0] == 0.625\nassert performance_df.n_users.tolist() == [4, 4]\nassert performance_df.ci_low.notna().all()\nassert efficiency_df.cost_total.isna().all()\nassert not MLFLOW_RUNS',
-    }
-    notebook = nbformat.read(ROOT / "notebooks" / name, as_version=4)
-    if name == "02_analysis.ipynb":
-        notebook.cells.insert(
-            0,
-            nbformat.v4.new_code_cell(
-                "import music_recsys.evaluation.benchmark as benchmark\n"
-                "def forbidden(*args, **kwargs):\n    raise AssertionError('02 must only read saved results')\n"
-                "benchmark.run_experiment = forbidden\nbenchmark.run_benchmark = forbidden\n"
-                "benchmark.save_report = forbidden\n"
-            ),
-        )
-    notebook.cells.append(nbformat.v4.new_code_cell(assertions[name]))
-    executed = nbclient.NotebookClient(
-        notebook,
-        timeout=120,
-        kernel_name="python3",
-        resources={"metadata": {"path": str(ROOT / "notebooks")}},
-    ).execute()
-    assert any(
-        "image/png" in output.get("data", {})
-        for cell in executed.cells
-        for output in cell.get("outputs", [])
-    )
-    nbformat.write(executed, tmp_path / name)
-
-
-@pytest.mark.notebook
-@pytest.mark.parametrize("case", ["aggregate", "undefined", "multiple", "mixed"])
-def test_analysis_handles_saved_result_variants_without_experiment_execution(case, tmp_path):
-    nbformat = pytest.importorskip("nbformat")
-    nbclient = pytest.importorskip("nbclient")
-    raw = json.loads((ROOT / "examples/reports/toy-popularity.json").read_text())
-    if case in {"aggregate", "mixed"}:
-        del raw["runs"]
-        if case == "mixed":
-            raw["summary"]["n_failed"] = 1
-    elif case == "undefined":
-        for run in raw["runs"]:
-            run["evaluation"].update(ndcg=None, recall=None, relevant_count=0)
-        raw["summary"].update(ndcg=None, recall=None, n_evaluated=0, n_excluded=5)
-    path = tmp_path / "saved.json"
-    path.write_text(json.dumps(raw))
-    notebook = nbformat.read(ROOT / "notebooks/02_analysis.ipynb", as_version=4)
-    config = next(
-        cell for cell in notebook.cells if "configuration" in cell.metadata.get("tags", [])
-    )
-    config.source += f'\nREPORT_PATHS = {{"Popularity": Path({str(path)!r})}}\n'
-    if case == "multiple":
-        config.source += f'REPORT_PATHS["Repeat"] = Path({str(path)!r})\n'
-    if case == "mixed":
-        config.source += f'REPORT_PATHS = {{"Popularity": ROOT / "examples/reports/toy-popularity.json", "Aggregate": Path({str(path)!r})}}\n'
-    notebook.cells.insert(
-        0,
-        nbformat.v4.new_code_cell(
-            "import music_recsys.evaluation.benchmark as benchmark\n"
-            "def forbidden(*args, **kwargs):\n    raise AssertionError('must only read saved results')\n"
-            "benchmark.run_experiment = forbidden\nbenchmark.run_benchmark = forbidden\nbenchmark.save_report = forbidden\n"
-        ),
-    )
-    checks = {
-        "aggregate": "assert performance_df.ci_low.isna().all()\nassert users_df.empty\nassert efficiency_df.latency_p95.isna().all()",
-        "undefined": 'assert performance_df["mean"].isna().all()\nassert performance_df.ci_low.isna().all()\nassert (performance_df.n_evaluated == 0).all()',
-        "mixed": 'assert failure_summary_df.set_index("run").loc["Aggregate", "n_failed"] == 1\nassert len(performance_df) == 4\nassert len(users_df) == 5',
-        "multiple": 'assert len(difference_df) == 1\nassert difference_df["mean"].iloc[0] == 0\nassert repetition_df.n_runs.iloc[0] == 2',
-    }
-    notebook.cells.append(nbformat.v4.new_code_cell(checks[case]))
-    executed = nbclient.NotebookClient(
-        notebook,
-        timeout=120,
-        kernel_name="python3",
-        resources={"metadata": {"path": str(ROOT / "notebooks")}},
-    ).execute()
-    nbformat.write(executed, tmp_path / f"analysis-{case}.ipynb")
-
-
-def _run_notebook_cells(name, indices):
-    """設定と読込みセルを実行し、カーネルなしで環境変数の接続を検証する。"""
-    notebook = json.loads((ROOT / "notebooks" / name).read_text())
+    codes = [c for c in notebook["cells"] if c["cell_type"] == "code"]
     namespace = {}
-    for index in indices:
-        exec(compile("".join(notebook["cells"][index]["source"]), name, "exec"), namespace)
+    for cell in codes[:count]:
+        exec(compile("".join(cell["source"]), name, "exec"), namespace)
+        if config_path is not None and "config-picker" in cell["metadata"].get("tags", []):
+            picker = namespace["config_picker"]
+            picker.dropdown.options = [("未選択", None), ("test", str(config_path))]
+            picker.dropdown.value = str(config_path)
+            picker.load_button.click()
     return namespace
 
 
-def test_recommendation_accepts_saved_dataset_and_selects_first_request(tmp_path, monkeypatch):
-    raw = json.loads((ROOT / "examples/toy/dataset.json").read_text())
-    path = tmp_path / "saved-dataset.json"
-    path.write_text(json.dumps(raw))
-    monkeypatch.setenv("MUSIC_RECSYS_DATASET_PATH", str(path))
-    monkeypatch.setenv("MUSIC_RECSYS_TOP_K", "3")
-    monkeypatch.delenv("MUSIC_RECSYS_REQUEST_ID", raising=False)
-    ns = _run_notebook_cells("03_recommendation.ipynb", [2, 4])
-    assert ns["DATASET_PATH"] == path
-    assert ns["TOP_K"] == 3
-    assert ns["REQUEST_ID"] == ns["dataset"].requests[0].request_id
-    assert len(ns["result"].response.item_ids) == 3
+@pytest.mark.parametrize("name", NOTEBOOKS)
+def test_notebook_structure_and_no_implicit_legacy_inputs(name):
+    notebook = json.loads((ROOT / "notebooks" / name).read_text())
+    for index, cell in enumerate(notebook["cells"]):
+        source = "".join(cell["source"])
+        assert "。" not in source
+        if cell["cell_type"] == "code":
+            ast.parse(source)
+            assert cell["execution_count"] is None and cell["outputs"] == []
+            explanation = "".join(notebook["cells"][index - 1]["source"])
+            assert explanation.startswith("## ")
+            for label in ("処理:", "入力:", "出力:", "次:"):
+                assert label in explanation
+            for legacy in (
+                "REFERENCE_MODE",
+                "REPORT_PATHS",
+                "workflow-toy.toml",
+                "examples/toy",
+                "MUSIC_RECSYS_SNAPSHOT_ID",
+                "experiments/music4all",
+            ):
+                assert legacy not in source
+    markdown_lines = sum(
+        len(c["source"]) for c in notebook["cells"] if c["cell_type"] == "markdown"
+    )
+    assert markdown_lines <= 200
 
 
-def test_recommendation_accepts_explicit_saved_request(monkeypatch):
-    monkeypatch.setenv("MUSIC_RECSYS_REQUEST_ID", "r2")
-    ns = _run_notebook_cells("03_recommendation.ipynb", [2, 4])
-    assert ns["result"].request.request_id == "r2"
+def test_analysis_setup_loads_settings_without_evaluating(listening_study, monkeypatch):
+    import music_recsys.evaluation.benchmark as benchmark
+    import music_recsys.experiment_search as search
+    import music_recsys.search_analysis as analysis
+
+    config = listening_study()
+    monkeypatch.setenv("MUSIC_RECSYS_EXPERIMENT_CONFIG", str(config.path))
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("setup must not load evaluation data or run a model")
+
+    monkeypatch.setattr(search, "context", forbidden)
+    monkeypatch.setattr(analysis, "context", forbidden)
+    monkeypatch.setattr(benchmark, "run_benchmark", forbidden)
+    ns = _run_notebook_cells("02_analysis.ipynb", 3, config.path)
+    assert ns["WORKFLOW"].path == config.path
+    assert not config.output.exists()
 
 
-def test_analysis_reads_environment_report_with_explicit_conditions(tmp_path, monkeypatch):
-    path = tmp_path / "saved-report.json"
-    path.write_bytes((ROOT / "examples/reports/toy-popularity.json").read_bytes())
-    monkeypatch.setenv("MUSIC_RECSYS_REPORT_PATH", str(path))
-    monkeypatch.setenv("MUSIC_RECSYS_DATASET_ID", "toy-music-v1")
-    monkeypatch.setenv("MUSIC_RECSYS_TOP_K", "2")
-    ns = _run_notebook_cells("02_analysis.ipynb", [2, 3])
-    assert ns["REPORT_PATHS"] == {"Popularity": path}
-    assert ns["reports"]["Popularity"]["summary"]["recall"] == 0.625
+def test_01_missing_input_does_not_fall_back(listening_study, monkeypatch):
+    config = listening_study()
+    path = config.path
+    path.write_text(
+        path.read_text().replace('validation_dataset="validation"', 'validation_dataset="missing"')
+    )
+    monkeypatch.setenv("MUSIC_RECSYS_EXPERIMENT_CONFIG", str(path))
+    with pytest.raises(FileNotFoundError, match="未準備"):
+        _run_notebook_cells("01_data.ipynb", 4, path)
+
+
+def test_03_missing_selection_does_not_fall_back(listening_study, monkeypatch):
+    config = listening_study()
+    monkeypatch.setenv("MUSIC_RECSYS_EXPERIMENT_CONFIG", str(config.path))
+    with pytest.raises(ValueError, match="未選択"):
+        _run_notebook_cells("03_recommendation.ipynb", 4, config.path)
+    assert not config.output.exists()
+
+
+def test_03_uses_selected_validation_even_with_other_dataset_environment(
+    listening_study, monkeypatch
+):
+    from test_listening_workflow import prepared
+
+    config, selected = prepared(listening_study)
+    monkeypatch.setenv("MUSIC_RECSYS_EXPERIMENT_CONFIG", str(config.path))
+    monkeypatch.setenv("MUSIC_RECSYS_DATASET_PATH", str(config.test_dataset))
+    ns = _run_notebook_cells("03_recommendation.ipynb", 5, config.path)
+    assert ns["DATASET_PATH"] == config.validation_dataset
+    assert ns["MODEL_PARAMETERS"] == selected["parameters"]
+    assert ns["MODEL_SEED"] == selected["seeds"][0]
+    assert ns["dataset"].provenance["phase"] == "validation"
+    assert ns["result"].request.task == "repeat"
+
+
+@pytest.mark.notebook
+def test_unexecuted_analysis_runs_without_loading_test(listening_study, monkeypatch, tmp_path):
+    import nbformat
+    from nbclient import NotebookClient
+
+    config = listening_study(metric=None)
+    monkeypatch.setenv("MUSIC_RECSYS_EXPERIMENT_CONFIG", str(config.path))
+    nb = nbformat.read(ROOT / "notebooks/02_analysis.ipynb", as_version=4)
+    from notebook_support import choose_config
+
+    choose_config(nb, config.path)
+    nb.cells.insert(
+        0,
+        nbformat.v4.new_code_cell(
+            "import music_recsys.evaluation.benchmark as benchmark\n"
+            "def forbidden(*args, **kwargs):\n    raise AssertionError('read only')\n"
+            "benchmark.run_benchmark = forbidden"
+        ),
+    )
+    nb.cells.append(
+        nbformat.v4.new_code_cell(
+            "assert search_df.empty\nassert workflow_curves.empty\nassert final_df.empty\n"
+            "assert not WORKFLOW.output.exists()"
+        )
+    )
+    executed = NotebookClient(
+        nb,
+        timeout=120,
+        kernel_name="python3",
+        resources={"metadata": {"path": str(ROOT / "notebooks")}},
+    ).execute()
+    nbformat.write(executed, tmp_path / "analysis-unexecuted.ipynb")

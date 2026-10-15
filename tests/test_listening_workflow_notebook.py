@@ -32,10 +32,13 @@ def test_v2_notebooks_run_from_selected_artifact(
     monkeypatch.setenv("MUSIC_RECSYS_EXPERIMENT_CONFIG", str(config.path))
     monkeypatch.setenv("MUSIC_RECSYS_DATASET_PATH", str(config.test_dataset))
     notebook = nbformat.read(ROOT / "notebooks" / name, as_version=4)
+    from notebook_support import choose_config
+
+    choose_config(notebook, config.path)
     if name.startswith("01"):
         check = 'assert not observation_df.empty\nassert set(validation_requests_df.task)=={"new","repeat"}'
     elif name.startswith("02"):
-        check = 'assert not REFERENCE_MODE\nassert not workflow_curves.empty\nassert set(workflow_curves.task)=={"discovery","repeat","retention_proxy"}\nassert len(search_df)==4'
+        check = 'assert not workflow_curves.empty\nassert set(workflow_curves.task)=={"discovery","repeat","retention_proxy"}\nassert len(search_df)==4'
         if finalize:
             check += '\nassert not final_df.empty\nassert set(final_df.phase)=={"test"}'
     else:

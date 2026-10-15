@@ -26,6 +26,8 @@ include = [
     "/docs",
     "/README.md",
     "/CONTRIBUTING.md",
+    "/AGENTS.md",
+    "/scripts",
     "/pyproject.toml",
     "/.python-version",
     "/.env.example",
@@ -38,15 +40,6 @@ include = [
     "/notebooks",
     "/tests",
     "/data/README.md",
-    "/experiments/toy/summary.md",
-    "/experiments/music4all/summary.md",
-    "/experiments/music4all/smoke.md",
-    "/experiments/music4all/model-suite-validation.md",
-    "/experiments/music4all/validation-stability.json",
-    "/experiments/music4all/eda/profile.json",
-    "/experiments/music4all/eda/daily_counts.csv",
-    "/experiments/music4all/eda/time-quality.json",
-    "/experiments/music4all/eda/ground-truth-profile.json",
 ]
 
 [tool.pytest.ini_options]
@@ -81,6 +74,7 @@ dev = [
 ]
 notebook = [
     "ipykernel>=6,<8",
+    "ipywidgets>=8,<9",
     "jupyterlab>=4,<5",
     "matplotlib>=3.9,<4",
     "nbclient>=0.10,<1",

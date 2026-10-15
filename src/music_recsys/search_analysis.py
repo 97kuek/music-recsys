@@ -261,11 +261,7 @@ def plot_search(config):
         return None
     valid = frame.dropna(subset=[metric])
     fig, ax = plt.subplots(figsize=(7, 4))
-    title = f"Validation | {config.model} | {metric}@{config.primary_k} | seed mean"
-    if config.metric is None:
-        title += " (diagnostic; primary metric unset)"
-    if label := _evaluation_label(config):
-        title += f"\n{label}"
+    title = f"Validation · {config.metric or 'diagnostic'}@{config.primary_k}"
     if len(names) == 1:
         key = f"param:{names[0]}"
         stats = valid.groupby(key, dropna=False)[metric].agg(["mean", "std"]).reset_index()
@@ -652,21 +648,16 @@ def plot_tradeoffs(frame, *, phase="Validation"):
                 ax.margins(x=0.2, y=0.2)
         if metric == "catalog_coverage":
             ax.set(
-                title=f"{phase} | Coverage@10 | seed mean",
+                title="Coverage@10",
                 xlabel="Parameter setting",
                 ylabel="Catalog coverage",
             )
         else:
             ax.set(
-                title=f"{phase} | {accuracy_label}@10 × {metric} | seed mean",
+                title=f"{metric}@10",
                 xlabel=metric,
                 ylabel=f"{accuracy_label}@10",
             )
         ax.title.set_fontsize(10)
-    fig.suptitle(
-        f"{frame.attrs.get('model', 'Model')} | K=10 | all declared seeds; settings in table"
-        + (f"\n{frame.attrs['evaluation_label']}" if frame.attrs.get("evaluation_label") else ""),
-        fontsize=11,
-    )
     fig.tight_layout()
     return fig
