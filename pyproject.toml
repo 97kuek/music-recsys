@@ -7,6 +7,8 @@ name = "music-recsys"
 version = "0.1.0"
 description = "Research on music recommendation with traditional models, LLMs, and agents"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.12,<3.13"
 dependencies = []
 
@@ -28,7 +30,9 @@ include = [
     "/.dockerignore",
     "/docs",
     "/README.md",
-    "/CONTRIBUTING.md",
+    "/LICENSE",
+    "/NOTICE",
+    "/README.en.md",
     "/AGENTS.md",
     "/pyproject.toml",
     "/.python-version",

@@ -1,0 +1,34 @@
+music-recsys — license scope and third-party materials
+
+The MIT license in LICENSE applies to original project source code and documentation.
+It does not grant rights to third-party datasets, audio clips, lyrics, artwork,
+service metadata, research logs, or trained model artifacts derived from such data.
+Their applicable provider terms, permissions and licenses remain separate.
+
+Music4All / Music4All-Onion:
+https://sites.google.com/view/contact4music4all
+https://zenodo.org/records/15394646
+Access to listening data does not establish permission to distribute audio.
+Music4All clips and original track metadata have been requested; permission
+for participant playback has not yet been confirmed. They are not included
+in the public demo or the public repository.
+
+Other optional data sources and services:
+MTG-Jamendo: https://github.com/MTG/mtg-jamendo-dataset
+Jamendo: https://devportal.jamendo.com/api_terms_of_use
+ListenBrainz: https://listenbrainz.org/data/
+MusicBrainz: https://musicbrainz.org/doc/About/Data_License
+FMA: https://github.com/mdeff/fma
+Consult each source's terms and, where applicable, individual track licenses.
+Availability of an API or dataset is not permission to train on, publish,
+stream, or redistribute all associated content.
+
+Public demo:
+Fictional titles and independently generated synthetic audio are used.
+The generated demo bundle contains its own CC0 notice in demo/LICENSE.txt.
+These samples are not Music4All recordings or evidence of real-world quality.
+
+Dependencies retain their own licenses. The browser distribution includes
+third-party-licenses.txt for bundled React, React DOM and Scheduler code.
+The source-code license is provided as license.txt in the web distribution.
+No endorsement by dataset authors, service providers or Waseda University is implied.
