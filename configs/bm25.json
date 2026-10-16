@@ -1,0 +1,16 @@
+{
+  "extends": "common.json",
+  "experiment": {
+    "name": "music4all-bm25",
+    "output": "../data/experiments/bm25"
+  },
+  "model": {
+    "name": "bm25",
+    "parameters": {
+      "neighbors": 20,
+      "k1": 1.2,
+      "b": 0.75,
+      "use_gpu": true
+    }
+  }
+}

@@ -84,7 +84,7 @@ def test_gpu_rank_accuracy_diversity_matches_cpu():
     )
 
 
-@pytest.mark.parametrize("model_name", ["als", "bpr"])
+@pytest.mark.parametrize("model_name", ["als", "bpr", "content", "bm25"])
 def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name):
     import json
     import runpy
@@ -99,7 +99,7 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
     from music_recsys.full_evaluation import run
     from music_recsys.full_scoring import score_cpu
     from music_recsys.listening_data import validate_bundle
-    from music_recsys.recommenders import full_als, full_bpr
+    from music_recsys.recommenders import full_als, full_bm25, full_bpr, full_content
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
@@ -112,12 +112,17 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
         features=str(bundle / "features.json"),
         output=str(tmp_path / "gpu"),
     )
-    raw["model"]["parameters"].update(factors=4, iterations=2, use_gpu=True)
+    if model_name in {"als", "bpr"}:
+        raw["model"]["parameters"].update(factors=4, iterations=2, use_gpu=True)
     raw["search"] = dict(stage="A", seeds=[0], max_trials=1)
     path = tmp_path / "config.json"
     path.write_text(json.dumps(raw))
-    module = full_als if model_name == "als" else full_bpr
-    name = "FullALS" if model_name == "als" else "FullBPR"
+    module, name = {
+        "als": (full_als, "FullALS"),
+        "bpr": (full_bpr, "FullBPR"),
+        "content": (full_content, "FullContent"),
+        "bm25": (full_bm25, "FullBM25"),
+    }[model_name]
     original = getattr(module, name)
     captured = []
 

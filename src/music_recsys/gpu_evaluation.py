@@ -17,14 +17,19 @@ class GPURanker:
         self.inverse = np.empty(len(model.items), dtype=np.int32)
         self.inverse[self.order_cpu] = np.arange(len(model.items))
         self.order = cp.asarray(self.order_cpu)
-        self.users = cp.asarray(model.user_factors)
-        self.items = cp.asarray(model.item_factors[self.order_cpu])
+        if not hasattr(model, "gpu_score_batch"):
+            self.users = cp.asarray(model.user_factors)
+            self.items = cp.asarray(model.item_factors[self.order_cpu])
 
     def rank(self, users, histories):
         cp, model = self.cp, self.model
         started = time.perf_counter()
         user_ids = np.asarray([model.users[u] for u in users])
-        scores = self.users[cp.asarray(user_ids)] @ self.items.T
+        scores = (
+            model.gpu_score_batch(user_ids)[:, self.order]
+            if hasattr(model, "gpu_score_batch")
+            else self.users[cp.asarray(user_ids)] @ self.items.T
+        )
         if hasattr(model, "active_users"):
             scores[cp.asarray(~model.active_users[user_ids])] = 0
         observed = cp.zeros(scores.shape, dtype=bool)

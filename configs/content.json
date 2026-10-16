@@ -1,0 +1,15 @@
+{
+  "extends": "common.json",
+  "experiment": {
+    "name": "music4all-content",
+    "output": "../data/experiments/content"
+  },
+  "model": {
+    "name": "content",
+    "parameters": {
+      "use_idf": true,
+      "aggregation": "binary",
+      "use_gpu": true
+    }
+  }
+}

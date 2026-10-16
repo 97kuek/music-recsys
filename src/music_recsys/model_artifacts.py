@@ -44,11 +44,18 @@ def capture_training(model, arguments):
 def export_model(model, destination, *, version_id):
     """学習済み全件モデルを保存し、manifest hashを返す。既存ディレクトリは拒否。"""
     from music_recsys.recommenders.full_als import FullALS
+    from music_recsys.recommenders.full_bm25 import FullBM25
     from music_recsys.recommenders.full_bpr import FullBPR
     from music_recsys.recommenders.full_itemcf import FullItemCF
     from music_recsys.recommenders.full_popularity import FullPopularity
 
-    classes = {FullALS: "als", FullBPR: "bpr", FullItemCF: "itemcf", FullPopularity: "popularity"}
+    classes = {
+        FullALS: "als",
+        FullBPR: "bpr",
+        FullItemCF: "itemcf",
+        FullBM25: "itemcf",
+        FullPopularity: "popularity",
+    }
     if type(model) not in classes or not hasattr(model, "training_provenance"):
         raise ValueError("export requires a full model with captured training provenance")
     algorithm = classes[type(model)]

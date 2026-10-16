@@ -18,10 +18,10 @@ def run(config_path, *, model_cache=None, export_path=None, model_version=None):
     import duckdb
 
     from music_recsys.evaluation.benchmark import _source_sha256
-    from music_recsys.experiment_search import load_study_config, study_lock
+    from music_recsys.experiment_search import StudyConfig, load_study_config, study_lock
     from music_recsys.features import load_features
 
-    config = load_study_config(config_path)
+    config = config_path if isinstance(config_path, StudyConfig) else load_study_config(config_path)
     if (export_path is None) != (model_version is None):
         raise ValueError("export_path and model_version must be specified together")
     if model_version is not None:
@@ -35,6 +35,8 @@ def run(config_path, *, model_cache=None, export_path=None, model_version=None):
     allowed = {
         "popularity": {"basis"},
         "itemcf": {"neighbors", "similarity"},
+        "content": {"use_idf", "aggregation", "use_gpu"},
+        "bm25": {"neighbors", "k1", "b", "use_gpu"},
         "bpr": {
             "factors",
             "iterations",
@@ -61,8 +63,10 @@ def run(config_path, *, model_cache=None, export_path=None, model_version=None):
         or config.grid
     ):
         raise ValueError(
-            "full evaluation requires listening-v2 popularity/itemcf/als/bpr with fixed parameters"
+            "full evaluation requires listening-v2 popularity/itemcf/als/bpr/content/bm25 with fixed parameters"
         )
+    if config.model == "content" and export_path is not None:
+        raise ValueError("Content sparse serving export is not implemented; omit --export-model")
     if config.model in {"als", "bpr"} and len(config.seeds) != 1:
         raise ValueError("full factor model requires exactly one seed per run")
     from music_recsys.recommenders.popularity import validate_basis
@@ -104,6 +108,16 @@ def run(config_path, *, model_cache=None, export_path=None, model_version=None):
                     paths["learning"], progress=progress, cache_dir=model_cache, **config.parameters
                 )
             factor_model = None
+            if config.model == "bm25":
+                from music_recsys.recommenders.full_bm25 import FullBM25
+
+                factor_model = FullBM25(paths["learning"], progress=progress, **config.parameters)
+            if config.model == "content":
+                from music_recsys.recommenders.full_content import FullContent
+
+                factor_model = FullContent(
+                    paths["learning"], features=features, progress=progress, **config.parameters
+                )
             if config.model in {"als", "bpr"}:
                 from music_recsys.recommenders.full_als import FullALS
                 from music_recsys.recommenders.full_bpr import FullBPR
@@ -203,7 +217,14 @@ def run(config_path, *, model_cache=None, export_path=None, model_version=None):
                     "population": "all train-observed users; no future activity selection",
                     "accuracy": "equal user mean; users without positives excluded separately for each task/window",
                     "ranking": (
-                        f"{config.model.upper()} latent score; ties by training plays then item ID"
+                        (
+                            "tag TF-IDF profile cosine"
+                            if config.model == "content"
+                            else "BM25-weighted item-neighbor sum"
+                            if config.model == "bm25"
+                            else f"{config.model.upper()} latent score"
+                        )
+                        + "; ties by training plays then item ID"
                         if factor_model is not None
                         else f"training {basis} descending, item ID ascending"
                         if itemcf is None
