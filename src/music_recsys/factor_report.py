@@ -1,11 +1,10 @@
 """Verified comparisons and one-metric figures for full factor experiments."""
 
 import json
-import os
-import tempfile
 from dataclasses import asdict
 from pathlib import Path
 
+from music_recsys.comparison import metric_rows, staged_report, verified_result
 from music_recsys.experiment_search import load_study_config
 from music_recsys.experiment_store import atomic_json
 from music_recsys.full_analysis import read_result
@@ -35,31 +34,12 @@ def build_report(config, paths, compare=()):
     rows, sources, reference = [], [], None
     for path in dict.fromkeys(Path(p).resolve() for p in expanded):
         trial = load_study_config(path)
-        result = read_result(trial)
-        saved = json.loads((trial.output / "config.json").read_text(encoding="utf-8"))
-        identity = {key: saved[key] for key in ("manifest", "features_sha256", "population")}
-        identity["evaluation_definitions"] = {
-            key: value
-            for key, value in result["definitions"].items()
-            if key not in {"ranking", "latency"}
-        }
+        result, saved, identity, source = verified_result(trial, config.evaluation)
         if reference is None:
             reference = identity
-        if identity != reference or trial.evaluation != config.evaluation:
+        if identity != reference:
             raise ValueError("Comparison input or evaluation conditions differ")
-        if result.get("status") != "succeeded" or result.get("phase") != "validation":
-            raise ValueError("Comparison requires successful Validation")
-        for artifact in result["artifacts"].values():
-            if file_sha256(trial.output / artifact["path"]) != artifact["sha256"]:
-                raise ValueError("Comparison artifact changed")
-        sources.append(
-            dict(
-                config=str(path),
-                result=str(trial.output / "result.json"),
-                result_sha256=file_sha256(trial.output / "result.json"),
-                source_sha256=saved.get("source_sha256"),
-            )
-        )
+        sources.append(dict(**source, source_sha256=saved.get("source_sha256")))
         label_parameters = dict(trial.parameters)
         if trial.model == "popularity":
             label_parameters.setdefault("basis", result.get("popularity_basis", "play_count"))
@@ -88,25 +68,7 @@ def build_report(config, paths, compare=()):
             seed=trial.seeds[0],
             parameters=json.dumps(trial.parameters, sort_keys=True),
         )
-        for score in result["accuracy"]:
-            if score["window_days"] == config.evaluation.primary_window_days and score[
-                "day_weight"
-            ] in (None, config.evaluation.primary_day_weight):
-                rows.append(dict(**condition, **score))
-        for score in result["diversity"]:
-            for metric in ("ild", "catalog_coverage", "novelty"):
-                rows.append(
-                    dict(
-                        **condition,
-                        task=score["task"],
-                        k=score["k"],
-                        metric=metric,
-                        mean=score[metric],
-                    )
-                )
-        for metric, value in result["efficiency"].items():
-            if metric != "model":
-                rows.append(dict(**condition, task="all", k=None, metric=metric, mean=value))
+        rows.extend(dict(**condition, **score) for score in metric_rows(result, config.evaluation))
     if (config.output / "result.json").exists():
         prior = read_result(config)
         if prior["sources"] != sources:
@@ -114,9 +76,7 @@ def build_report(config, paths, compare=()):
         return config.output
     frame = pd.DataFrame(rows)
     # Stage figures and publish the result marker only after all artifacts are ready.
-    with tempfile.TemporaryDirectory(prefix="als-report-", dir=config.output.parent) as temporary:
-        output = Path(temporary) / "report"
-        output.mkdir()
+    with staged_report(config.output) as output:
         frame.to_csv(output / "metrics.csv", index=False, encoding="utf-8-sig")
         names = []
         for (task, metric), values in frame.groupby(["task", "metric"], sort=False):
@@ -185,9 +145,4 @@ def build_report(config, paths, compare=()):
             "SUCCEEDED: verified Validation comparisons; no setting selected\n"
         )
         # study_lock creates the output directory, which must contain no report yet.
-        config.output.mkdir(parents=True, exist_ok=True)
-        for path in output.iterdir():
-            if path.name != "result.json":
-                os.replace(path, config.output / path.name)
-        os.replace(output / "result.json", config.output / "result.json")
     return config.output

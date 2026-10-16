@@ -8,11 +8,11 @@ from music_recsys.configuration import load_settings
 
 
 @pytest.mark.parametrize("model_name", ["als", "bpr"])
-def test_als_grid_end_to_end_and_comparison_guards(tmp_path, model_name):
-    from music_recsys.als_grid import run_grid
+def test_factor_grid_end_to_end_and_comparison_guards(tmp_path, model_name):
     from music_recsys.experiment_search import load_study_config
     from music_recsys.full_analysis import curves
     from music_recsys.full_evaluation import run
+    from music_recsys.grid import run_grid
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")

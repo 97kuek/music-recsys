@@ -17,7 +17,7 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, mo
     from music_recsys.evaluation.tracking import TrackingConfig
     from music_recsys.experiment_search import load_study_config
     from music_recsys.features import load_features
-    from music_recsys.full_popularity import run
+    from music_recsys.full_evaluation import run
     from music_recsys.listening_data import load_listening_dataset
     from music_recsys.recommenders import create_recommender
 
