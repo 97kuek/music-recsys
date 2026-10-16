@@ -20,6 +20,9 @@ class FullItemCF:
             raise ValueError("neighbors must be a positive integer")
         if similarity not in {"cosine", "jaccard"}:
             raise ValueError("similarity must be cosine or jaccard")
+        from music_recsys.model_artifacts import capture_training
+
+        capture_training(self, locals())
         self.neighbors, self.similarity = neighbors, similarity
         from music_recsys.listening_data import file_sha256
 
@@ -41,6 +44,12 @@ class FullItemCF:
                 self.targets = stored["targets"][:, :neighbors]
                 self.weights = stored["weights"][:, :neighbors]
                 self.training_seconds = float(stored["training_seconds"])
+                self.training_provenance["cache_origin"] = {
+                    "sha256": file_sha256(cache),
+                    "training_provenance": json.loads(str(stored["training_provenance"]))
+                    if "training_provenance" in stored
+                    else None,
+                }
             self.cache_hit = True
             progress(f"Reusing verified ItemCF neighbors: {cache}")
             return
@@ -115,6 +124,7 @@ class FullItemCF:
                     targets=self.targets,
                     weights=self.weights,
                     training_seconds=self.training_seconds,
+                    training_provenance=json.dumps(self.training_provenance, sort_keys=True),
                 )
             os.replace(temporary, cache)
         self.targets = self.targets[:, :neighbors]

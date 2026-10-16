@@ -14,7 +14,7 @@ from music_recsys.experiment_store import atomic_json
 from music_recsys.listening_data import file_sha256, validate_bundle
 
 
-def run(config_path, *, model_cache=None):
+def run(config_path, *, model_cache=None, export_path=None, model_version=None):
     import duckdb
 
     from music_recsys.evaluation.benchmark import _source_sha256
@@ -22,6 +22,16 @@ def run(config_path, *, model_cache=None):
     from music_recsys.features import load_features
 
     config = load_study_config(config_path)
+    if (export_path is None) != (model_version is None):
+        raise ValueError("export_path and model_version must be specified together")
+    if model_version is not None:
+        from music_recsys.types import validate_id
+
+        validate_id(model_version)
+        if Path(export_path).resolve() == config.output.resolve():
+            raise ValueError("model export directory must differ from experiment output")
+    if export_path is not None and Path(export_path).exists():
+        raise FileExistsError("配信用モデルは上書きしません")
     allowed = {
         "popularity": {"basis"},
         "itemcf": {"neighbors", "similarity"},
@@ -215,6 +225,20 @@ def run(config_path, *, model_cache=None):
                 },
             }
             render(config, document)
+            if export_path is not None:
+                from music_recsys.model_artifacts import export_model
+                from music_recsys.recommenders.full_popularity import FullPopularity
+
+                deployed = factor_model if factor_model is not None else itemcf
+                if deployed is None:
+                    deployed = FullPopularity(paths["learning"], basis=basis)
+                document["serving_model"] = {
+                    "version_id": model_version,
+                    "manifest_sha256": export_model(
+                        deployed, export_path, version_id=model_version
+                    ),
+                    "path": str(Path(export_path).resolve()),
+                }
             atomic_json(output / "result.json", document)
             progress(f"SUCCEEDED: {counts['users']:,} users; results at {output}")
     return output
@@ -289,8 +313,10 @@ def render(config, document):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--export-model", type=Path)
+    parser.add_argument("--model-version")
     args = parser.parse_args()
-    print(run(args.config))
+    print(run(args.config, export_path=args.export_model, model_version=args.model_version))
 
 
 if __name__ == "__main__":

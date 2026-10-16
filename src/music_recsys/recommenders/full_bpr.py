@@ -34,6 +34,9 @@ class FullBPR(FullFactorModel):
         number(memory_budget_mb, "memory_budget_mb", positive=True)
         if type(seed) is not int or seed < 0:
             raise ValueError("seed must be non-negative integer")
+        from music_recsys.model_artifacts import capture_training
+
+        capture_training(self, locals())
         started = time.perf_counter()
         matrix = self.load_learning(learning_path)
         self.active_users = np.diff(matrix.indptr) < len(self.items)

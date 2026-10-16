@@ -23,6 +23,9 @@ packages = ["src/music_recsys"]
 [tool.hatch.build.targets.sdist]
 include = [
     "/src",
+    "/frontend",
+    "/deploy",
+    "/.dockerignore",
     "/docs",
     "/README.md",
     "/CONTRIBUTING.md",
@@ -71,6 +74,7 @@ db = [
     "sqlalchemy>=2.0,<2.1",
 ]
 dev = [
+    "playwright>=1.64.0",
     "pytest>=8,<10",
     "ruff>=0.13,<1",
 ]
@@ -87,4 +91,11 @@ tracking = [
 ]
 gpu = [
     "cupy-cuda12x>=14.2,<15",
+]
+app = [
+    "fastapi>=0.143.0",
+    "httpx>=0.28.1",
+    "numpy>=2,<3",
+    "pyjwt[crypto]>=2.10,<3",
+    "uvicorn>=0.54.0",
 ]

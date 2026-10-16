@@ -54,7 +54,12 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, mo
         features=features,
         tracking=TrackingConfig(enabled=False),
     )
-    output = run(path)
+    export_path = tmp_path / "deployed"
+    output = run(path, export_path=export_path, model_version="integration-v1")
+    from music_recsys.model_artifacts import load_model
+
+    spec, deployed = load_model(export_path)
+    assert spec.version_id == "integration-v1"
     result = json.loads((output / "result.json").read_text())
 
     def key(r):
@@ -84,6 +89,17 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, mo
         (r["request"]["user_id"], r["request"]["task"], list(r["response"]["item_ids"]))
         for r in report.runs
     ]
+    from music_recsys.types import RecommendationRequest
+
+    for run_record in report.runs:
+        request = RecommendationRequest(
+            **{
+                **run_record["request"],
+                "history": tuple(run_record["request"]["history"]),
+                "candidate_ids": tuple(run_record["request"]["candidate_ids"]),
+            }
+        )
+        assert deployed.recommend(request).item_ids == tuple(run_record["response"]["item_ids"])
     assert len(list(output.glob("*.png"))) == 16
     assert not list(output.glob("*.partial"))
     with pytest.raises(FileExistsError):

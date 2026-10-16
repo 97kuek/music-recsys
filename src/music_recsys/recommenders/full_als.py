@@ -37,6 +37,9 @@ class FullALS(FullFactorModel):
             raise ValueError("seed must be non-negative integer")
         if confidence_transform not in {"linear", "log1p"}:
             raise ValueError("confidence_transform must be linear or log1p")
+        from music_recsys.model_artifacts import capture_training
+
+        capture_training(self, locals())
         started = time.perf_counter()
         matrix = self.load_learning(learning_path)
         transpose = matrix.T.tocsr()
