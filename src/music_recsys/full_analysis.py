@@ -28,6 +28,27 @@ def curves(config):
     import pandas as pd
 
     document = read_result(config)
+    if document.get("format") == "music-recsys-grid-comparison-v1":
+        from music_recsys.experiment_search import load_study_config
+
+        parts = []
+        from music_recsys.listening_data import file_sha256
+
+        for source in document["sources"]:
+            if file_sha256(source["result"]) != source["result_sha256"]:
+                raise ValueError("Gridの元結果が変わっています / 比較表を再生成してください")
+            trial = load_study_config(source["config"])
+            part = curves(trial)
+            part["experiment"] = f"{trial.model} / " + ", ".join(
+                f"{k}={v}" for k, v in trial.parameters.items()
+            )
+            parts.append(part)
+        frame = pd.concat(parts, ignore_index=True)
+        frame.attrs["primary"] = {
+            "window_days": config.evaluation.primary_window_days,
+            "day_weight": config.evaluation.primary_day_weight,
+        }
+        return frame
     frame = pd.DataFrame(document["accuracy"])
     frame["model"] = document["model"]
     frame["diversity_task"] = frame.task.replace({"discovery": "new", "retention_proxy": "new"})

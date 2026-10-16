@@ -31,3 +31,8 @@ htmlcov/
 # Notebook・OSの生成物
 .ipynb_checkpoints/
 .DS_Store
+
+# Grid設定から自動展開する実行用JSON
+/configs/itemcf/
+/configs/als/*.json
+!/configs/als/256.json
