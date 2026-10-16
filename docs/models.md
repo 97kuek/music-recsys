@@ -110,6 +110,13 @@ OPENBLAS_NUM_THREADS=1 .venv/bin/python -m music_recsys.als_grid \
 
 各条件を`configs/als/{32,64,128}.json`へ展開し、`data/experiments/als-{32,64,128}/`に共通の全指標・観測分布・推薦/スコアParquetを保存する。既存の条件設定や成功結果は上書きしない。中断後は同じコマンドで完了条件を再利用する。ALS再利用時はコード・uv.lockのhash一致も必須とする。単一条件は`music_recsys.full_evaluation --config configs/als/32.json`でも実行できる。
 
+追加の256因子は[configs/als/256.json](../configs/als/256.json)を使い、他の条件を揃えて`data/experiments/als-256/`へ保存する。Notebook 02でもこのJSONを明示的に読み込む。
+
+```bash
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  .venv/bin/python -m music_recsys.full_evaluation --config configs/als/256.json
+```
+
 集約先`data/experiments/als/`は1指標1PNGとmetrics.csvを持つ。`recall_factors.png`・`repeat_recall_factors.png`・`binary_ndcg_factors.png`はALS条件間、同名の`_factors`なしは指定した既存モデルも含む比較。Graded NDCG・ILD・Coverage・Novelty・実測効率も個別出力し、全値未測定の図は作らない。
 
 Notebook 02では同じ`configs/als.json`を明示読込みして結果を確認する。CSVの同一task・metric・kでfactorsを比較し、RecallとRepeat Recallの最大値・同点・差を別々に確認する。曲線の交差やK依存も確認し、片方の最良条件を両タスク共通の最良設定と見なさない。これはValidationの診断で、設定選択・固定・最終Testは自動実行しない。
