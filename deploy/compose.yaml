@@ -1,4 +1,4 @@
-name: otolab
+name: music-recsys
 services:
   app:
     build:
@@ -14,20 +14,22 @@ services:
     ports:
       - "127.0.0.1:8765:8765"
     environment:
-      OTOLAB_MODEL_VERSION: ${OTOLAB_MODEL_VERSION:-}
-      OTOLAB_ACCESS_TEAM: ${OTOLAB_ACCESS_TEAM:-}
-      OTOLAB_ACCESS_AUD: ${OTOLAB_ACCESS_AUD:-}
-      OTOLAB_ALLOWED_ORIGINS: ${OTOLAB_ALLOWED_ORIGINS:-}
-      OTOLAB_ALLOWED_HOSTS: ${OTOLAB_ALLOWED_HOSTS:-}
+      MUSIC_RECSYS_API_TOKEN: ${MUSIC_RECSYS_API_TOKEN:-}
+      MUSIC_RECSYS_NEXT_OPEN_AT: ${MUSIC_RECSYS_NEXT_OPEN_AT:-}
+      MUSIC_RECSYS_MODEL_VERSION: ${MUSIC_RECSYS_MODEL_VERSION:-}
+      MUSIC_RECSYS_ACCESS_TEAM: ${MUSIC_RECSYS_ACCESS_TEAM:-}
+      MUSIC_RECSYS_ACCESS_AUD: ${MUSIC_RECSYS_ACCESS_AUD:-}
+      MUSIC_RECSYS_ALLOWED_ORIGINS: ${MUSIC_RECSYS_ALLOWED_ORIGINS:-}
+      MUSIC_RECSYS_ALLOWED_HOSTS: ${MUSIC_RECSYS_ALLOWED_HOSTS:-}
     volumes:
       - type: bind
-        source: ${OTOLAB_BUNDLE:?Set absolute OTOLAB_BUNDLE path}
+        source: ${MUSIC_RECSYS_BUNDLE:?Set absolute MUSIC_RECSYS_BUNDLE path}
         target: /bundle
         read_only: true
         bind:
           create_host_path: false
       - type: bind
-        source: ${OTOLAB_STATE:?Set absolute OTOLAB_STATE path}
+        source: ${MUSIC_RECSYS_STATE:?Set absolute MUSIC_RECSYS_STATE path}
         target: /state
         bind:
           create_host_path: false

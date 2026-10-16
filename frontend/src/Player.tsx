@@ -8,8 +8,8 @@ const time = (n: number) => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).
 export const Player = forwardRef<PlayerHandle, {
   emit: (event: EventInput) => Promise<void>; onError: (error: unknown) => void;
   onExpandedChange?: (expanded: boolean) => void;
-  onSelect?: () => void; selected?: boolean; onLike?: () => void; liked?: boolean; onSave?: () => void; saved?: boolean; queue?: Track[]; onChoose: (track: Track) => void;
-}>(function Player({ emit, onError, onExpandedChange, onSelect, selected, onLike, liked, onSave, saved, queue = [], onChoose }, ref) {
+  onSelect?: () => void; selected?: boolean; onLike?: () => void; liked?: boolean; queue?: Track[]; onChoose: (track: Track) => void;
+}>(function Player({ emit, onError, onExpandedChange, onSelect, selected, onLike, liked, queue = [], onChoose }, ref) {
   const audio = useRef<HTMLAudioElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const binding = useRef<Binding | null>(null);
@@ -111,9 +111,8 @@ export const Player = forwardRef<PlayerHandle, {
       <div className="album-art"><div className="album-frame">{track?.artwork ? <img src={track.artwork} alt="" referrerPolicy="no-referrer" /> : <span className="record-art" aria-hidden="true"><i /></span>}</div></div>
       <div className="player-title"><h2>{track?.title}</h2><p>{track?.artists.join(' / ')}</p></div>
       <div className="player-feedback">
-        {onSelect && <button aria-pressed={selected} onClick={onSelect}>{selected ? '選択済み' : 'この曲を選択'}</button>}
-        {onLike && <button aria-label="いいね" aria-pressed={liked} disabled={liked} onClick={onLike}><MediaIcon name="like" /><span>いいね</span></button>}
-        {onSave && <button aria-label="保存" aria-pressed={saved} disabled={saved} onClick={onSave}><MediaIcon name="save" /><span>保存</span></button>}
+        {onSelect && <button aria-label={selected ? '選択済み' : 'この曲を選択'} title={selected ? '選択済み' : '選択'} aria-pressed={selected} onClick={onSelect}><MediaIcon name="check" /></button>}
+        {onLike && <button aria-label="いいね" aria-pressed={liked} disabled={liked} onClick={onLike}><MediaIcon name="like" /></button>}
       </div>
       <div className="timeline"><input aria-label="再生位置" type="range" min="0" max={duration || 0} step="0.1" value={Math.min(position, duration)} disabled={!duration} onChange={e => { tick(); lastTick.current = null; if (audio.current) audio.current.currentTime = Number(e.target.value); setPosition(Number(e.target.value)); }} /><div><span>{time(position)}</span><span>{time(duration)}</span></div></div>
       <div className="transport">

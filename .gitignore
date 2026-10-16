@@ -49,3 +49,14 @@ node_modules/
 # 公開用の合成デモ生成物
 /frontend/public/demo/
 /src/music_recsys/webapp/static/demo/
+
+# Pages advanced-mode build artifacts
+/src/music_recsys/webapp/static/_worker.js
+/src/music_recsys/webapp/static/_routes.json
+
+/frontend/public/license.txt
+/frontend/public/notice.txt
+/frontend/public/third-party-licenses.txt
+/src/music_recsys/webapp/static/license.txt
+/src/music_recsys/webapp/static/notice.txt
+/src/music_recsys/webapp/static/third-party-licenses.txt

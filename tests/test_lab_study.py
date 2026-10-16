@@ -112,3 +112,59 @@ def test_consent_version_and_optional_storage(bundle, tmp_path):
         ).raise_for_status()
         with app.state.runtime.store.connect() as db:
             assert db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 0
+
+
+def test_v3_managed_export_and_deletion_survive_restart(bundle, tmp_path):
+    database = tmp_path / "sessions.sqlite"
+    app = create_app(bundle, database, model_version="demo-itemcf")
+    with TestClient(app, headers={"X-Music-App": "1"}) as client:
+        reply = client.post(
+            "/api/sessions", json={"persist": True, "consent_version": "local-ui-v3"}
+        )
+        reply.raise_for_status()
+        session_id = reply.json()["session_id"]
+        token = client.cookies.get("music_session")
+        store = app.state.runtime.store
+        summaries = store.summaries(datetime.now(UTC))
+        assert summaries[0]["session_id"] == session_id
+        exported = store.export_session(session_id, datetime.now(UTC))
+        payload = json.loads(exported.read_text())
+        assert payload["payload"]["session"]["consent_version"] == "local-ui-v3"
+        assert token not in exported.read_text()
+        assert exported.stat().st_mode & 0o777 == 0o600
+        with pytest.raises(FileExistsError):
+            store.export_session(session_id, datetime.now(UTC))
+        with pytest.raises(ValueError):
+            store.export_session("../../outside", datetime.now(UTC))
+    restarted = create_app(bundle, database, model_version="demo-itemcf")
+    with TestClient(restarted, headers={"X-Music-App": "1"}) as client:
+        client.cookies.set("music_session", token)
+        assert client.get("/api/session/state").status_code == 401
+        client.delete("/api/session").raise_for_status()
+        assert not exported.exists()
+        assert restarted.state.runtime.store.summaries(datetime.now(UTC)) == []
+
+
+def test_expiry_removes_managed_exports(bundle, tmp_path):
+    app = create_app(bundle, tmp_path / "sessions.sqlite", model_version="demo-itemcf")
+    runtime = app.state.runtime
+    token, session = runtime.start(True, False, consent_version="local-ui-v3")
+    store = runtime.store
+    exported = store.export_session(session.log.session.session_id, datetime.now(UTC))
+    store.purge(datetime.now(UTC) + timedelta(days=2))
+    assert not exported.exists()
+    with store.connect() as db:
+        assert db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 0
+
+
+def test_availability_uses_explicit_schedule(bundle, tmp_path, monkeypatch):
+    monkeypatch.setenv("MUSIC_RECSYS_NEXT_OPEN_AT", "2030-01-02T10:00:00+09:00")
+    app = create_app(bundle, tmp_path / "sessions.sqlite", model_version="demo-itemcf")
+    with TestClient(app) as client:
+        reply = client.get("/availability")
+        assert reply.json()["state"] == "online"
+        assert reply.json()["next_open_at"] == "2030-01-02T01:00:00+00:00"
+        assert reply.headers["cache-control"] == "no-store"
+    monkeypatch.setenv("MUSIC_RECSYS_NEXT_OPEN_AT", "2030-01-02T10:00:00")
+    with pytest.raises(ValueError, match="timezone"):
+        create_app(bundle, tmp_path / "invalid.sqlite", model_version="demo-itemcf")

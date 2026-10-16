@@ -52,7 +52,7 @@ def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path):
 
 
 def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path):
-    root = tmp_path / "otolab mac"
+    root = tmp_path / "music-recsys mac"
     (root / "deploy").mkdir(parents=True)
     script = Path("deploy/mac.sh").read_text()
     (root / "deploy/mac.sh").write_text(script)
@@ -63,11 +63,11 @@ def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path):
     (binaries / "uname").write_text("#!/bin/sh\necho Darwin\n")
     # Docker操作は模擬。実Mac・Dockerでの成功と区別する
     (binaries / "docker").write_text(
-        '#!/bin/sh\nprintf "%s\\n" "$OTOLAB_BUNDLE" "$OTOLAB_STATE" "$*" >> "$TEST_LOG"\nexit 0\n'
+        '#!/bin/sh\nprintf "%s\\n" "$MUSIC_RECSYS_BUNDLE" "$MUSIC_RECSYS_STATE" "$*" >> "$TEST_LOG"\nexit 0\n'
     )
     for path in binaries.iterdir():
         path.chmod(0o755)
-    env = {k: v for k, v in os.environ.items() if not k.startswith("OTOLAB_")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("OTOLAB_", "MUSIC_RECSYS_"))}
     env.update(
         HOME=str(tmp_path / "home"),
         PATH=f"{binaries}:/usr/bin:/bin",
@@ -78,13 +78,55 @@ def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path):
     )
     assert response.returncode == 0, response.stderr
     assert "http://127.0.0.1:8765" in response.stdout
-    assert (tmp_path / "home/OtoLab/state").is_dir()
+    assert (tmp_path / "home/music-recsys/state").is_dir()
     calls = (tmp_path / "commands").read_text()
     assert str(root / "bundle") in calls
     assert "up --build -d" in calls
     assert "--project-directory" not in calls
-    env["OTOLAB_ACCESS_TEAM"] = "remote"
+    env["MUSIC_RECSYS_ACCESS_TEAM"] = "remote"
     response = subprocess.run(
         ["bash", str(root / "deploy/mac.sh"), "start"], env=env, capture_output=True, text=True
     )
     assert response.returncode == 1
+
+
+@pytest.mark.parametrize("existing_destination", [False, True])
+def test_mac_state_migration_stops_both_projects_and_never_overwrites(
+    tmp_path, existing_destination
+):
+    root = tmp_path / "package"
+    (root / "deploy").mkdir(parents=True)
+    (root / "deploy/mac.sh").write_text(Path("deploy/mac.sh").read_text())
+    home = tmp_path / "home"
+    old = home / "OtoLab/state"
+    old.mkdir(parents=True)
+    (old / "sessions.sqlite").write_bytes(b"original-log")
+    new = home / "music-recsys/state"
+    if existing_destination:
+        new.mkdir(parents=True)
+        (new / "sessions.sqlite").write_bytes(b"different-log")
+    binaries = tmp_path / "bin"
+    binaries.mkdir()
+    (binaries / "uname").write_text("#!/bin/sh\necho Darwin\n")
+    (binaries / "docker").write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$TEST_LOG"\nexit 0\n')
+    for binary in binaries.iterdir():
+        binary.chmod(0o755)
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("OTOLAB_", "MUSIC_RECSYS_"))}
+    env.update(HOME=str(home), PATH=f"{binaries}:/usr/bin:/bin", TEST_LOG=str(tmp_path / "calls"))
+    result = subprocess.run(
+        ["bash", str(root / "deploy/mac.sh"), "migrate-state"],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    if existing_destination:
+        assert result.returncode == 1
+        assert (old / "sessions.sqlite").read_bytes() == b"original-log"
+        assert (new / "sessions.sqlite").read_bytes() == b"different-log"
+    else:
+        assert result.returncode == 0, result.stderr
+        assert not old.exists()
+        assert (new / "sessions.sqlite").read_bytes() == b"original-log"
+        calls = (tmp_path / "calls").read_text()
+        assert calls.count(" down") == 2
+        assert "-p otolab" in calls

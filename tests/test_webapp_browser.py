@@ -7,12 +7,19 @@ import pytest
 from playwright.sync_api import expect, sync_playwright
 
 
+def screenshot(page, **kwargs):
+    if os.environ.get("MUSIC_RECSYS_SCREENSHOTS") == "1":
+        page.screenshot(**kwargs)
+
+
 @pytest.mark.skipif(
     os.environ.get("MUSIC_RECSYS_TEST_RESEARCH_UI") != "1", reason="explicit researcher UI test"
 )
 def test_local_demo_browser():
     out = Path("data/app/screenshots")
-    out.mkdir(exist_ok=True, parents=True)
+
+    if os.environ.get("MUSIC_RECSYS_SCREENSHOTS") == "1":
+        out.mkdir(exist_ok=True, parents=True)
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(
@@ -55,7 +62,7 @@ def test_local_demo_browser():
         page.locator(".result").first.get_by_role("button", name="保存", exact=False).click()
         page.locator("audio").evaluate("el => el.pause()")
         page.evaluate("window.scrollTo(0, 0)")
-        page.screenshot(path=str(out / "researcher-desktop.png"), full_page=True)
+        screenshot(page, path=str(out / "researcher-desktop.png"), full_page=True)
         page.get_by_role("button", name="回答せずに終了", exact=True).click()
         page.get_by_role("button", name="自分のログを確認", exact=True).click()
         exported = page.request.get("/api/session/export").json()
@@ -71,7 +78,7 @@ def test_local_demo_browser():
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), (
             "mobile overflow"
         )
-        page.screenshot(path=str(out / "researcher-mobile.png"), full_page=True)
+        screenshot(page, path=str(out / "researcher-mobile.png"), full_page=True)
         assert not errors, errors
         print(
             json.dumps(
@@ -96,7 +103,9 @@ def test_local_demo_browser():
 )
 def test_participant_viewport_and_playback(viewport):
     out = Path("data/app/screenshots")
-    out.mkdir(exist_ok=True, parents=True)
+
+    if os.environ.get("MUSIC_RECSYS_SCREENSHOTS") == "1":
+        out.mkdir(exist_ok=True, parents=True)
     label = f"{viewport['width']}x{viewport['height']}"
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -131,13 +140,14 @@ def test_participant_viewport_and_playback(viewport):
         consent.evaluate(
             "el => {el.scrollTop=el.scrollHeight; el.dispatchEvent(new Event('scroll'))}"
         )
-        page.screenshot(path=str(out / f"consent-{label}.png"))
+        screenshot(page, path=str(out / f"consent-{label}.png"))
         page.get_by_role("button", name="同意して進む", exact=True).click()
         page.locator(".song-row").first.wait_for()
         exit_button = page.get_by_role("button", name="終了・削除", exact=True)
         assert exit_button.locator("svg").count() == 1
         assert not exit_button.inner_text()
         fits()
+        assert page.get_by_role("button", name="保存", exact=True).count() == 0
         assert page.get_by_role("textbox").count() == 0
         assert page.locator("details").count() == 0
         page.locator(".track-open").first.click()
@@ -158,20 +168,37 @@ def test_participant_viewport_and_playback(viewport):
         assert len(controls) == 5
         gaps = [right - left for left, right in zip(controls, controls[1:], strict=False)]
         assert max(gaps) - min(gaps) < 1, gaps
-        assert max(gaps) <= 64, gaps
-        page.get_by_role("button", name="リピート", exact=True).click()
+        assert min(gaps) >= 52, gaps
+        assert (
+            len(
+                {
+                    round(modal.locator(".transport button").nth(i).bounding_box()["width"])
+                    for i in range(5)
+                }
+            )
+            == 1
+        )
+        repeat = page.get_by_role("button", name="リピート", exact=True)
+        unpressed = repeat.evaluate("el => getComputedStyle(el).backgroundColor")
+        repeat.click()
+        assert repeat.evaluate("el => getComputedStyle(el).backgroundColor") != unpressed
         assert page.locator("audio").evaluate("el => el.loop")
         assert not page.request.get("/api/session/export").json()["events"]
         page.get_by_role("button", name="この曲を選択", exact=True).click()
         assert page.get_by_role("button", name="選択済み", exact=True).is_visible()
-        page.screenshot(path=str(out / f"player-{label}.png"))
+        screenshot(page, path=str(out / f"player-{label}.png"))
         page.get_by_role("button", name="一覧に戻る", exact=True).click()
         fits()
-        page.screenshot(path=str(out / f"profile-{label}.png"))
+        screenshot(page, path=str(out / f"profile-{label}.png"))
         page.get_by_role("button", name="選択して次へ", exact=True).click()
         page.locator(".recommendations .track-open").first.wait_for()
         fits()
         assert page.get_by_text("Validationの比較条件を見る").count() == 0
+        page.get_by_role("button", name="聴き方：おまかせ", exact=True).click()
+        page.get_by_role("option", name="新しい曲", exact=False).click()
+        assert page.get_by_role("button", name="聴き方：新しい曲", exact=True).is_visible()
+        page.get_by_role("button", name="おすすめを更新", exact=True).click()
+        page.locator(".recommendations .track-open").first.wait_for()
         page.locator(".recommendations .track-open").first.click()
         progressing()
         page.get_by_role("dialog").get_by_role("button", name="いいね", exact=True).click()
@@ -202,7 +229,7 @@ def test_participant_viewport_and_playback(viewport):
             if event.get("listened_seconds") is not None
         )
         page.get_by_role("button", name="一覧に戻る", exact=True).click()
-        page.screenshot(path=str(out / f"recommendations-{label}.png"))
+        screenshot(page, path=str(out / f"recommendations-{label}.png"))
         page.get_by_role("button", name="次へ", exact=True).click()
         fits()
         page.get_by_role("button", name="終了する", exact=True).click()

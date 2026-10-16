@@ -19,7 +19,7 @@ export async function api<T>(path: string, method = 'GET', body?: unknown, keepa
     return await browserDemo(path, method, body) as T;
   }
   const response = await fetch(apiUrl(path), {
-    method, keepalive, credentials: 'same-origin',
+    method, keepalive, credentials: 'same-origin', signal: AbortSignal.timeout(path === 'status' ? 5000 : 30000),
     headers: { 'X-Music-App': '1', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });

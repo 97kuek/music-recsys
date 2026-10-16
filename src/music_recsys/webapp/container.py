@@ -7,6 +7,7 @@ import uvicorn
 
 from music_recsys.webapp.bundle import verify
 from music_recsys.webapp.server import create_app
+from music_recsys.webapp.settings import setting
 
 
 def main():
@@ -18,7 +19,7 @@ def main():
         config,
         Path("/state/sessions.sqlite"),
         study_path=study if study.is_file() else None,
-        model_version=os.environ.get("OTOLAB_MODEL_VERSION") or None,
+        model_version=setting("MODEL_VERSION") or None,
     )
     uvicorn.run(app, host="0.0.0.0", port=8765, access_log=False, proxy_headers=False)
 

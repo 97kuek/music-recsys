@@ -131,3 +131,25 @@ body:has(.app-shell) { overflow:hidden; background:#fafbf8; color-scheme:light; 
 .participant button,.now-playing button { -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
 .participant button:focus:not(:focus-visible),.now-playing button:focus:not(:focus-visible) { outline:none; }
 .participant :focus-visible,.now-playing :focus-visible { outline:2px solid #47734c; outline-offset:3px; }
+
+.service-status { display:flex;align-items:center;gap:8px;width:100%;max-width:1040px;margin:0 auto;padding:0 24px 12px;color:#66716a;font-size:11px;flex:none; }
+.status-light { width:6px;height:6px;border-radius:50%;background:#8e958e;flex:none; }
+.service-status[data-state=online] .status-light { background:#47734c; }
+.service-status small { margin-left:10px;font-size:inherit; }
+.connection-screen .service-status { justify-content:center;padding:8px; }
+.participant .screen-actions button:has(svg) { display:grid;place-items:center;width:48px;height:48px;border-radius:50%;padding:0; }
+.participant .request-controls { justify-content:space-between;align-items:center; }
+.goal-picker { position:relative; }
+.participant .goal-trigger { display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:24px;padding:8px 14px;background:var(--paper);font-size:13px; }
+.goal-trigger svg:last-child { width:16px;height:16px; }
+.goal-options { position:absolute;top:calc(100% + 8px);left:0;z-index:6;min-width:210px;padding:6px;background:var(--paper);border:1px solid var(--line);border-radius:16px; }
+.participant .goal-options button { display:flex;align-items:center;gap:12px;width:100%;padding:10px;border:0;border-radius:10px;text-align:left;font-size:13px; }
+.goal-options button span { flex:1; }
+.goal-options button[aria-selected=true] { background:#edf2e8; }
+.transport { grid-template-columns:repeat(5,minmax(0,1fr));gap:0;width:100%;max-width:420px;align-self:center; }
+.now-playing .transport button { width:48px;height:48px;padding:0; }
+.play-pause svg { width:28px;height:28px; }
+.player-feedback button { width:44px;height:44px;justify-content:center;padding:0;border-radius:50%; }
+@media(max-width:600px) { .service-status { padding:0 16px 8px; } }
+@media(max-height:600px) { .player-feedback button { width:36px;height:36px; } }
+.now-playing .transport button[aria-pressed=true],.player-feedback button[aria-pressed=true] { color:#365c3f;background:#e0ecd9; }

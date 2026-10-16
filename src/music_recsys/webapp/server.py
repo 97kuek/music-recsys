@@ -5,6 +5,7 @@ import asyncio
 import os
 import secrets
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -19,6 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from music_recsys.profiles import InitialProfile
 from music_recsys.webapp.access import AccessVerifier
 from music_recsys.webapp.runtime import Runtime, now
+from music_recsys.webapp.settings import setting
 from music_recsys.webapp.study import StudyPlan
 
 
@@ -27,7 +29,7 @@ class Body(BaseModel):
 
 
 class Start(Body):
-    consent_version: Literal["local-ui-v2"] | None = None
+    consent_version: Literal["local-ui-v2", "local-ui-v3"] | None = None
     persist: bool = False
     allow_text: bool = False
 
@@ -83,16 +85,22 @@ def create_app(
         raise ValueError("invalid audience")
     study = StudyPlan.read(study_path) if study_path else None
     runtime = Runtime(config_path, database=database, study=study)
+    next_open_at = setting("NEXT_OPEN_AT") or None
+    if next_open_at:
+        opening = datetime.fromisoformat(next_open_at)
+        if opening.utcoffset() is None:
+            raise ValueError("NEXT_OPEN_AT requires a timezone")
+        next_open_at = opening.astimezone(UTC).isoformat()
     if model_version is not None and model_version not in runtime.models:
         raise ValueError("normal-mode model is not ready")
     researcher = audience == "researcher"
-    api_token = os.environ.get("OTOLAB_API_TOKEN", "")
-    access_team = os.environ.get("OTOLAB_ACCESS_TEAM", "")
-    access_aud = os.environ.get("OTOLAB_ACCESS_AUD", "")
+    api_token = setting("API_TOKEN")
+    access_team = setting("ACCESS_TEAM")
+    access_aud = setting("ACCESS_AUD")
     access = AccessVerifier(access_team, access_aud) if access_team or access_aud else None
-    allowed_origins = set(filter(None, os.environ.get("OTOLAB_ALLOWED_ORIGINS", "").split(",")))
+    allowed_origins = set(filter(None, setting("ALLOWED_ORIGINS").split(",")))
     allowed_hosts = {"localhost", "127.0.0.1", "testserver"} | set(
-        filter(None, os.environ.get("OTOLAB_ALLOWED_HOSTS", "").split(","))
+        filter(None, setting("ALLOWED_HOSTS").split(","))
     )
     if api_token and (len(api_token) < 32 or not allowed_origins or researcher):
         raise ValueError(
@@ -210,6 +218,15 @@ def create_app(
     @app.get("/healthz")
     def health():
         return {"status": "ok"}
+
+    @app.get("/availability")
+    def availability():
+        return {
+            "state": "online" if study or model_version or researcher else "unconfigured",
+            "mode": runtime.mode,
+            "checked_at": now().isoformat(),
+            "next_open_at": next_open_at,
+        }
 
     @app.get("/api/status")
     def status():
@@ -533,8 +550,8 @@ def main():
     from music_recsys.jamendo import configure_credentials
 
     configure_credentials(args.jamendo_env_file)
-    if args.host not in {"127.0.0.1", "localhost"} and not os.environ.get("OTOLAB_API_TOKEN"):
-        parser.error("external binding requires OTOLAB_API_TOKEN and explicit origins")
+    if args.host not in {"127.0.0.1", "localhost"} and not setting("API_TOKEN"):
+        parser.error("external binding requires MUSIC_RECSYS_API_TOKEN and explicit origins")
     uvicorn.run(
         create_app(
             args.config,

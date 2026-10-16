@@ -2,9 +2,29 @@
 const endpoints = /^\/api\/(status|catalog|sessions|profile|recommendations|events|playbacks|previews|preview-audio\/[a-zA-Z0-9-]+|audio\/[a-zA-Z0-9-]+|session\/(state|progress|next|leave|finish|export)|session)$/;
 const reply = (detail, status) => Response.json({ detail }, { status, headers: { 'Cache-Control': 'no-store' } });
 
+async function availability(env) {
+  const value = env.NEXT_OPEN_AT;
+  const next = typeof value === 'string' && /(?:Z|[+-]\d\d:\d\d)$/.test(value) && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
+  const result = { state: 'unconfigured', checked_at: new Date().toISOString(), next_open_at: next };
+  if (!env.BACKEND_ORIGIN || !env.UPSTREAM_API_TOKEN) return Response.json(result, {headers:{'Cache-Control':'no-store'}});
+  try {
+    const backend = new URL(env.BACKEND_ORIGIN);
+    if (backend.protocol !== 'https:' || backend.username || backend.password || backend.pathname !== '/' || backend.search || backend.hash) throw new Error('invalid backend');
+    const response = await fetch(new URL('/api/status',backend), {headers:{Authorization:`Bearer ${env.UPSTREAM_API_TOKEN}`},redirect:'manual',signal:AbortSignal.timeout(3000)});
+    if ([301,302,303,307,308,401,403].includes(response.status)) result.state='restricted';
+    else if (!response.ok) result.state='offline';
+    else { const data=await response.json(); result.state=data.ready===true?'online':'unconfigured'; }
+  } catch { result.state='offline'; }
+  return Response.json(result,{headers:{'Cache-Control':'no-store'}});
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === '/availability') {
+      if (!['GET','HEAD'].includes(request.method)) return reply('method not allowed',405);
+      return availability(env);
+    }
     if (!url.pathname.startsWith('/api/') && url.pathname !== '/api') return env.ASSETS.fetch(request);
     if (!endpoints.test(url.pathname)) return reply('not found', 404);
     if (!['GET', 'POST', 'PUT', 'DELETE', 'HEAD'].includes(request.method)) return reply('method not allowed', 405);

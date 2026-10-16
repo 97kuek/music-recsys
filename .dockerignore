@@ -19,3 +19,8 @@ src/music_recsys/webapp/static/
 !frontend/public/**
 !deploy/
 !deploy/Dockerfile
+
+!LICENSE
+!NOTICE
+!frontend/scripts/
+!frontend/scripts/**

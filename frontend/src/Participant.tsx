@@ -3,6 +3,8 @@ import { api, canPreview, type EventInput, type Recommendation, type Status, typ
 import { Player, type PlayerHandle } from './Player';
 import { Consent } from './Consent';
 import { MediaIcon } from './MediaIcon';
+import { GoalPicker } from './GoalPicker';
+import { ServiceStatus } from './ServiceStatus';
 
 type Phase = 'profile' | 'listen' | 'evaluate';
 type Profile = { items: string[]; artists: string[] };
@@ -101,7 +103,7 @@ export function Participant({ status }: { status: Status }) {
     setResult(reply); setIndex(0); setActions([]); setExpanded(false);
   };
   const start = () => run(async () => {
-    const state = await api<Session>('sessions', 'POST', { persist, consent_version: 'local-ui-v2' });
+    const state = await api<Session>('sessions', 'POST', { persist, consent_version: 'local-ui-v3' });
     setActive(true); setFinished(false); setPeriod(state.period); setPeriods(state.periods); setPhase('profile');
   });
   const beginListening = () => run(async () => {
@@ -121,7 +123,7 @@ export function Participant({ status }: { status: Status }) {
     } else { await api('session/finish', 'POST', {}); setFinished(true); }
   });
   const remove = () => run(async () => {
-    await stop(); await api('session', 'DELETE'); localStorage.removeItem(key);
+    await stop(); await api('session', 'DELETE'); try { localStorage.removeItem(key); } catch { /* Storage can be disabled. */ }
     setActive(false); setFinished(false); setResult(undefined); setProfile({ items: [], artists: [] }); setTracks([]); setOffset(0); setPersist(false); setPhase('profile');
     setMessage('データを削除しました');
   });
@@ -132,7 +134,8 @@ export function Participant({ status }: { status: Status }) {
     ? <img src={track.artwork} alt="" loading="lazy" referrerPolicy="no-referrer" />
     : <span className={`cover tone${i % 4}`} aria-hidden="true" />;
   return <div className="participant app-shell">
-    <header><a className="brand" href="/" aria-label="music-recsys"><img src="/favicon.svg" width="28" height="28" alt="" /> music-recsys</a>{active && !finished && <button className="icon-button" aria-label="終了・削除" title="終了・削除" disabled={busy} onClick={remove}><MediaIcon name="exit" /></button>}</header>
+    <header><a className="brand" href="/" aria-label="music-recsys"><img src="/favicon.svg" width="28" height="28" alt="" /> music-recsys</a>{!finished && <button className="icon-button" aria-label={active ? "終了・削除" : "この端末のログを削除"} title={active ? "終了・削除" : "この端末のログを削除"} disabled={busy} onClick={remove}><MediaIcon name={active ? "exit" : "trash"} /></button>}</header>
+    <ServiceStatus localOnly={status.logging_mode === 'browser-memory'} />
     <main>
       {message && <div className="notice" role="status" aria-live="polite">{message}</div>}
       {!status.ready && <p className="notice">ただいま準備中です。</p>}
@@ -147,19 +150,19 @@ export function Participant({ status }: { status: Status }) {
           </article>)}
           {tracks.length < total && <button className="quiet more-tracks" disabled={busy} onClick={() => setOffset(tracks.length)}>さらに表示</button>}
         </div>
-        <div className="screen-actions"><button className="primary" disabled={busy || (!profile.items.length && !profile.artists.length)} onClick={beginListening}>選択して次へ</button></div>
+        <div className="screen-actions"><button className="primary" disabled={busy || (!profile.items.length && !profile.artists.length)} onClick={beginListening} aria-label="選択して次へ" title="次へ"><MediaIcon name="forward" /></button></div>
       </section> : phase === 'listen' ? <section className="screen">
         <div className="section-heading"><h1 id="step-heading" tabIndex={-1}>おすすめ</h1>{periods > 1 && <span className="muted">{period} / {periods}</span>}</div>
-        {status.experience !== 'experiment' && <div className="request-controls"><label className="sr-only" htmlFor="goal">聴き方</label><select id="goal" value={goal} onChange={e => setGoal(e.target.value)}><option value="auto">おまかせ</option><option value="discover">新しい曲</option><option value="familiar">いつもの好み</option></select><button className="quiet" disabled={busy} onClick={() => run(recommend)}>更新</button></div>}
+        {status.experience !== 'experiment' && <div className="request-controls"><GoalPicker value={goal} onChange={setGoal} disabled={busy} /><button className="icon-button" aria-label="おすすめを更新" title="更新" disabled={busy} onClick={() => run(recommend)}><MediaIcon name="refresh" /></button></div>}
         <div className="song-list recommendations scroll-region" aria-label="おすすめの楽曲" tabIndex={0}>{result?.tracks.map((track, i) => <article className={`song-row ${i === index ? 'current-song' : ''}`} data-item={track.item_id} key={track.item_id}>
           <button className="track-open" aria-label={`${track.title}を開く`} disabled={busy || !canPreview(track)} onClick={() => run(async () => { if (result) { setIndex(i); await player.current?.play(track, result.request_id); } })}>{art(track, i)}<span className="song-info"><strong>{track.title}</strong><small>{track.artists.join(' / ')}</small>{!canPreview(track) && <small>試聴できません</small>}</span></button>
-          <div className="song-actions">{['like', 'save'].map((kind, n) => <button className="icon-button" key={kind} aria-label={['いいね', '保存'][n]} aria-pressed={actions.includes(`${kind}:${track.item_id}`)} disabled={busy || actions.includes(`${kind}:${track.item_id}`)} onClick={() => feedback(kind, track)}>{['♡', '＋'][n]}</button>)}</div>
+          <div className="song-actions"><button className="icon-button" aria-label="いいね" aria-pressed={actions.includes(`like:${track.item_id}`)} disabled={busy || actions.includes(`like:${track.item_id}`)} onClick={() => feedback('like', track)}><MediaIcon name="like" /></button></div>
         </article>)}</div>
-        <div className="screen-actions">{result ? <button className="primary" disabled={busy} onClick={() => run(() => enter('evaluate'))}>次へ</button> : <button disabled={busy} onClick={() => run(() => enter('profile'))}>曲を選び直す</button>}</div>
+        <div className="screen-actions">{result ? <button className="primary" disabled={busy} onClick={() => run(() => enter('evaluate'))} aria-label="次へ" title="評価へ"><MediaIcon name="forward" /></button> : <button disabled={busy} onClick={() => run(() => enter('profile'))} aria-label="曲を選び直す" title="曲を選び直す"><MediaIcon name="back" /></button>}</div>
       </section> : <section className="screen completion">
         <h1 id="step-heading" tabIndex={-1}>好みに合いましたか？</h1><p className="muted">回答は任意です</p>
         <div className="ratings" role="group" aria-label="満足度">{[1, 2, 3, 4, 5].map(n => <button key={n} aria-label={`満足度 ${n}`} aria-pressed={rating === n} onClick={() => setRating(rating === n ? undefined : n)}>{n}<small>{n === 1 ? '合わない' : n === 5 ? 'よかった' : ''}</small></button>)}</div>
-        <div className="screen-actions"><button className="quiet" disabled={busy} onClick={() => run(() => enter('listen'))}>戻る</button><button className="primary" disabled={busy} onClick={finishPeriod}>{period < periods ? '次のおすすめへ' : '終了する'}</button></div>
+        <div className="screen-actions"><button className="quiet" disabled={busy} onClick={() => run(() => enter('listen'))} aria-label="戻る" title="戻る"><MediaIcon name="back" /></button><button className="primary" disabled={busy} onClick={finishPeriod} aria-label={period < periods ? '次のおすすめへ' : '終了する'} title={period < periods ? '次へ' : '終了する'}><MediaIcon name={period < periods ? 'forward' : 'check'} /></button></div>
       </section>}
     </main>
     {active && !finished && phase !== 'evaluate' && <Player ref={player} emit={emit} onError={error} onExpandedChange={setExpanded}
@@ -169,8 +172,7 @@ export function Participant({ status }: { status: Status }) {
       selected={!!previewTrack && profile.items.includes(previewTrack.item_id)}
       onLike={phase === 'listen' && current ? () => feedback('like', current) : undefined}
       liked={!!current && actions.includes(`like:${current.item_id}`)}
-      onSave={phase === 'listen' && current ? () => feedback('save', current) : undefined}
-      saved={!!current && actions.includes(`save:${current.item_id}`)} />}
-    <footer>{status.logging_mode === 'browser-memory' ? 'デモ音源・架空の曲名／操作ログはブラウザ内のみ' : status.mode === 'demo' ? 'デモ音源・架空の曲名を使用しています' : status.mode === 'jamendo' ? '音源提供：Jamendo' : '試聴可能な音源のみ再生できます'}</footer>
+ />}
+    <footer>{status.logging_mode === 'browser-memory' ? 'デモ音源・架空の曲名／操作ログはブラウザ内のみ' : status.mode === 'demo' ? 'デモ音源・架空の曲名を使用しています' : status.mode === 'jamendo' ? '音源提供：Jamendo' : '試聴可能な音源のみ再生できます'} · <a href="/notice.txt" target="_blank" rel="noreferrer">ライセンス</a></footer>
   </div>;
 }

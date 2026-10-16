@@ -75,7 +75,7 @@ def package(config_path, output, *, study_path=None):
         (stage / "transfer.json").write_text(
             json.dumps(
                 {
-                    "format": "otolab-transfer-v1",
+                    "format": "music-recsys-transfer-v1",
                     "source_config_sha256": file_sha256(config_path),
                     "files": {
                         str(p.relative_to(stage)): file_sha256(p)
@@ -96,7 +96,7 @@ def package(config_path, output, *, study_path=None):
 def verify(directory):
     directory = Path(directory).resolve()
     record = json.loads((directory / "transfer.json").read_text())
-    if record.get("format") != "otolab-transfer-v1":
+    if record.get("format") not in {"music-recsys-transfer-v1", "otolab-transfer-v1"}:
         raise ValueError("unsupported transfer format")
     actual = {
         str(p.relative_to(directory))

@@ -1,6 +1,6 @@
 {
   "name": "music-recsys-ui",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,12 +8,14 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/licenses.mjs && tsc --noEmit && vite build",
     "test:worker": "node --test tests/worker.test.mjs",
-    "preview:cloudflare": "wrangler dev --env preview --ip 127.0.0.1",
-    "deploy:preview": "npm run build:preview && wrangler deploy --env preview",
-    "check:deploy": "npm run build:preview && wrangler deploy --env preview --dry-run --outdir /tmp/music-recsys-worker-check",
-    "build:preview": "tsc --noEmit && VITE_PUBLIC_DEMO=1 vite build --mode preview"
+    "preview:cloudflare": "wrangler dev --config wrangler.workers.jsonc --env preview --ip 127.0.0.1",
+    "deploy:preview": "npm run build:preview && wrangler deploy --config wrangler.workers.jsonc --env preview",
+    "check:deploy": "npm run build:preview && wrangler deploy --config wrangler.workers.jsonc --env preview --dry-run --outdir /tmp/music-recsys-worker-check",
+    "build:preview": "node scripts/licenses.mjs && tsc --noEmit && VITE_PUBLIC_DEMO=1 vite build --mode preview",
+    "build:pages": "npm run build:preview && node scripts/pages.mjs",
+    "deploy:pages": "npm run build:pages && wrangler pages deploy --project-name musicrecsys --branch main"
   },
   "dependencies": {
     "react": "^19.2.0",
@@ -25,5 +27,6 @@
     "typescript": "~5.9.3",
     "vite": "^8.0.0",
     "wrangler": "^4.151.1"
-  }
+  },
+  "license": "MIT"
 }

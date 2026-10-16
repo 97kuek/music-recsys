@@ -1,29 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "music-recsys-local",
-  "main": "worker/index.mjs",
+  "name": "musicrecsys",
+  "pages_build_output_dir": "../src/music_recsys/webapp/static",
   "compatibility_date": "2026-10-16",
-  "workers_dev": false,
-  "preview_urls": false,
-  "assets": {
-    "directory": "../src/music_recsys/webapp/static",
-    "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api", "/api/*"]
-  },
-  "observability": { "enabled": false },
-  "env": {
-    "preview": {
-      "name": "music-recsys-preview",
-      "workers_dev": true,
-      "preview_urls": false,
-      "vars": { "APP_ENV": "preview", "BACKEND_ORIGIN": "" }
-    },
-    "production": {
-      "name": "music-recsys",
-      "workers_dev": false,
-      "preview_urls": false,
-      "vars": { "APP_ENV": "production", "BACKEND_ORIGIN": "" }
-    }
-  }
+  "vars": { "BACKEND_ORIGIN": "", "NEXT_OPEN_AT": "" },
+  "env": { "preview": { "vars": { "BACKEND_ORIGIN": "", "NEXT_OPEN_AT": "" } } }
 }
