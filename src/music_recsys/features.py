@@ -47,7 +47,7 @@ def _checksum(raw: dict) -> str:
 
 
 def load_features(path: Path, *, dataset_id: str, snapshot_id: str | None) -> FeatureMap:
-    raw = json.loads(Path(path).read_text())
+    raw = json.loads(Path(path).read_text(encoding="utf-8"))
     if (
         not isinstance(raw, dict)
         or raw.get("dataset_id") != dataset_id

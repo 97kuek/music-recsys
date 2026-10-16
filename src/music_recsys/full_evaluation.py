@@ -1,56 +1,20 @@
-"""全学習ユーザーのPopularity / ItemCF / ALS Validation / 集約履歴を順次読み、個別結果をParquet保存。"""
+"""全学習ユーザーのPopularity / ItemCF / ALS / BPR Validation / 集約履歴を順次読み、個別結果をParquet保存。"""
 
 import argparse
 import json
 import os
 import time
-from collections import defaultdict
 from dataclasses import asdict
-from itertools import groupby, islice
+from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
 
 from music_recsys.experiment_store import atomic_json
+from music_recsys.full_io import DetailWriter, user_rows
 from music_recsys.listening_data import file_sha256, validate_bundle
-from music_recsys.streaming_metrics import DiversityAccumulator, accuracy_vectors
 
-
-def user_rows(path):
-    import pyarrow.parquet as pq
-
-    def rows():
-        for batch in pq.ParquetFile(path).iter_batches(batch_size=32768):
-            yield from zip(*(column.to_pylist() for column in batch.columns), strict=True)
-
-    for user, records in groupby(rows(), key=lambda row: row[0]):
-        yield user, list(records)
-
-
-class DetailWriter:
-    def __init__(self, path):
-        self.path, self.rows, self.writer = path, [], None
-
-    def add(self, row):
-        self.rows.append(row)
-        if len(self.rows) >= 4096:
-            self.flush()
-
-    def flush(self):
-        import pyarrow as pa
-        import pyarrow.parquet as pq
-
-        if self.rows:
-            table = pa.Table.from_pylist(self.rows)
-            if self.writer is None:
-                self.writer = pq.ParquetWriter(self.path, table.schema, compression="zstd")
-            self.writer.write_table(table)
-            self.rows.clear()
-
-    def close(self):
-        self.flush()
-        if self.writer is not None:
-            self.writer.close()
+__all__ = ["DetailWriter", "user_rows", "run", "render"]
 
 
 def run(config_path, *, model_cache=None):
@@ -64,12 +28,22 @@ def run(config_path, *, model_cache=None):
     allowed = {
         "popularity": {"basis"},
         "itemcf": {"neighbors", "similarity"},
+        "bpr": {
+            "factors",
+            "iterations",
+            "regularization",
+            "learning_rate",
+            "memory_budget_mb",
+            "use_gpu",
+        },
         "als": {
             "factors",
             "iterations",
             "regularization",
             "alpha",
             "confidence_transform",
+            "use_gpu",
+            "cg_steps",
             "memory_budget_mb",
         },
     }
@@ -80,10 +54,10 @@ def run(config_path, *, model_cache=None):
         or config.grid
     ):
         raise ValueError(
-            "full evaluation requires listening-v2 popularity/itemcf/als with fixed parameters"
+            "full evaluation requires listening-v2 popularity/itemcf/als/bpr with fixed parameters"
         )
-    if config.model == "als" and len(config.seeds) != 1:
-        raise ValueError("full ALS requires exactly one seed per run")
+    if config.model in {"als", "bpr"} and len(config.seeds) != 1:
+        raise ValueError("full factor model requires exactly one seed per run")
     from music_recsys.recommenders.popularity import validate_basis
 
     basis = validate_basis(config.parameters.get("basis", "play_count"))
@@ -122,18 +96,20 @@ def run(config_path, *, model_cache=None):
                 itemcf = FullItemCF(
                     paths["learning"], progress=progress, cache_dir=model_cache, **config.parameters
                 )
-            als = None
-            if config.model == "als":
+            factor_model = None
+            if config.model in {"als", "bpr"}:
                 from music_recsys.recommenders.full_als import FullALS
+                from music_recsys.recommenders.full_bpr import FullBPR
 
-                als = FullALS(
+                factor_type = FullALS if config.model == "als" else FullBPR
+                factor_model = factor_type(
                     paths["learning"], seed=config.seeds[0], progress=progress, **config.parameters
                 )
             training_seconds = (
                 itemcf.training_seconds if itemcf is not None else time.perf_counter() - started
             )
-            if als is not None:
-                training_seconds = als.training_seconds
+            if factor_model is not None:
+                training_seconds = factor_model.training_seconds
             popularity = [row[0] for row in ranked]
             rank = {item: j for j, item in enumerate(popularity)}
             item_users = {item: users for item, _, users in ranked}
@@ -151,6 +127,18 @@ def run(config_path, *, model_cache=None):
                     "execution": (
                         {
                             "solver": "exact normal equations float64",
+                            **getattr(factor_model, "execution", {}),
+                            "evaluation_device": "cuda"
+                            if config.parameters.get("use_gpu", False)
+                            else "cpu",
+                            "evaluation_batch_size": 128
+                            if config.parameters.get("use_gpu", False)
+                            else 1,
+                            **(
+                                {"cupy": version("cupy-cuda12x"), "metric_dtype": "float64"}
+                                if config.parameters.get("use_gpu", False)
+                                else {}
+                            ),
                             "seed": config.seeds[0],
                             "numpy": np.__version__,
                             "threads": {
@@ -162,147 +150,30 @@ def run(config_path, *, model_cache=None):
                                 )
                             },
                         }
-                        if als is not None
+                        if factor_model is not None
                         else f"deterministic {config.model} once; no seed-dependent computation"
                     ),
                     "population": counts,
                     "training_cache_hit": itemcf.cache_hit if itemcf is not None else False,
                 },
             )
-            accuracy = defaultdict(
-                lambda: {"sum": np.zeros(len(config.evaluation.ks)), "n": 0, "primary": []}
+            if config.parameters.get("use_gpu", False):
+                from music_recsys.gpu_evaluation import score_gpu as scorer
+            else:
+                from music_recsys.full_scoring import score_cpu as scorer
+            rows, beyond, efficiency = scorer(
+                config,
+                paths,
+                counts,
+                features,
+                item_users,
+                popularity,
+                rank,
+                factor_model,
+                itemcf,
+                progress,
             )
-            diversity = DiversityAccumulator(
-                features, item_users, counts["users"], config.evaluation.ks
-            )
-            details = DetailWriter(output / "scores.parquet.partial")
-            recommendations = DetailWriter(output / "recommendations.parquet.partial")
-            observation_iter = iter(user_rows(paths["observations"]))
-            next_observation = next(observation_iter, None)
-            durations = []
-            processed = 0
-            progress(
-                f"Evaluating {counts['users']:,} users / {counts['items']:,} tracks / {counts['events']:,} plays"
-            )
-            try:
-                for user, history_rows in user_rows(paths["learning"]):
-                    history = {row[1] for row in history_rows}
-                    if next_observation is not None and next_observation[0] < user:
-                        raise ValueError("observations contain user outside learning population")
-                    observations = (
-                        next_observation[1]
-                        if next_observation is not None and next_observation[0] == user
-                        else []
-                    )
-                    if observations:
-                        next_observation = next(observation_iter, None)
-                    for task in ("new", "repeat"):
-                        candidate_count = (
-                            len(history) if task == "repeat" else len(popularity) - len(history)
-                        )
-                        t = time.perf_counter()
-                        ranking = (
-                            als.rank(user, history, task)
-                            if als is not None
-                            else itemcf.rank(history, task)
-                            if itemcf is not None
-                            else (
-                                sorted(history, key=rank.__getitem__)[:20]
-                                if task == "repeat"
-                                else list(islice((i for i in popularity if i not in history), 20))
-                            )
-                        )
-                        elapsed = time.perf_counter() - t
-                        if candidate_count:
-                            durations.append(elapsed)
-                        recommendations.add(
-                            dict(
-                                user_id=user,
-                                task=task,
-                                item_ids=ranking,
-                                candidate_count=candidate_count,
-                                latency_seconds=elapsed,
-                            )
-                        )
-                        truth = [
-                            (r[1], r[2], r[5], r[6])
-                            for r in observations
-                            if (r[3] > 0) == (task == "repeat")
-                        ]
-                        for key, values in accuracy_vectors(
-                            ranking, truth, task=task, config=config.evaluation
-                        ):
-                            a = accuracy[key]
-                            if values is not None:
-                                a["sum"] += values
-                                a["n"] += 1
-                                if key[1] == config.evaluation.primary_window_days and key[2] in (
-                                    None,
-                                    config.evaluation.primary_day_weight,
-                                ):
-                                    a["primary"].append(values)
-                                details.add(
-                                    dict(
-                                        user_id=user,
-                                        task=key[0],
-                                        window_days=key[1],
-                                        day_weight=float(key[2]) if key[2] is not None else -1.0,
-                                        metric=key[3],
-                                        values=values.tolist(),
-                                    )
-                                )
-                        diversity.add(task, ranking, candidate_count)
-                    processed += 1
-                    if processed % 1000 == 0:
-                        progress(f"Evaluated {processed:,}/{counts['users']:,} users")
-                if processed != counts["users"] or next_observation is not None:
-                    raise ValueError("population mismatch")
-            finally:
-                details.close()
-                recommendations.close()
-            progress("Aggregating scores and user bootstrap intervals")
-            rows = []
-            for key, a in accuracy.items():
-                ci = None
-                if a["primary"]:
-                    values = np.asarray(a["primary"])
-                    rng = np.random.default_rng(42)
-                    means = np.empty((2000, len(config.evaluation.ks)))
-                    for b in range(len(means)):
-                        means[b] = values[rng.integers(0, len(values), len(values))].mean(axis=0)
-                    ci = np.quantile(means, [0.025, 0.975], axis=0)
-                for index, k in enumerate(config.evaluation.ks):
-                    rows.append(
-                        dict(
-                            task=key[0],
-                            window_days=key[1],
-                            day_weight=key[2],
-                            metric=key[3],
-                            k=k,
-                            mean=float(a["sum"][index] / a["n"]) if a["n"] else None,
-                            n_evaluated=a["n"],
-                            n_excluded=counts["users"] - a["n"],
-                            ci_low=float(ci[0, index]) if ci is not None else None,
-                            ci_high=float(ci[1, index]) if ci is not None else None,
-                        )
-                    )
-            beyond = diversity.finish(
-                {
-                    "new": sum(n < counts["users"] for n in item_users.values()),
-                    "repeat": len(popularity),
-                }
-            )
-            efficiency = dict(
-                model=config.model,
-                latency_mean=sum(durations) / len(durations) if durations else None,
-                generation_calls=len(durations),
-                training_seconds=training_seconds,
-                input_tokens=None,
-                output_tokens=None,
-                api_cost=None,
-                llm_calls=None,
-                tool_calls=None,
-            )
+            efficiency["training_seconds"] = training_seconds
             artifacts = {}
             for name in ("scores", "recommendations"):
                 path = output / f"{name}.parquet"
@@ -325,8 +196,8 @@ def run(config_path, *, model_cache=None):
                     "population": "all train-observed users; no future activity selection",
                     "accuracy": "equal user mean; users without positives excluded separately for each task/window",
                     "ranking": (
-                        "ALS latent inner product; ties by training plays then item ID"
-                        if als is not None
+                        f"{config.model.upper()} latent score; ties by training plays then item ID"
+                        if factor_model is not None
                         else f"training {basis} descending, item ID ascending"
                         if itemcf is None
                         else "binary user-item similarity; sum of history-item top-neighbor weights; ties by training plays then item ID"
@@ -338,13 +209,17 @@ def run(config_path, *, model_cache=None):
                     "ild": "mean pairwise cosine distance; all returned valid tracks require nonzero tags",
                     "ci": "user bootstrap, 2000 resamples, seed 42, primary window/weight only",
                     "details": "scores: K array follows config ks; day_weight=-1 means not applicable; absent user-condition has no positive truth; recommendations: all users and both tasks",
-                    "latency": "optimized deterministic ranking retrieval, excludes I/O, training and scoring; cannot compare to old full-sort implementation without accounting for implementation change",
+                    "latency": (
+                        "GPU batched ranking including transfer and stable sorting; amortized per user/task; not single-request latency"
+                        if config.parameters.get("use_gpu", False)
+                        else "optimized deterministic ranking retrieval, excludes I/O, training and scoring; cannot compare to old full-sort implementation without accounting for implementation change"
+                    ),
                     "usage": "unmeasured is null",
                 },
             }
             render(config, document)
             atomic_json(output / "result.json", document)
-            progress(f"SUCCEEDED: {processed:,} users; results at {output}")
+            progress(f"SUCCEEDED: {counts['users']:,} users; results at {output}")
     return output
 
 

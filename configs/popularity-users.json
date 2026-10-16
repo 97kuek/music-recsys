@@ -1,32 +1,13 @@
 {
+  "extends": "common.json",
   "experiment": {
     "name": "music4all-popularity-users",
-    "protocol": "listening-v2",
-    "validation_dataset": "../data/benchmarks/music4all/validation",
-    "test_dataset": "../data/benchmarks/music4all/test",
-    "features": "../data/benchmarks/music4all/features.json",
     "output": "../data/experiments/popularity-users"
   },
   "model": {
     "name": "popularity",
-    "parameters": {"basis": "user_count"}
-  },
-  "search": {
-    "stage": "A",
-    "seeds": [0],
-    "max_trials": 1
-  },
-  "evaluation": {
-    "window_days": [30, 90, 180],
-    "primary_window_days": 90,
-    "day_weights": [0.0, 0.5, 1.0, 2.0],
-    "primary_day_weight": 1.0,
-    "ks": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-  },
-  "selection": {
-    "k": 10
-  },
-  "tracking": {
-    "enabled": false
+    "parameters": {
+      "basis": "user_count"
+    }
   }
 }

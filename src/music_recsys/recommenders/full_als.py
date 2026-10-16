@@ -6,9 +6,10 @@ import numpy as np
 
 from music_recsys.recommenders.als import als_solve
 from music_recsys.recommenders.factors import integer, number
+from music_recsys.recommenders.full_factors import FullFactorModel
 
 
-class FullALS:
+class FullALS(FullFactorModel):
     def __init__(
         self,
         learning_path,
@@ -21,10 +22,12 @@ class FullALS:
         seed=0,
         memory_budget_mb=512,
         progress=print,
+        use_gpu=False,
+        cg_steps=20,
     ):
-        import duckdb
-        from scipy.sparse import coo_matrix
-
+        if type(use_gpu) is not bool:
+            raise ValueError("use_gpu must be boolean")
+        integer(cg_steps, "cg_steps")
         integer(factors, "factors")
         integer(iterations, "iterations")
         number(regularization, "regularization", positive=True)
@@ -35,37 +38,118 @@ class FullALS:
         if confidence_transform not in {"linear", "log1p"}:
             raise ValueError("confidence_transform must be linear or log1p")
         started = time.perf_counter()
-        with duckdb.connect(config={"threads": 2, "memory_limit": "2GB"}) as c:
-            data = c.execute(
-                "SELECT user_id,item_id,play_count FROM read_parquet(?) ORDER BY user_id,item_id",
-                [str(learning_path)],
-            ).fetchnumpy()
-        users, ui = np.unique(data["user_id"], return_inverse=True)
-        self.items, ii = np.unique(data["item_id"], return_inverse=True)
-        counts = np.asarray(data["play_count"], dtype=float)
-        if not len(counts) or not np.isfinite(counts).all() or (counts <= 0).any():
-            raise ValueError("learning counts must be finite and positive")
-        self.users = {u: i for i, u in enumerate(users)}
-        self.index = {item: i for i, item in enumerate(self.items)}
-        matrix = coo_matrix((counts, (ui, ii)), shape=(len(users), len(self.items))).tocsr()
-        matrix.sum_duplicates()
-        matrix.sort_indices()
+        matrix = self.load_learning(learning_path)
         transpose = matrix.T.tocsr()
-        self.plays = np.asarray(matrix.sum(axis=0)).ravel()
         degree = int(max(np.diff(matrix.indptr).max(), np.diff(transpose.indptr).max()))
         self.estimated_buffer_bytes = int(
             8
-            * (2 * (len(users) + len(self.items)) * factors + 3 * factors**2 + 2 * degree * factors)
+            * (
+                2 * (len(self.users) + len(self.items)) * factors
+                + 3 * factors**2
+                + 2 * degree * factors
+            )
             + sum(a.nbytes for m in (matrix, transpose) for a in (m.data, m.indices, m.indptr))
         )
         if self.estimated_buffer_bytes > memory_budget_mb * 1024**2:
             raise ValueError(
                 "factor and sparse arrays exceed memory_budget_mb before factor allocation"
             )
-        del data, ui, ii, counts
         rng = np.random.default_rng(seed)
-        self.user_factors = rng.normal(0, 0.01, (len(users), factors))
+        self.user_factors = rng.normal(0, 0.01, (len(self.users), factors))
         self.item_factors = rng.normal(0, 0.01, (len(self.items), factors))
+        if use_gpu:
+            self._fit_gpu(
+                matrix,
+                factors=factors,
+                iterations=iterations,
+                regularization=regularization,
+                alpha=alpha,
+                confidence_transform=confidence_transform,
+                seed=seed,
+                cg_steps=cg_steps,
+                progress=progress,
+            )
+        else:
+            self._fit_cpu(
+                matrix,
+                transpose,
+                iterations=iterations,
+                regularization=regularization,
+                alpha=alpha,
+                confidence_transform=confidence_transform,
+                progress=progress,
+            )
+        self.training_seconds = time.perf_counter() - started
+        self.cache_hit = False
+
+    def _fit_gpu(
+        self,
+        matrix,
+        *,
+        factors,
+        iterations,
+        regularization,
+        alpha,
+        confidence_transform,
+        seed,
+        cg_steps,
+        progress,
+    ):
+        import implicit
+        import implicit.gpu
+        from implicit.gpu.als import AlternatingLeastSquares
+
+        from music_recsys.recommenders.gpu_runtime import require_idle_gpu
+
+        progress(f"GPU preflight: {require_idle_gpu()}")
+        confidence = matrix.astype(np.float32)
+        confidence.data = 1 + alpha * (
+            np.log1p(confidence.data) if confidence_transform == "log1p" else confidence.data
+        )
+        model = AlternatingLeastSquares(
+            factors=factors,
+            iterations=iterations,
+            regularization=regularization,
+            alpha=1.0,
+            random_state=seed,
+        )
+        model.cg_steps = cg_steps
+        model.user_factors = implicit.gpu.Matrix(self.user_factors.astype(np.float32))
+        model.item_factors = implicit.gpu.Matrix(self.item_factors.astype(np.float32))
+        model.fit(
+            confidence,
+            show_progress=False,
+            callback=lambda iteration, elapsed, loss: progress(
+                f"ALS GPU iteration {iteration + 1}/{iterations}; seconds={elapsed:.3f}"
+            ),
+        )
+        self.user_factors = model.user_factors.to_numpy()
+        self.item_factors = model.item_factors.to_numpy()
+        if not all(np.isfinite(a).all() for a in (self.user_factors, self.item_factors)):
+            raise ValueError("ALS numerical training failure")
+        from music_recsys.recommenders.gpu_runtime import gpu_metadata
+
+        self.execution = dict(
+            solver="implicit GPU conjugate gradient float32",
+            cg_steps=cg_steps,
+            implicit=implicit.__version__,
+            training_device="cuda",
+            evaluation_device="cpu",
+            bitwise_reproducible=False,
+            **gpu_metadata(),
+        )
+
+    def _fit_cpu(
+        self,
+        matrix,
+        transpose,
+        *,
+        iterations,
+        regularization,
+        alpha,
+        confidence_transform,
+        progress,
+    ):
         try:
             with np.errstate(over="raise", invalid="raise", divide="raise"):
                 for iteration in range(iterations):
@@ -90,17 +174,3 @@ class FullALS:
                     raise ValueError("non-finite factors")
         except (FloatingPointError, np.linalg.LinAlgError):
             raise ValueError("ALS numerical training failure") from None
-        self.training_seconds = time.perf_counter() - started
-        self.cache_hit = False
-
-    def rank(self, user, history, task, top_k=20):
-        if task not in {"new", "repeat"}:
-            raise ValueError("task must be new or repeat")
-        allowed = np.zeros(len(self.items), dtype=bool)
-        allowed[[self.index[i] for i in history]] = True
-        if task == "new":
-            allowed = ~allowed
-        candidates = np.flatnonzero(allowed)
-        scores = self.item_factors[candidates] @ self.user_factors[self.users[user]]
-        order = np.lexsort((candidates, -self.plays[candidates], -scores))[:top_k]
-        return self.items[candidates[order]].tolist()

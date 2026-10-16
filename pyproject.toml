@@ -56,6 +56,7 @@ select = ["E4", "E7", "E9", "F", "I"]
 
 [dependency-groups]
 models = [
+    "implicit==0.7.2",
     "numpy>=2,<3",
     "scipy>=1.14,<2",
 ]
@@ -83,4 +84,7 @@ notebook = [
 tracking = [
     { include-group = "db" },
     "mlflow==3.17.0",
+]
+gpu = [
+    "cupy-cuda12x>=14.2,<15",
 ]

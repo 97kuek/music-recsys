@@ -4,8 +4,11 @@ from pathlib import Path
 
 import pytest
 
+from music_recsys.configuration import load_settings
 
-def test_als_grid_end_to_end_and_comparison_guards(tmp_path):
+
+@pytest.mark.parametrize("model_name", ["als", "bpr"])
+def test_als_grid_end_to_end_and_comparison_guards(tmp_path, model_name):
     from music_recsys.als_grid import run_grid
     from music_recsys.experiment_search import load_study_config
     from music_recsys.full_analysis import curves
@@ -15,13 +18,15 @@ def test_als_grid_end_to_end_and_comparison_guards(tmp_path):
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = json.loads(Path("configs/als.json").read_text())
+    raw = load_settings(Path(f"configs/{model_name}.json"))
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(tmp_path / "never-open-test"),
         features=str(bundle / "features.json"),
         output=str(tmp_path / "als"),
     )
+    raw["model"]["parameters"].pop("use_gpu", None)
+    raw["search"]["grid"]["factors"] = [32, 64, 128]
     path = tmp_path / "als.json"
     path.write_text(json.dumps(raw))
     baselines = []
@@ -38,13 +43,14 @@ def test_als_grid_end_to_end_and_comparison_guards(tmp_path):
     result = json.loads((output / "result.json").read_text())
     assert len(result["sources"]) == 5
     assert result["selection"] == "not_selected"
-    assert {r["factors"] for r in result["metrics"] if r["model"] == "als"} == {32, 64, 128}
+    assert {r["factors"] for r in result["metrics"] if r["model"] == model_name} == {32, 64, 128}
     assert {"recall.png", "recall_factors.png", "repeat_recall.png", "binary_ndcg.png"} <= set(
         result["figures"]
     )
     assert not any("api_cost" in f for f in result["figures"])
+    assert "recall_k20.png" in result["figures"]
     frame = curves(load_study_config(path))
-    assert set(frame.model) == {"als", "popularity", "itemcf"}
+    assert set(frame.model) == {model_name, "popularity", "itemcf"}
     assert len(frame.experiment.unique()) == 5
     assert run_grid(path, compare=baselines) == output
     for source in result["sources"][:3]:

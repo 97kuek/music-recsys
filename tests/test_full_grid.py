@@ -3,12 +3,14 @@ from pathlib import Path
 
 import pytest
 
+from music_recsys.configuration import load_settings
+
 
 def test_grid_expands_conditions_and_reuses_completed_outputs(tmp_path, monkeypatch):
     import music_recsys.full_grid as grid
     from music_recsys.experiment_search import load_study_config
 
-    raw = json.loads(Path("configs/itemcf.json").read_text())
+    raw = load_settings(Path("configs/itemcf.json"))
     raw["experiment"].update(
         validation_dataset=str(tmp_path / "data/benchmarks/music4all/validation"),
         test_dataset=str(tmp_path / "data/benchmarks/music4all/test"),

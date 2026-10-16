@@ -8,7 +8,6 @@ import json
 import math
 import tempfile
 import time
-import tomllib
 from collections import Counter
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
@@ -83,10 +82,10 @@ class StudyConfig:
 
 
 def load_study_config(path):
+    from music_recsys.configuration import load_settings
+
     path = Path(path).resolve()
-    raw = (
-        json.loads(path.read_text()) if path.suffix == ".json" else tomllib.loads(path.read_text())
-    )
+    raw = load_settings(path)
     e, m, s, objective = (raw.get(x, {}) for x in ("experiment", "model", "search", "selection"))
 
     def resolve(value):

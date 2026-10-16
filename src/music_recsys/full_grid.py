@@ -6,6 +6,7 @@ import itertools
 import json
 from pathlib import Path
 
+from music_recsys.configuration import load_settings
 from music_recsys.experiment_search import load_study_config
 from music_recsys.full_analysis import read_result
 from music_recsys.full_evaluation import run
@@ -14,7 +15,7 @@ from music_recsys.grid_report import build_grid_report
 
 def run_grid(config_path):
     base = load_study_config(config_path)
-    raw = json.loads(base.path.read_text())
+    raw = load_settings(base.path)
     if base.model != "itemcf" or set(base.grid) != {"neighbors", "similarity"}:
         raise ValueError("ItemCF requires neighbors and similarity grids")
     settings = list(itertools.product(base.grid["similarity"], base.grid["neighbors"]))

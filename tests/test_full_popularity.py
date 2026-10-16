@@ -5,6 +5,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from music_recsys.configuration import load_settings
+
 
 @pytest.mark.parametrize(
     "model,basis",
@@ -23,7 +25,7 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, mo
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = json.loads(Path("configs/popularity-plays.json").read_text())
+    raw = load_settings(Path("configs/popularity-plays.json"))
     raw["model"] = {"name": model, "parameters": {"basis": basis} if basis else {"neighbors": 3}}
     if model == "als":
         raw["model"]["parameters"] = dict(

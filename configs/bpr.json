@@ -1,0 +1,23 @@
+{
+  "extends": "common.json",
+  "experiment": {
+    "name": "music4all-bpr",
+    "output": "../data/experiments/bpr"
+  },
+  "model": {
+    "name": "bpr",
+    "parameters": {
+      "iterations": 30,
+      "learning_rate": 0.01,
+      "regularization": 0.01,
+      "memory_budget_mb": 4096,
+      "use_gpu": true
+    }
+  },
+  "search": {
+    "max_trials": 4,
+    "grid": {
+      "factors": [32, 64, 128, 256]
+    }
+  }
+}

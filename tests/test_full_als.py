@@ -54,3 +54,54 @@ def test_sparse_als_matches_event_model_and_is_order_independent(tmp_path, trans
         FullALS(path, factors=100000, memory_budget_mb=1)
     with pytest.raises(ValueError, match="confidence_transform"):
         FullALS(path, confidence_transform="invalid")
+
+
+def test_gpu_als_matches_small_dense_solution(tmp_path):
+    import os
+
+    if os.environ.get("MUSIC_RECSYS_TEST_GPU") != "1":
+        pytest.skip("GPU test requires explicit MUSIC_RECSYS_TEST_GPU=1")
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from music_recsys.recommenders.full_als import FullALS
+
+    path = tmp_path / "learning.parquet"
+    pq.write_table(
+        pa.Table.from_pylist(
+            [
+                dict(user_id=u, item_id=i, play_count=n)
+                for u, i, n in [("u", "a", 10), ("u", "b", 1), ("v", "b", 2), ("v", "c", 5)]
+            ]
+        ),
+        path,
+    )
+    params = dict(factors=3, iterations=2, seed=42, progress=lambda _: None)
+    cpu = FullALS(path, **params)
+    gpu = FullALS(path, **params, use_gpu=True, cg_steps=20)
+    np.testing.assert_allclose(gpu.user_factors, cpu.user_factors, rtol=0.002, atol=0.002)
+    np.testing.assert_allclose(gpu.item_factors, cpu.item_factors, rtol=0.002, atol=0.002)
+    assert gpu.rank("u", {"a", "b"}, "new") == ["c"]
+    assert set(gpu.rank("u", {"a", "b"}, "repeat")) == {"a", "b"}
+    large = FullALS(path, factors=512, iterations=2, use_gpu=True, progress=lambda _: None)
+    assert np.isfinite(large.item_factors).all()
+    assert large.execution["training_device"] == "cuda"
+
+
+@pytest.mark.parametrize("task", ["new", "repeat"])
+def test_partial_ranking_matches_full_sort_including_ties(task):
+    from music_recsys.recommenders.full_als import FullALS
+
+    rng = np.random.default_rng(19)
+    model = FullALS.__new__(FullALS)
+    model.items = np.array([f"i{i:04}" for i in range(200)])
+    model.index = {item: i for i, item in enumerate(model.items)}
+    model.users = {"u": 0}
+    model.user_factors = np.array([[1.0]])
+    model.item_factors = rng.integers(0, 4, (200, 1)).astype(float)
+    model.plays = rng.integers(1, 20, 200)
+    history = set(model.items[:100])
+    candidates = np.arange(100) if task == "repeat" else np.arange(100, 200)
+    scores = model.item_factors[candidates, 0]
+    expected = candidates[np.lexsort((candidates, -model.plays[candidates], -scores))[:20]]
+    assert model.rank("u", history, task) == model.items[expected].tolist()

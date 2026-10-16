@@ -34,7 +34,7 @@ def atomic_json(path, value):
 
 @lru_cache(maxsize=2)
 def _cached(path, mtime, size):
-    return json.loads(Path(path).read_text())
+    return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
 def read_document(path):
@@ -56,7 +56,7 @@ def read_value(path):
     path = Path(path)
     if path.name == "study.json" and not path.exists() and (path.parent / "result.json").exists():
         return read_value(str(path.parent / "result.json") + "#/study")
-    return json.loads(path.read_text())
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def exists(path):
@@ -150,9 +150,9 @@ def compact(config, *, output=None, migrate=False):
         atomic_json(output / "final-test.json", final)
     log_text = ""
     if (source / "run.log").exists():
-        log_text = (source / "run.log").read_text()
+        log_text = (source / "run.log").read_text(encoding="utf-8")
     for log in sorted((source / "logs").glob("*.log")):
-        log_text += f"\n[{log.name}]\n" + log.read_text()
+        log_text += f"\n[{log.name}]\n" + log.read_text(encoding="utf-8")
     if log_text or not (output / "run.log").exists():
         (output / "run.log").write_text(log_text)
     if same:

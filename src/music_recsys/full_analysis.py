@@ -8,20 +8,21 @@ def is_full(config):
     path = config.output / "config.json"
     return (
         path.exists()
-        and json.loads(path.read_text()).get("format") == "music-recsys-full-config-v1"
+        and json.loads(path.read_text(encoding="utf-8")).get("format")
+        == "music-recsys-full-config-v1"
     )
 
 
 def read_result(config):
     from music_recsys.listening_data import file_sha256, read_bundle
 
-    saved = json.loads((config.output / "config.json").read_text())
+    saved = json.loads((config.output / "config.json").read_text(encoding="utf-8"))
     if saved["settings"] != json.loads(json.dumps(asdict(config), default=str)):
         raise ValueError("保存結果と現在の設定が異なります")
     manifest, _ = read_bundle(config.validation_dataset)
     if saved["manifest"] != manifest or saved["features_sha256"] != file_sha256(config.features):
         raise ValueError("保存結果と現在の入力が異なります")
-    return json.loads((config.output / "result.json").read_text())
+    return json.loads((config.output / "result.json").read_text(encoding="utf-8"))
 
 
 def curves(config):
