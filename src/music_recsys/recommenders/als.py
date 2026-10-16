@@ -3,13 +3,26 @@
 from music_recsys.recommenders.factors import FactorModel, integer, number
 
 
-def als_solve(other_factors, observed, *, alpha: float, regularization: float, gram=None):
+def als_solve(
+    other_factors,
+    observed,
+    *,
+    alpha: float,
+    regularization: float,
+    gram=None,
+    confidence_transform="linear",
+):
     import numpy as np
 
     n = other_factors.shape[1]
     indices = [i for i, _ in observed]
     rows = other_factors[indices]
-    confidence = 1 + alpha * np.array([count for _, count in observed], dtype=float)
+    counts = np.array([count for _, count in observed], dtype=float)
+    if confidence_transform == "log1p":
+        counts = np.log1p(counts)
+    elif confidence_transform != "linear":
+        raise ValueError("confidence_transform must be linear or log1p")
+    confidence = 1 + alpha * counts
     a = (other_factors.T @ other_factors if gram is None else gram) + regularization * np.eye(n)
     a = a + (rows.T * (confidence - 1)) @ rows
     return np.linalg.solve(a, rows.T @ confidence)
@@ -26,10 +39,13 @@ class ALSRecommender(FactorModel):
         regularization: float = 0.1,
         seed: int = 0,
         memory_budget_mb: float = 512,
+        confidence_transform: str = "linear",
     ) -> None:
         integer(iterations, "iterations")
         number(alpha, "alpha")
         number(regularization, "regularization", positive=True)
+        if confidence_transform not in {"linear", "log1p"}:
+            raise ValueError("confidence_transform must be linear or log1p")
         super().__init__(
             interactions, factors=factors, seed=seed, memory_budget_mb=memory_budget_mb
         )
@@ -50,6 +66,7 @@ class ALSRecommender(FactorModel):
                                 alpha=alpha,
                                 regularization=regularization,
                                 gram=gram,
+                                confidence_transform=confidence_transform,
                             )
                 if (
                     not np.isfinite(self.user_factors).all()

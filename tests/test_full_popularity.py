@@ -6,22 +6,29 @@ import numpy as np
 import pytest
 
 
-@pytest.mark.parametrize("basis", ["play_count", "user_count"])
-def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, basis):
+@pytest.mark.parametrize(
+    "model,basis",
+    [("popularity", "play_count"), ("popularity", "user_count"), ("itemcf", None), ("als", None)],
+)
+def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, model, basis):
     from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
     from music_recsys.evaluation.tracking import TrackingConfig
     from music_recsys.experiment_search import load_study_config
     from music_recsys.features import load_features
     from music_recsys.full_popularity import run
     from music_recsys.listening_data import load_listening_dataset
-    from music_recsys.recommenders.popularity import PopularityRecommender
+    from music_recsys.recommenders import create_recommender
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
     raw = json.loads(Path("configs/popularity-plays.json").read_text())
-    raw["model"]["parameters"] = {"basis": basis}
+    raw["model"] = {"name": model, "parameters": {"basis": basis} if basis else {"neighbors": 3}}
+    if model == "als":
+        raw["model"]["parameters"] = dict(
+            factors=4, iterations=3, alpha=10.0, regularization=0.1, confidence_transform="log1p"
+        )
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(bundle / "test"),
@@ -39,9 +46,9 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, ba
     )
     report = run_listening_benchmark(
         data,
-        PopularityRecommender(data.train_interactions, basis=basis).recommend,
+        create_recommender(model, data.train_interactions, parameters=config.parameters).recommend,
         config=config.evaluation,
-        model_name="popularity",
+        model_name=model,
         features=features,
         tracking=TrackingConfig(enabled=False),
     )

@@ -40,7 +40,7 @@ def create_recommender(
     if model in {"als", "bpr"}:
         parameters = parameters or {}
         allowed = {"factors", "iterations", "regularization", "memory_budget_mb"}
-        allowed |= {"alpha"} if model == "als" else {"learning_rate"}
+        allowed |= {"alpha", "confidence_transform"} if model == "als" else {"learning_rate"}
         if set(parameters) - allowed:
             raise ValueError(f"unknown {model} parameters")
         if model == "als":
