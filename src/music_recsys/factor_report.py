@@ -18,7 +18,7 @@ def build_report(config, paths, compare=()):
     import matplotlib.pyplot as plt
     import pandas as pd
 
-    from music_recsys.evaluation_figures import ACCURACY_NAMES
+    from music_recsys.evaluation_figures import ACCURACY_NAMES, factor_figures
 
     expanded = list(paths)
     for path in compare:
@@ -120,6 +120,11 @@ def build_report(config, paths, compare=()):
                 fig.savefig(output / filename, dpi=160)
                 plt.close(fig)
                 names.append(filename)
+        for name, figure in factor_figures(
+            frame, config.model, config.evaluation.primary_window_days
+        ).items():
+            figure.savefig(output / f"{name}.png", dpi=160)
+            plt.close(figure)
         atomic_json(
             output / "config.json",
             dict(

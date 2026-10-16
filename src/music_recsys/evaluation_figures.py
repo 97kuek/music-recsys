@@ -9,6 +9,76 @@ ACCURACY_NAMES = {
 }
 
 
+def factor_figures(frame, model, window_days):
+    """Readable within-model comparisons; no baseline selection or metric changes."""
+    import matplotlib.pyplot as plt
+
+    figures = {}
+    styles = [
+        ("#0072B2", "-", "o"),
+        ("#D55E00", "--", "s"),
+        ("#009E73", "-.", "^"),
+        ("#CC79A7", ":", "D"),
+    ]
+    rows = frame[frame.model == model]
+    for task, metric, name, title in (
+        ("discovery", "binary_ndcg", "binary_ndcg_factors", "Binary NDCG@K"),
+        ("discovery", "recall", "recall_factors", "Recall@K"),
+        ("repeat", "repeat_recall", "repeat_recall_factors", "Repeat Recall@K"),
+        ("all", "latency_mean", "latency_mean_all_factors", "Recommendation Latency"),
+        ("all", "training_seconds", "training_seconds_all_factors", "Training Time"),
+    ):
+        subset = rows[(rows.task == task) & (rows.metric == metric)].dropna(subset=["mean"])
+        if subset.empty:
+            continue
+        fig, ax = plt.subplots(figsize=(11, 6.5), layout="constrained")
+        if task == "all":
+            subset = subset.sort_values("factors")
+            scale = 1000 if metric == "latency_mean" else 1
+            bars = ax.bar(
+                [str(int(f)) for f in subset.factors],
+                subset["mean"] * scale,
+                color=[styles[i % len(styles)][0] for i in range(len(subset))],
+            )
+            ax.bar_label(bars, fmt="%.3f" if scale == 1000 else "%.1f", fontsize=14, padding=5)
+            ax.set_xlabel("Factors", fontsize=16)
+            ax.set_ylabel("ms / recommendation" if scale == 1000 else "Seconds", fontsize=14)
+            ax.margins(y=0.15)
+        else:
+            for i, (factors, group) in enumerate(subset.groupby("factors", sort=True)):
+                color, line, marker = styles[i % len(styles)]
+                group = group.sort_values("k")
+                ax.plot(
+                    group.k,
+                    group["mean"],
+                    label=f"{int(factors)} factors",
+                    color=color,
+                    linestyle=line,
+                    marker=marker,
+                    markevery=(i % 4, 4),
+                    markersize=6,
+                    linewidth=2.5,
+                )
+            ax.set_xlabel("Recommended tracks (K)", fontsize=16)
+            ax.set_ylabel(
+                title.replace("@K", "") + (" (zoomed scale)" if metric == "binary_ndcg" else ""),
+                fontsize=16,
+            )
+            if metric != "binary_ndcg":
+                ax.set_ylim(bottom=0)
+            ax.set_xticks(range(2, 21, 2))
+            ax.legend(fontsize=14, loc="best")
+        ax.set_title(f"{model.upper()}: {title}", fontsize=22, pad=18)
+        ax.tick_params(labelsize=13)
+        ax.grid(axis="y" if task == "all" else "both", alpha=0.25)
+        caption = f"Validation {window_days} days · identical split and candidate rules"
+        if metric == "latency_mean":
+            caption += "\nGPU latency is batch-amortized; CPU latency is measured per request"
+        fig.supxlabel(caption, fontsize=11)
+        figures[name] = fig
+    return figures
+
+
 def accuracy_figures(frame):
     import matplotlib.pyplot as plt
 

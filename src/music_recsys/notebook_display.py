@@ -120,3 +120,20 @@ def show_metric_group(frame, title, filename):
         title,
         filename,
     )
+
+
+def show_factor_overview(config):
+    """Display the selected factor model before the remaining evaluation aspects."""
+    import pandas as pd
+
+    from music_recsys.evaluation_figures import factor_figures, show_figures
+    from music_recsys.full_analysis import read_result
+
+    report = read_result(config)
+    print("選択モデル内の比較 / Binary NDCG → Recall → Repeat Recall → Latency → 学習時間")
+    print("NDCGの縦軸は差を読み取るため拡大 / GPUレイテンシはバッチ処理時間の按分")
+    show_figures(
+        factor_figures(
+            pd.DataFrame(report["metrics"]), config.model, config.evaluation.primary_window_days
+        )
+    )
