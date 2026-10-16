@@ -1,7 +1,7 @@
 # データ
 
 - 本体・中間生成物・実験結果はGit管理外
-- 取得・再開・保存先の変更は[運用手順](../docs/lab-operation.md)
+- 取得・再開・保存先の変更は[運用手順](../docs/experiment-workflow.md)
 - 保存構成は[実装構成](../docs/architecture.md)、評価入力は[評価仕様](../docs/listening-evaluation.md)
 
 | 出典 | 内容 |

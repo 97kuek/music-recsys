@@ -1,104 +1,145 @@
-# オンライン研究ログ
+# オンライン評価・参加者ログ管理
 
-## 位置付け
+## 対象と現在の境界
 
-`events.py`は同意済みセッションの型とメモリ内検証を提供する
-開発用SQLite・Web API・同意UI・期限削除は[アプリMVP](app-mvp.md)で接続
-研究用の参加者認証・同意取得と保持規程は未確定
-実参加者へ公開する前に、研究計画と運用に沿ってこれらを実装する
-楽曲・推薦・再生の責務は[アプリの共通契約](architecture.md#アプリの共通契約)を参照
-
-## 関連付け
+- 自然な試聴・いいね・スキップと任意の満足度1問を中心に、小規模な被験者内比較を準備する
+- 現在の同意・24時間保持は開発専用、実被験者の収集は保持/削除規程・音源条件・アクセス方針を確定してから開始する
+- 学習ユーザー全員の[オフライン評価](listening-evaluation.md)と、新規参加者の主観評価を分けて管理する
+- 参加者画面にモデル名・パラメータ・推論経路・Validation表を表示しない
+- 公開合成デモはブラウザメモリだけ、MacのSQLiteへ送信しない
 
 ```mermaid
 flowchart LR
-    P[仮名participant_id] --> S[StudySession]
-    C[condition / sequence / period] --> S
-    S --> R[request_id]
-    M[モデル版・戦略版・出典] --> R
-    R --> E[推薦リスト・実測時間]
-    R --> A[表示・再生・スキップ・保存・いいね]
-    R --> Q[質問票の回答・尺度]
+    C[説明・同意版・任意のログ保存] --> P[仮名participant_id / session_id]
+    P --> I[初期選択: 実履歴と分離]
+    I --> R[request_id / 割当条件 / モデル版]
+    R --> T[推薦曲ID・順位・提示時の再生可否]
+    T --> A[playback_id / 表示・再生・停止・スキップ・いいね]
+    A --> Q[任意の満足度1問 / 明示終了]
+    Q --> M[SessionLog]
+    M -->|保存同意あり| D[MacのSQLite / 管理export]
+    M -->|保存同意なし| V[プロセスメモリのみ]
+    D --> X[本人削除 / 保持期限で破棄]
 ```
 
-| 契約 | 保持する情報 |
+## 保存する情報
+
+| 区分 | 主な項目 |
 | --- | --- |
-| StudySession | study/protocol、participant、condition、sequence、period、consent版、開始・保持期限 |
-| RecommendationExecution | 既存要求・応答、モデル・戦略、選択/推論の実測時間 |
-| SessionLogの要求行 | 要求ID、task/top_k、履歴/候補件数、推薦結果、使用量、モデル・戦略・出典 |
-| InteractionEvent | event/request/session ID、時刻、種別、対象曲または回答・尺度 |
+| セッション | session_id・仮名participant_id・study_id・protocol_version・開始時刻・保持期限・同意版 |
+| 実験計画 | plan_sha256・seed・条件一覧・割当order・sequence・period・condition・任意offline_run_ref |
+| プロフィール | 初期選択曲/内部artist ID、推薦時の選択スナップショット、実際に再生したheard_item_ids |
+| 推薦要求 | request_id・goal・effective_task・input_kind・top_k・履歴/候補件数・記録時刻 |
+| 利用モデル | ModelSpecの版・方式・パラメータ・seed・training/catalog/implementation参照 |
+| 選択戦略 | strategy_id・strategy_version・選択モデル版・inference_route |
+| 推薦応答 | response.item_idsの順番が順位、状態・使用量・推薦回数・提示時のplayability |
+| 操作 | event_id・session_id・request_id・kind・対象item_id・サーバー受信時刻 |
+| 再生 | playback_id・position_seconds・listened_seconds |
+| 主観評価 | rating・instrument_id・scale_min/max、現在はsatisfaction-v1の1〜5、任意回答 |
+| レイテンシ | selection_seconds・inference_seconds・response_latency_ms・display_latency_ms |
+| 到達/離脱 | funnelのphase・enter/hidden/visible/exit・period・受信時刻、finished・termination_reason |
 
-- アプリは1セッション内の複数条件をgoalsのperiod/conditionと割当orderで識別する
-- 割付手法・ウォッシュアウト・条件数・質問票は研究計画で決定し、コードで自動決定しない
-- offline_run_refは対応する保存済み実験への任意の参照、数値の同一性を保証するものではない
-- 推薦の生成とimpressionは別事象、画面表示時にimpressionを記録する
-- play/skip/save/likeは対象曲がその推薦に含まれる場合のみ受理する
-- ratingはリスト全体または対象曲に紐づけられ、instrument_idは質問・版を識別する
-- ratingの最小・最大・回答を保存し、異なる質問や尺度を黙って混ぜない
-- クライアント由来時刻をそのまま信用せず、受信側で時刻差と送信者を検証する
+- 操作種別はimpression/play/pause/ended/error/skip/like/rating、過去互換用のsave契約は保持
+- 参加者画面に保存ボタンは置かず、いいね/スキップを記録、いいねでモデルをオンライン更新しない
+- 自由文入力は参加者画面に置かない、研究者APIでも保存の別同意がなければ内容・hashとも残さない
+- 初期選択中の試聴は推薦イベント・heardへ加算せず、現在はその試聴ログも保存しない
+- 生cookie・APIキー・Access JWT/メールを研究ログへ入れない、研究者が設定するModelSpecにも秘密情報を入れない
+- 複数セッションで同一人物を追跡する機能・実名対応表は未実装
 
-## 検証と欠損値
+## 計測と解釈
 
-- 要求は一意、イベントの同一ID・同一内容の再送は重複計上しない
-- 同じイベントIDで内容が異なる場合は拒否する
-- 別セッション・未記録要求・別ユーザーの要求・未来のイベント時刻を拒否する
-- 選択モデル版と実行モデル版が一致することを検査する
-- 失敗した推薦への操作イベントは拒否する
-- nullは未測定のまま保持し、API費用やcall数を0に補完しない
-- input_kindとinference_routeで初期選択・実履歴、fold-in・Popularity補完を区別する
-- 自由文はログ用の任意入力で、現在のFixedStrategyの選択には使用しない
-- 自由文の保存同意がなければ、内容もそのhashも保存しない
-- playback_idとposition_secondsを任意項目として記録する
-- listened_secondsと応答/表示レイテンシは任意計測。リクエスト失敗監視・Agentのステップログは未実装
-- 既存のRecall・NDCG・ILD等の算出コード・正解集合は変更しない
+| 計測 | 解釈・限界 |
+| --- | --- |
+| impression | 推薦生成とは別、カードが見えた時点で記録 |
+| listened_seconds | 再生IDごとの累積進行秒、各IDの最大値を使い、イベントごとの値を足さない |
+| position_seconds | 音源上の位置、seek移動分を試聴時間へ加算しない |
+| response_latency_ms | クライアントのAPI開始から応答まで |
+| display_latency_ms | 同じ開始からカード初回可視まで、後スクロール分は操作待ちも含む |
+| hidden/exit | 非表示・明示終了の観測、通信断やブラウザ強制終了を確実には検出しない |
+| like/skip | 行動の観測、満足/不満足の確定値やオフライン正解の代用品にしない |
 
-## 同意と保存の責務
+- 通信断・未表示・再生不能・未送信は欠測として区別し、0評価で埋めない
+- イベント時刻はWeb APIではサーバー受信時刻、基盤型のoccurred_atは時刻境界を検証する
+- 再生IDはセッション/要求/曲の組へ結び付け、別人・未提示曲への操作を拒否する
+- event_idの同内容再送は重複計上せず、内容が変わる再送を拒否する
+- 初期選択・実履歴・ALS fold-in・BPRのPopularity補完を分けて集計する
+- ログに学習生履歴・候補全ID集合を複製しないため、ログだけで推論を完全再現できるとは限らない
+- 未計測の料金/token/callはnull、Agentステップログ・失敗要求の体系的監視は未実装
 
-`StudySession`は**同意取得済み**の事実を信頼できるサーバー側から渡す内部契約
-consent_versionだけでは同意取得の証明にならない
-本実装前に同意の取得時刻・説明内容・撤回履歴を別途管理する必要がある
-participant_idには仮名を使い、実氏名・メール・配信サービスの認証情報を渡さない
-要求user_idは同じ仮名であることを検査し、第三者のモデル履歴を本人の履歴として扱わない
-実名と仮名の対応が必要なら分析ログとは別の権限領域へ保管する
+## 保存・権限・削除
 
-SessionLogは要求の全履歴・候補ID集合を保存せず、件数のみ残す
-そのため、このログだけでは推論の完全再現はできない
-完全再現が必要なら、同意・保持期限を適用した入力スナップショットの別管理を設計する
-登録するModelSpecのパラメータや出典にも秘密情報を入れない
+| 項目 | 現行実装 |
+| --- | --- |
+| 保存しない場合 | プロセスメモリ内だけ、本人削除/期限/プロセス停止で破棄 |
+| Mac既定 | `~/music-recsys/state/sessions.sqlite`、Docker内は`/state/sessions.sqlite` |
+| Python直接起動 | `--database`で指定、既定`data/app/local.sqlite` |
+| アクセス権 | SQLite/管理exportは0600、管理exportディレクトリ0700、生tokenの代わりにhashを保存 |
+| 保持期限 | 開始から24時間、起動時・操作時・稼働中約60秒ごとに期限削除 |
+| 本人の削除 | 起動画面/画面上部からDELETE /api/session、メモリ・DB・管理exportを削除 |
+| 再起動後 | 元の本人cookieがあれば削除可能、継続セッションの復元は未実装 |
+| 管理者の取得 | Mac上のCLIだけ、未期限切れ・同意済みセッションを一覧/非上書きexport |
 
-- `allow_request_text=False`が既定、自由文の二次利用には別途方針が必要
-- retain_untilは必須、保持日数の既定値を勝手に設定しない
-- `withdraw()`はメモリ内の要求・イベントを消し、以後の追記・取得を拒否する
-- 操作時に保持期限を検査し、期限切れならメモリ内の要求・イベントを消す
-- メモリ内実装には自動タイマーがないため、無操作時の期限到達では自動削除しない
-- exportで返したコピー、バックアップ、別ストアはこのクラスから削除できない
-- 永続化時には認可、暗号化方針、削除ジョブ、撤回の伝播、アクセス記録が必要
-- 新規UIから直接SessionLogを操作させず、認証済みバックエンド経由にする
+- 同意UIの現行説明版はlocal-ui-v3、旧local-ui-v2の開始要求は読込み互換を維持
+- 保存同意と利用開始は分離、説明文の末尾までスクロール後に開始できる
+- 終了は収集停止、削除は撤回として区別し、新しいセッション開始時にも旧本人データを削除する
+- サーバー停止中は削除タイマーが動かない、再起動時に期限切れを削除する
+- `secure_delete=ON`はSQLite内の削除補助であり、SSD・OSバックアップの完全消去保証ではない
+- DBの暗号化・自動バックアップ・管理者アクセス監査は未実装、Mac利用者/管理者のOS権限で保護する
+- exports外へ手動コピーしたファイル・OSバックアップは自動削除できない、分析コピーの保管/削除手順を別途確定する
+- Docker/SQLiteがあるだけでは研究利用の同意取得・認証が完了したことにならない
 
-## 検証手順
-
-```mermaid
-flowchart LR
-    A[合成fixture] --> B[4推薦器の直接実行と共通API比較]
-    B --> C[new / repeat・既存 / 新規ユーザー]
-    C --> D[ログ結合・同意範囲・撤回・期限検査]
-    D --> E[既存テストで評価互換性確認]
-```
+## 管理操作
 
 ```bash
-.venv/bin/pytest -q tests/test_app_foundation.py
+# 個人Mac、アプリ起動中に実行
+bash deploy/mac.sh sessions
+bash deploy/mac.sh export SESSION_ID
+# 保存先: ~/music-recsys/state/exports/SESSION_ID.json
+
+# Pythonでの管理: 所有する既存DBを明示
+.venv/bin/python -m music_recsys.webapp.logs --database /private/sessions.sqlite list
+.venv/bin/python -m music_recsys.webapp.logs --database /private/sessions.sqlite export SESSION_ID
 ```
 
-この検証は基盤契約のテストであり、実ユーザー評価・性能ベンチマークではない
+- 管理exportは`music-recsys-log-v1`のJSON、export時刻と元payloadを保持し、既存ファイルを上書きしない
+- DB削除/期限削除は同じ管理領域のUUID.jsonにも伝播し、削除とexportの競合でデータを復活させない
+- 管理CLIやSQLiteをHTTP公開しない、参加者用export APIは研究者向け詳細を除いた本人ログだけを返す
+- 保存先変更・旧OtoLabからの移行・遠隔認証は[アプリ構成](app-architecture.md)
 
-## プレイヤー接続の情報
+## 比較実験
 
-play/pause/ended/errorとplayback_id、再生位置を追加済み
-listened_secondsは再生IDごとの累積進行時間。各IDの最大値を使い、イベントごとに足し合わせない
-request_idだけでは同じ推薦曲を複数回試聴したケースを識別できないためplayback_idが必要
-タイムラインの位置と実再生秒数は分け、seekで飛ばした区間を再生時間に数えない
-skipは明示操作、自然終了・通信失敗・タブ非表示と区別し、不満足の確定値へ変換しない
-impressionと試聴機会を分母にし、未表示・再生不能・未測定を0評価に補完しない
-通信断による未送信分は欠測。計測値だけで実際に聴いたことを証明しない
-アンケートは任意のセッション末尾評価等に抑え、操作ログを満足度の正解そのものとはみなさない
-再生元の条件は[再生方式](catalog-poc.md)、アプリ操作は[モデル配信](model-serving.md)を参照
+| 揃える条件 | 現行・準備内容 |
+| --- | --- |
+| 入力 | 同じ初期プロフィール、後の条件へ途中再生による嗜好変化を持ち越さない |
+| 候補 | 全条件の共通学習カタログ、表示メタデータと許諾音源が揃う曲 |
+| 提示 | 同じK・プレイヤー・試聴長・質問/尺度、モデル名は秘匿 |
+| 順序 | 仮名IDとseedによる再現可能なランダム順、少人数の均等割付は未実装 |
+| 呼出し | 各条件1要求、再送は同じ推薦を再利用、Agent再推薦は別の明示予算 |
+| 経路 | required_routeが不一致なら提示を拒否、BPR補完をBPRとして評価しない |
+
+```json
+{
+  "protocol_id": "demo-ux-only",
+  "seed": 42,
+  "top_k": 5,
+  "conditions": [
+    {"condition_id": "a", "version": "demo-itemcf", "required_route": "itemcf_history"},
+    {"condition_id": "b", "version": "demo-als", "required_route": "als_fold_in_binary_seeds"}
+  ]
+}
+```
+
+- 上記は合成デモの操作計画、採用モデル・本実験の確定条件ではない
+- 起動は`--study <計画JSON>`、現在の比較モードはcold-startの未聴推薦、Repeat/混合総合の比較は未実装
+- 参加者APIからモデルや条件を選べず、研究者画面は別プロセスの`--audience researcher`
+- `/api/comparison`・OpenAPI・モデル詳細は参加者に公開せず、外部認証付き研究者起動を拒否する
+- 同じ曲の再提示・順序効果を秘匿だけでは解消しない、休憩・割付表・曲の重複方針を研究者が決める
+
+## 研究開始までの判断
+
+- 実施目的・対象者・任意参加/撤回・保持期間・分析者・保管場所・コピー/バックアップ削除方法を説明文にする
+- 音源取得条件と招待者へのWeb試聴許諾を確認し、Macの参加者認証を通して動作検証する
+- 3〜5人の予備実験は操作理解・負担・欠測を調べる段階、一般的な性能差や有意差を断定しない
+- オフライン実験へはmodel manifest・training_ref・catalog_ref・offline_run_ref・計画hashで関連付ける
+- 音源条件で候補が狭まったオンライン結果と全カタログのオフライン値を同一視しない
+- 中間/最終報告までの目標・未許諾時の分岐は[研究計画](research-plan.md)

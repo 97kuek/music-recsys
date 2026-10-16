@@ -1,24 +1,11 @@
 # music-recsys
 
-音楽推薦システムの研究用実装
-従来モデルを共通条件で検証し、LLM・Agentの追加効果を比較するための基盤
-music-recsysの音楽推薦MVP（React＋TypeScript＋FastAPI）に対応、LLM・Agentは未実装
+- [English](README.en.md)
+- 従来型推薦・LLM/Agentによる戦略選択を比較する音楽推薦の研究用リポジトリ
+- Python 3.12・uv・Parquetによるオフライン評価、React＋TypeScript＋FastAPIの試聴MVP
+- LLM/Agentは未実装、Music4All実音源は提供・試聴条件の回答待ち、公開画面は合成デモ
 
-## 現在の構成
-
-- Python 3.12・uv・srcレイアウト
-- Popularity / ItemCF / UserCF / ALS / BPR / Content / Hybrid
-- Music4All-Onion v2の再生履歴・タグを使用
-- 研究室での標準運用はParquet・JSON・SQLite、Docker・管理者権限不要
-- listening-v2で未聴曲の発見・定着の代理指標・既聴曲の再聴を評価
-- 共通RunnerがSmoke・Validation探索・選択・確認・固定・Testを管理
-- 全学習ユーザーのPopularity / ItemCF / Implicit ALS / BPR Validationに対応、選択用主指標と最終Testは別段階
-- ALSのfactors別・既存手法との比較は[モデルと実行方法](docs/models.md#標準parquet経路のimplicit-als)を参照
-
-- BPRの4因子数比較は[モデルと実行方法](docs/models.md#標準parquet経路のbpr)を参照
-- [アプリMVP](docs/app-mvp.md)でプロフィール・推薦・デモ試聴・同意付きローカルログを接続、実音源は未接続、[Cloudflare公開デモ](docs/cloudflare.md)は合成音源で操作可能
-
-## 開始
+## 始める
 
 ```bash
 uv sync --locked --group data --group models --group notebook --group tracking
@@ -27,39 +14,41 @@ uv sync --locked --group data --group models --group notebook --group tracking
 .venv/bin/jupyter lab --no-browser --ip=127.0.0.1 --port=8888
 ```
 
-Notebookの選択欄でJSONを選び「読み込む」を押す / 初期状態は未選択
-全件Popularityには `popularity-plays.json` を選択
-共通設定と各モデルの入口は[実験設定一覧](docs/architecture.md#実験設定)を参照
-
-長時間処理のtmux起動・SSH接続は[研究室の運用](docs/lab-operation.md)を参照
-データ準備完了の目印は `data/benchmarks/music4all/ready.json`
-
-| Notebook | 用途 |
-| --- | --- |
-| [00_lab_start](notebooks/00_lab_start.ipynb) | 準備状態確認・全件Popularityの手動開始 |
-| [01_data](notebooks/01_data.ipynb) | 入力・観測分布・分割の確認 |
-| [02_analysis](notebooks/02_analysis.ipynb) | 結果分析・設定選択・固定・最終比較 |
-| [03_recommendation](notebooks/03_recommendation.ipynb) | 選択設定のValidation推薦を確認 |
+- 研究室の標準経路は`lab_data → Parquet → CLI評価 → Notebook確認`、Docker・sudo・常駐DBは不要
+- Notebookで同じ実験JSONを明示選択して「読み込む」、初期状態は未選択
+- 全学習ユーザー・K=2〜20・4観点で比較し、Validationでの比較と最終Testを分ける
+- 学習前にホスト`nvidia-smi`を確認、空きGPUを優先、採用モデルや主指標を自動確定しない
 
 ## 文書
 
-| 文書 | 内容 |
+| 読みたい内容 | 文書 |
 | --- | --- |
-| [考察](docs/discussion.md) | 各方式の観測結果・仮説・LLM/Agentによる戦略選択の研究案 |
-| [構成](docs/architecture.md) | モジュール・保存物・データの流れ |
-| [Macでの運用](docs/mac-study.md) | Docker・配信成果物移行・参加者限定の遠隔接続 |
-| [研究室の被験者実験準備](docs/lab-study.md) | Music4All音源・実モデル・実験ログ・研究室配置 |
-| [music-recsys配信](docs/cloudflare.md) | ブランド・Cloudflare・環境分離・ホスティング費用 |
-| [オンライン予備実験](docs/online-pilot.md) | 固定画面・プレイヤー・条件秘匿・行動ログ |
-| [アプリMVP](docs/app-mvp.md) | React画面・API・起動・実モデルとデモ・検証 |
-| [モデル配信](docs/model-serving.md) | 全件モデルexport/load・新規ユーザー・UI接続の準備 |
-| [Jamendo実曲モード](docs/jamendo.md) | API登録・100曲検証・Content推薦と試聴接続 |
-| [楽曲カタログと再生元](docs/catalog-poc.md) | Music4Allと外部サービス・照合PoC・利用条件 |
-| [オンライン研究ログ](docs/online-study.md) | セッション・行動・主観評価・同意と保存の境界 |
-| [運用](docs/lab-operation.md) | 環境・取得・接続・再開・保管 |
-| [検証手順](docs/experiment-workflow.md) | Notebook・CLI・状態遷移 |
-| [評価仕様](docs/listening-evaluation.md) | 候補・正解・指標・集計・制限 |
-| [モデル](docs/models.md) | 学習・スコア・探索パラメータ |
-| [任意のDB機能](docs/optional-storage.md) | PostgreSQL・取り込み・分割の接続口 |
-| [開発](CONTRIBUTING.md) | 依存・テスト・変更管理 |
-| [エージェント指示](AGENTS.md) | 作業ルール・文書とNotebookの書式 |
+| 推薦器・共通API・将来のLLM/Agent | [推薦システムのアーキテクチャ](docs/architecture.md) |
+| コード構成・Notebook/CLI・保存先・開発 | [コード構成・実行フロー](docs/experiment-workflow.md) |
+| UI/API・楽曲/モデル配置・Mac Docker・公開デモ | [アプリ全体のアーキテクチャ](docs/app-architecture.md) |
+| 取得ログ・同意・保存/管理・削除・被験者比較 | [オンライン評価](docs/online-study.md) |
+| 正解/候補・Recall/NDCG・多様性・効率・欠測 | [オフライン評価指標](docs/listening-evaluation.md) |
+| 11月末の中間報告・1月末頃の最終報告 | [研究計画](docs/research-plan.md) |
+| 既存実験の観測・仮説 | [考察](docs/discussion.md) |
+
+## Notebook
+
+| Notebook | 用途 |
+| --- | --- |
+| [00_lab_start](notebooks/00_lab_start.ipynb) | 入力準備・状態・明示した評価開始 |
+| [01_data](notebooks/01_data.ipynb) | 時系列分割・母集団・再生分布 |
+| [02_analysis](notebooks/02_analysis.ipynb) | 保存結果の4観点比較・明示選択/固定 |
+| [03_recommendation](notebooks/03_recommendation.ipynb) | 選択済み小規模条件の推薦・根拠確認 |
+
+## アプリ・データ保護
+
+- [公開合成デモ](https://musicrecsys.pages.dev) / 実モデル・実曲の試聴環境とは別
+- Mac版はZIPを展開して`bash deploy/mac.sh start`、Docker Desktopが必要
+- 参加者ログは任意同意時だけMacの`~/music-recsys/state/sessions.sqlite`へ開発用24時間保存
+- 研究室の外部公開・ポート開放は禁止、遠隔参加は個人Macの認証付き運用を別途設定する
+- 生データ・音源・モデル・個別結果・ログ・認証情報はGit管理外、[作業ルール](AGENTS.md)に従う
+
+## ライセンス
+
+- 本リポジトリの原著コード・文書は[MIT License](LICENSE)、適用範囲と第三者資料は[NOTICE](NOTICE)
+- データセット・音源・画像・学習済み成果物・参加者ログはMIT対象外、それぞれの提供条件に従う

@@ -1,130 +1,127 @@
-# 現在の構成
+# 推薦システムのアーキテクチャ
 
-## データと評価の流れ
+## 責務と境界
 
-```mermaid
-flowchart LR
-    Z[Music4All-Onion v2] --> R[raw: 元TSVと配布情報]
-    R --> L[lab_data / music4all]
-    L --> P[全量events.parquet]
-    P --> C[Train観測全ユーザーの履歴]
-    C --> T[temporal: 時系列分割]
-    T --> E[listening_export: 観測集計]
-    E --> B[Validation / Test bundle]
-    R --> F[タグ特徴JSON]
-    B --> S[full_evaluation / 小規模experiment_search]
-    F --> S
-    S --> M[recommenders]
-    M --> V[Evaluator]
-    V --> O[結果JSON / CSV / MLflow SQLite]
-    O --> N[Notebookで分析]
-```
-
-## モジュール
-
-| 場所 | 責務 |
-| --- | --- |
-| `full_evaluation.py` / `streaming_metrics.py` | 集約履歴の順次読込み・全件Popularity/ItemCF/ALS/BPR評価 |
-| `recommenders/full_factors.py` | ALS/BPRの学習Parquet読込み・候補制約・同点順位の共通処理 |
-| `recommenders/full_als.py` / `full_bpr.py` | 各モデルのCPU/GPU学習 |
-| `recommenders/gpu_runtime.py` | GPU空き確認・実行環境の記録 |
-| `grid.py` | ItemCF近傍・類似度とALS/BPR因子数の順次実行・設定展開・再利用 |
-| `comparison.py` | 比較元の出典照合・指標抽出・完了後のレポート公開 |
-| `factor_report.py` / `itemcf_report.py` | 因子数比較・ItemCF比較の描画 |
-| `full_scoring.py` / `gpu_evaluation.py` / `gpu_metrics.py` | CPU参照評価・GPUバッチ順位・全指標・bootstrap |
-| `full_io.py` | 共通の逐次入力・Parquet書込み |
-| `full_analysis.py` | 全件の母集団・保存結果の読込み |
-| `notebook_config.py` | 設定選択UI・明示的な読込み・変更検知 |
-| `configuration.py` | 共通設定の継承・定義元を基準とするパス解決 |
-| `lab_data.py` | 取得・照合・ファイル保存のみのコホート生成 |
-| `music4all.py` | 全量Parquet変換・全量EDA |
-| `temporal.py` | 時刻境界による分割・読戻し検証 |
-| `listening_export.py` / `listening_data.py` | v2入力の生成・hashと観測整合性の検証 |
-| `features.py` | 重み付きタグ特徴・checksum |
-| `recommenders/` | 7モデルの学習・推薦・説明 |
-| `candidates.py` / `types.py` | 共通要求・応答・候補の判定 |
-| `catalog.py` | 既存IDを維持した外部楽曲参照・文脈別の再生可否・Adapter契約 |
-| `model_artifacts.py` / `recommenders/deployed.py` | [全件モデルの配信](model-serving.md)、検証付き保存・学習なしの推論 |
-| `profiles.py` | 初期選択と実履歴の区別・曲/artist選択の入力変換 |
-| `serving.py` | ModelSpec・Strategy・RecommendationService、登録済み推薦器の選択と推論 |
-| `events.py` | 同意済みセッションのメモリ内ログ、[制約と保存設計](online-study.md) |
-| `evaluation/` | 精度・多様性・効率の評価、追跡 |
-| `experiment_search.py` / `search_protocols.py` | 探索・再利用・選択・確認・固定・Test |
-| `search_analysis.py` / `listening_analysis.py` | 保存結果の分析・可視化 |
-| `recommendation_inspection.py` | 選択設定の個別推薦・根拠・音源確認 |
-| `ingestion/` / `adapters/` / `temporal_cli.py` | 任意のDB経路、[接続手順](optional-storage.md) |
-
-## アプリの共通契約
-
-モジュラーモノリスを維持し、データ取得・学習・推薦戦略・順位付け・再生・ログを分離する
-既存のMusic4All item_id、学習済みindex、実験JSONと指標計算は変更しない
-
-| 契約 | 現在の責務・制約 |
-| --- | --- |
-| TrackRef / CatalogTrack | providerとsource_idを内部item_idへ対応付ける。出典revisionを保持し、同一参照の二重割当てを拒否 |
-| TrackLink | 同一録音・バージョンを確認した外部参照だけを追加。曲名・ISRCだけで自動統合しない |
-| CatalogAdapter / TrackCatalog | 表示メタデータと文脈別PlaybackAvailabilityを返す。unknown・期限切れは再生成功と扱わない |
-| RecommendationRequest / Response | 候補・実履歴・top_kの既存契約。初期選択はprofiles.pyで別入力として明示変換 |
-| ModelSpec | モデル版・アルゴリズム・不変のパラメータJSON・seed・学習/カタログ/コードの出典 |
-| Strategy | 登録済み推薦器を選択する。現在は固定選択、LLM・Agentによる選択は未実装 |
-| RecommendationService | 学習せず推論し、応答ID・重複・top_k・候補制約を検査。選択時間と推論時間を別計測 |
-| Playback Adapter | 試聴開始時の音源解決、期限・許諾・失敗の判定。認証トークンを公開メタデータへ保存しない |
-| SessionLog | 推薦要求・条件・モデル版と操作イベントを関連付ける。オフライン評価とは別の保存層 |
-
-全件モデルはDeployedRecommenderで共通recommend契約へ接続し、実モデルとmanifestをロード時に照合する
-新規楽曲のCatalog登録だけでは既存ALS/BPRの因子を追加しない
-新規ユーザー・fold-in・フォールバックは[モデル配信](model-serving.md)を参照
-録音の対応表永続化・新規ID採番・Agentの複数ステップ制御は未実装
-現在の楽曲データと再生元は[カタログ](catalog-poc.md)、同意と保存境界は[オンラインログ](online-study.md)を参照
-
-## 保存物
-
-| 場所 | 内容 |
-| --- | --- |
-| `data/raw/music4all-onion-v2/` | 元TSV.bz2・record.json・取得途中の.part |
-| `data/processed/music4all-onion-v2/` | 全量Parquet・変換manifest |
-| `data/benchmarks/music4all/` | 履歴・分割・v2入力・features.json・ready.json |
-| `data/experiments/` | 試行・結果・ログ・tracking.db |
-| `configs/popularity-plays.json` | 全件Popularityの設定 |
-| `tests/fixtures/configs/workflow-suite-*.toml` | 合成データで7モデルを確認する設定 |
-| `tests/fixtures/examples/` | 自動テスト・明示した操作確認用の合成fixture |
-
-## 実験設定
-
-`configs/common.json`にデータパス・評価期間・K・seedを集約し、各実験JSONは`extends`で参照する。
-辞書はキー単位で上書き、配列・値は置換する。相対パスはその値を書いたJSONを基準に解決する。
-共通設定は実行対象ではない。CLIとNotebookは同じ解決済み設定を使う。
-CLIは単一条件が`music_recsys.full_evaluation`、Grid探索が`music_recsys.grid`に統一する。
-
-| 設定 | 出力先（`data/experiments/`以下） |
-| --- | --- |
-| `configs/popularity-plays.json` / `popularity-users.json` | `popularity-plays/` / `popularity-users/` |
-| `configs/itemcf.json` | `itemcf/`と6条件の`itemcf-{similarity}-{neighbors}/` |
-| `configs/als.json` | `als/`と`als-{32,64,128}/` |
-| `configs/als/256.json` / `512.json` | `als-256/` / `als-512/` |
-| `configs/bpr.json` | `bpr/`（他方式との比較も含む）と`bpr-{32,64,128,256}/` |
+- 対象は推薦の学習・候補制約・戦略選択・順位付け・評価
+- UI・音源配信・配置は[アプリ全体](app-architecture.md)、コードと保存先は[実行フロー](experiment-workflow.md)
+- モジュラーモノリスを維持し、推薦器と推薦戦略を分離する
+- Music4Allの既存item_id・実験結果・学習index・Pythonパッケージ名を維持する
 
 ```mermaid
 flowchart LR
-    C[common.json] --> E[実験JSONの差分]
-    E --> R[CLI / Notebookで同じ設定を解決]
-    R --> G[Grid条件を自動展開]
-    G --> S[config.jsonに実行条件を固定して保存]
-    S --> V[結果と出典を照合して表示]
+    T[学習期間の履歴] --> B[バッチ学習]
+    F[学習カタログの特徴] --> B
+    B --> M[学習済み推薦器 / ModelSpec]
+    U[要求・初期選択・実履歴] --> C[候補制約 new / repeat]
+    C --> S[Strategy: 登録済みモデルを選択]
+    M --> S
+    S --> R[RecommendationService]
+    R --> O[順位付き曲ID・経路・使用量]
+    O --> E[Evaluator]
+    V[Validation / Testの観測] --> E
+    O --> L[オンライン研究ログ]
 ```
 
-- Gridが生成する`configs/itemcf/`・`configs/bpr/`・ALS 32/64/128は手編集しない
-- 生成済み設定は保存結果から参照されるため保持する。Notebookではチェック欄で詳細条件を表示する
-- 共通設定変更もNotebookの再読込み対象。保存済み実験と異なる設定で結果を表示しない
-- `data/provenance/`は移行前の設定・出典・ログの保管先。通常の実験一覧には含めない
+- 推薦器へ渡すのは学習由来の状態・要求・候補のみ
+- 将来の正解はEvaluatorだけが読み、候補選択や負例抽出へ渡さない
+- newは学習カタログの本人未聴曲、repeatは本人既聴曲に制限する
+- 初期選択と実際の再生履歴は別入力とし、初期選択をRepeat Recallの正解にしない
 
-## 保存と再現性
+## 推薦器
 
-- 元ファイルは配布サイズ・MD5、加工物はSHA-256で照合
-- 完了したファイル一式を公開し、途中生成物を完了扱いにしない
-- `ready.json` はファイル経路の完了目印、DBのsnapshot公開とは別の仕組み
-- ファイル経路のsnapshot / split IDは内容由来の識別子、DB用UUIDとして渡さない
-- 実験はデータ・特徴・処理コード・依存lock・設定・seedを記録
-- binary-v1のJSON入力とReaderも実装されているが、研究室の標準入力はlistening-v2
-- 合成fixtureはテスト・明示した操作確認用で、Notebookから暗黙に読み込まない
-- LLM・Agentは未実装、実測使用量を受け取る型のみ存在
+| 方式 | 学習・順位付け | 実装範囲 |
+| --- | --- | --- |
+| Popularity | 学習総再生回数またはユニーク再生ユーザー数 | 小規模・全件評価・配信 |
+| ItemCF | 二値曲共聴のCosine/Jaccard、履歴曲の上位近傍スコア和 | 小規模・全件評価・配信 |
+| BM25 ItemCF | 再生回数をBM25重みへ変換した曲内積、履歴近傍スコア和 | 全件評価・ItemCF形式の配信 |
+| UserCF | 本人を除く類似ユーザーの既聴曲へ近傍重みを加算 | 小規模共通Runner |
+| Implicit ALS | 信頼度付き行列分解、ユーザー・楽曲因子の内積 | 小規模・全件CPU/GPU・配信 |
+| BPR-MF | 観測正例を未観測負例より高くするペア学習、因子内積 | 小規模・全件CPU/GPU・配信 |
+| Content | 学習カタログのタグTF-IDFと履歴プロファイルのCosine | 小規模・全件GPU評価・Jamendoタグ配信 |
+| Hybrid | ItemCF/UserCFとContentの順位を重み付きRRFで融合 | 小規模共通Runner |
+
+- Contentの曲類似は聴取履歴由来のItemCFと区別する
+- MTG-Jamendo/FMAの曲特徴だけではユーザー×楽曲履歴を作れない
+- 楽曲統計・タグ頻度を、ユーザー履歴のPopularity/協調フィルタと読み替えない
+- 同点は原則として学習再生回数降順・item_id昇順、Popularityはスコア降順・item_id昇順
+- 根拠不足のPopularity補完と実際の推論経路を記録し、方式固有の成果として数えない
+
+## モデルごとの重要な条件
+
+| 方式 | 現行の全件設定・制約 |
+| --- | --- |
+| ItemCF | cosine/jaccard × neighbors=20/50/100、履歴を二値化、自己近傍を除外 |
+| BM25 | K1=1.2、B=0.75、neighbors=20、曲共起を128曲ブロック処理、推論履歴は二値 |
+| ALS | factors=32/64/128/256/512、iterations=20、alpha=10、regularization=0.1、seed=0 |
+| ALS信頼度 | 既定は `c_ui=1+alpha*log1p(n_ui)`、`p_ui=1[n_ui>0]`、未観測の信頼度1を含む |
+| ALS数値解法 | CPUはfloat64直接解法、512のGPUはfloat32共役勾配・cg_steps=20、差を因子数だけの効果にしない |
+| BPR | implicit 0.7.2、factors=32/64/128/256、iterations=30、lr=.01、reg=.01、seed=0、float32 |
+| BPR負例 | 学習CSRの楽曲エントリ由来、既聴負例を棄却して更新スキップ、全曲既聴ユーザーはPopularity補完 |
+| Content | 学習曲だけでIDFを計算、L2正規化した曲特徴をbinary/log_count履歴で集約、欠損を嗜好根拠にしない |
+| Hybrid | CFとContentのRRF、cf_weight・rrf_constant・pool_sizeを明示、未取得成分の寄与は0 |
+
+- 小規模BPRは未聴曲の一様抽出、全件implicit BPRとは負例分布・bias・更新方式が異なる
+- CPU/GPUのsolver・精度・並列更新順の違いを出典へ残し、seed固定でもビット一致を保証しない
+- 長時間計算前にホスト側の`nvidia-smi`を確認し、空いていれば対応GPU実装を優先する
+- 学習だけでなく順位付け・指標集計・bootstrapもGPU化の対象とする
+- 全件Contentの疎行列モデルexportは未実装、既存Jamendo Content配信とは別経路
+
+## 共通契約
+
+| 契約 / 実装 | 責務 |
+| --- | --- |
+| RecommendationRequest / Response | request_id・user_id・履歴・候補・task・top_k / 順位付き曲ID・状態・使用量 |
+| InitialProfile / ProfileRequest | 曲・内部artist IDの初期選択を要求へ変換、実履歴とinput_kindで区別 |
+| ModelSpec | モデル版・アルゴリズム・不変のパラメータ・seed・学習/カタログ/実装の出典 |
+| Strategy / FixedStrategy | 登録済みModelSpecから利用モデルを選択、現在は固定選択 |
+| RecommendationService | 学習せず推薦、応答ID・重複・top_k・候補を検査、選択時間と推論時間を別計測 |
+| DeployedRecommender | 全件モデル配列を共通recommend契約へ接続、fold-in/補完経路を明示 |
+| Evaluator | 同じ候補・正解・期間で4観点を採点、[オフライン評価](listening-evaluation.md)に従う |
+
+## 保存済みモデルとCold-start
+
+- `model_artifacts.export_model/load_model`を使用し、manifest＋NPYで保存、pickleは使わない
+- manifestにModelSpec・学習hash・Git revision・ソース/lock hash・配列hash/shape/dtype・実行環境を保持
+- item順序hash、ファイル集合、有限値、index範囲・重複、manifest hashをロード時に検証する
+- NPYをread-only mmapで開き、推論要求ごとに重みを読み直さない
+- 既存保存先へのexportを拒否、モデル更新は新しい版とディレクトリを使う
+- 過去の評価JSONからALS/BPRの重みを復元することはできない
+
+| 入力 | Popularity | ItemCF/BM25 | ALS | BPR |
+| --- | --- | --- | --- | --- |
+| 既存ユーザー | 保存統計 | 入力履歴の近傍 | 保存ユーザー因子 | 保存ユーザー因子 |
+| 新規ユーザーの初期選択 | 保存統計 | 学習曲の近傍 | 明示有効化したfold-in | 因子適応は未実装、Popularity |
+| 学習外の新曲 | 学習統計なし | 近傍なし | 因子なし | 因子なし |
+
+- ALS fold-inは固定楽曲因子と学習時のalpha/正則化で小さな正規方程式を解く、全モデルの再学習ではない
+- 初期選択を二値重み1で扱うfold-inの推薦品質は別途検証が必要
+- BPR未知ユーザーのPopularity補完をBPRとして比較しない、必要経路の不一致を実験計画で拒否する
+- Catalog登録だけではCFの新曲推薦は増えない、特徴ベース経路またはバッチ再学習が必要
+
+## 将来のオーケストレーション
+
+```mermaid
+flowchart LR
+    Q[同じ要求・候補・情報権限] --> F[固定 / ルール選択]
+    Q --> L[LLM / 軽量意思決定API: 1回選択]
+    Q --> A[Agent: 選択・実行・結果確認・再判断]
+    F --> S[既存Service / 登録済み推薦器]
+    L --> S
+    A --> S
+    S --> A
+    S --> E[同じEvaluator / オンラインログ]
+```
+
+- 現在の実装は固定Strategyまで、ルール選択・LLM・軽量意思決定API・Agentは未実装
+- 単発選択は「どの推薦器/設定を使うか」、Agentは「結果を見て次に何をするか」を比較対象にする
+- 選択候補は検証済み登録モデルに限定、LLMにモデルファイル・DB・音源への任意アクセスを与えない
+- 候補・初期プロフィール・K・呼出し上限・時間/料金予算を揃え、再推薦回数・tool callも測る
+- Agentの複数回推薦と固定方式の1回推薦は、回数予算を含む別条件として明示する
+- 主指標と採用設定を自動確定せず、[研究計画](research-plan.md)に沿って段階的に検証する
+
+## 参考
+
+- [Implicit ALS原論文](https://yifanhu.net/PUB/cf.pdf)
+- [BPR原論文](https://proceedings.mlr.press/r7/rendle09a.html)
+- [implicit近傍・BM25仕様](https://benfred.github.io/implicit/api/models/cpu/knn.html)
+- [RRF原論文](https://research.google/pubs/reciprocal-rank-fusion-outperforms-condorcet-and-individual-rank-learning-methods/)
