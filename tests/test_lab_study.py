@@ -1,0 +1,114 @@
+import json
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
+
+import pytest
+from fastapi.testclient import TestClient
+
+from music_recsys.events import InteractionEvent
+from music_recsys.listening_data import file_sha256
+from music_recsys.webapp.media import prepare
+from music_recsys.webapp.prepare import demo
+from music_recsys.webapp.server import create_app
+
+
+@pytest.fixture(scope="module")
+def bundle(tmp_path_factory):
+    return demo(tmp_path_factory.mktemp("lab-study") / "demo")
+
+
+def test_profile_and_client_measurements_persist_only_with_consent(bundle, tmp_path):
+    app = create_app(bundle, tmp_path / "log.sqlite", model_version="demo-itemcf")
+    with TestClient(app, headers={"X-Music-App": "1"}) as client:
+        client.post("/api/sessions", json={"persist": True}).raise_for_status()
+        client.put("/api/profile", json={"items": ["sample-00"], "artists": []}).raise_for_status()
+        reply = client.post("/api/recommendations", json={"goal": "discover"}).json()
+        item = reply["tracks"][0]["item_id"]
+        binding = client.post(
+            "/api/playbacks", json={"request_id": reply["request_id"], "item_id": item}
+        ).json()
+        payload = {
+            "event_id": "pause1",
+            "request_id": reply["request_id"],
+            "item_id": item,
+            "kind": "pause",
+            "playback_id": binding["playback_id"],
+            "position_seconds": 20.0,
+            "listened_seconds": 2.0,
+        }
+        client.post("/api/events", json=payload).raise_for_status()
+        impression = {
+            "event_id": "shown",
+            "request_id": reply["request_id"],
+            "item_id": item,
+            "kind": "impression",
+            "response_latency_ms": 10.0,
+            "display_latency_ms": 25.0,
+        }
+        client.post("/api/events", json=impression).raise_for_status()
+        with app.state.runtime.store.connect() as db:
+            saved = json.loads(db.execute("SELECT payload FROM sessions").fetchone()[0])
+        assert saved["initial_profile"]["selected_item_ids"] == ["sample-00"]
+        assert saved["goals"][reply["request_id"]]["heard_item_ids"] == []
+        assert saved["events"][0]["listened_seconds"] == 2.0
+        assert saved["events"][1]["display_latency_ms"] == 25.0
+        payload.update(event_id="bad", listened_seconds=-1.0)
+        assert client.post("/api/events", json=payload).status_code == 422
+        client.delete("/api/session").raise_for_status()
+        with app.state.runtime.store.connect() as db:
+            assert db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 0
+
+
+def test_listening_measurement_requires_binding():
+    event = InteractionEvent("e", "s", "r", "pause", datetime.now(UTC), item_id="i")
+    with pytest.raises(ValueError, match="playback ID"):
+        replace(event, listened_seconds=1.0)
+
+
+def test_media_requires_scope_and_exact_unique_id(bundle, tmp_path):
+    config = json.loads(bundle.read_text())
+    config.update(mode="music4all", audio={})
+    for entry in config["models"]:
+        entry["path"] = str(bundle.parent / entry["path"])
+    config["catalog"]["path"] = str(bundle.parent / "catalog.json")
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(config))
+    metadata = tmp_path / "metadata.csv"
+    metadata.write_text("item_id,title,artists\nsample-00,Fixture,Fixture Artist\n")
+    permission = tmp_path / "permission.json"
+    raw = {
+        "web_preview": False,
+        "access_scope": "restricted-study",
+        "evidence_ref": "test-fixture-only",
+        "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
+        "item_ids": ["sample-00"],
+    }
+    permission.write_text(json.dumps(raw))
+    with pytest.raises(ValueError, match="permission"):
+        prepare(path, metadata, bundle.parent, permission, tmp_path / "rejected")
+    raw["web_preview"] = True
+    permission.write_text(json.dumps(raw))
+    prepared = prepare(path, metadata, bundle.parent, permission, tmp_path / "registered")
+    new = json.loads(prepared.read_text())
+    assert new["audio"]["sample-00"]["sha256"] == file_sha256(bundle.parent / "sample-00.wav")
+    assert new["media_permission_sha256"] == file_sha256(permission)
+    with pytest.raises(FileExistsError):
+        prepare(path, metadata, bundle.parent, permission, prepared.parent)
+
+
+def test_consent_version_and_optional_storage(bundle, tmp_path):
+    app = create_app(bundle, tmp_path / "consent.sqlite", model_version="demo-itemcf")
+    with TestClient(app, headers={"X-Music-App": "1"}) as client:
+        client.post(
+            "/api/sessions", json={"persist": True, "consent_version": "local-ui-v2"}
+        ).raise_for_status()
+        with app.state.runtime.store.connect() as db:
+            saved = json.loads(db.execute("SELECT payload FROM sessions").fetchone()[0])
+        assert saved["session"]["consent_version"] == "local-ui-v2"
+        assert saved["session"]["started_at"]
+        assert client.post("/api/sessions", json={"consent_version": "unknown"}).status_code == 422
+        client.post(
+            "/api/sessions", json={"persist": False, "consent_version": "local-ui-v2"}
+        ).raise_for_status()
+        with app.state.runtime.store.connect() as db:
+            assert db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 0
