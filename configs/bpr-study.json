@@ -1,0 +1,29 @@
+{
+  "extends": "common.json",
+  "experiment": {
+    "name": "music4all-bpr-study",
+    "output": "../data/experiments/bpr-study"
+  },
+  "model": {
+    "name": "bpr",
+    "parameters": {
+      "learning_rate": 0.01,
+      "regularization": 0.01,
+      "memory_budget_mb": 4096,
+      "use_gpu": true
+    }
+  },
+  "search": {
+    "stage": "B",
+    "seeds": [42, 43, 44],
+    "max_trials": 24,
+    "grid": {
+      "factors": [32, 64, 128, 256],
+      "iterations": [30, 100]
+    }
+  },
+  "follow_up": {
+    "bm25_config": "bm25.json",
+    "neighbors": [50, 100]
+  }
+}
