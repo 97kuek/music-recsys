@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, type EventInput, type Recommendation, type Status, type Track } from './api';
+import { api, canPreview, type EventInput, type Recommendation, type Status, type Track } from './api';
 import { Player, type PlayerHandle } from './Player';
 import { Consent } from './Consent';
 import { MediaIcon } from './MediaIcon';
@@ -113,14 +113,6 @@ export function Participant({ status }: { status: Status }) {
     await emit({ kind, request_id: result.request_id, item_id: track.item_id });
     setActions(a => [...a, `${kind}:${track.item_id}`]);
   });
-  const nextTrack = () => run(async () => {
-    if (!current || !result || index + 1 >= result.tracks.length) return;
-    await emit({ kind: 'skip', request_id: result.request_id, item_id: current.item_id });
-    if (index + 1 < result.tracks.length) {
-      setIndex(index + 1);
-      await player.current?.play(result.tracks[index + 1], result.request_id);
-    }
-  });
   const finishPeriod = () => run(async () => {
     await stop();
     if (rating && result) await emit({ kind: 'rating', request_id: result.request_id, rating });
@@ -136,7 +128,6 @@ export function Participant({ status }: { status: Status }) {
   const toggle = (field: keyof Profile, value: string) => {
     setProfile(p => ({ ...p, [field]: p[field].includes(value) ? p[field].filter(x => x !== value) : [...p[field], value].slice(0, field === 'items' ? 30 : 10) }));
   };
-  const playable = (track: Track) => track.playback_status === 'available' || track.provider === 'jamendo';
   const art = (track: Track, i: number) => track.artwork
     ? <img src={track.artwork} alt="" loading="lazy" referrerPolicy="no-referrer" />
     : <span className={`cover tone${i % 4}`} aria-hidden="true" />;
@@ -151,7 +142,7 @@ export function Participant({ status }: { status: Status }) {
         <div className="section-heading"><h1 id="step-heading" tabIndex={-1}>曲を選択</h1><span className="muted">{profile.items.length}曲選択中</span></div>
         <div className="song-list scroll-region" aria-label="選択する楽曲" tabIndex={0}>
           {tracks.map((track, i) => <article className="song-row" key={track.item_id}>
-            <button className="track-open" aria-label={`${track.title}を開く`} disabled={busy || !playable(track)} onClick={() => run(async () => { setPreviewTrack(track); await player.current?.play(track); })}>{art(track, i)}<span className="song-info"><strong>{track.title}</strong><small>{track.artists.join(' / ')}</small>{!playable(track) && <small>試聴できません</small>}</span></button>
+            <button className="track-open" aria-label={`${track.title}を開く`} disabled={busy || !canPreview(track)} onClick={() => run(async () => { setPreviewTrack(track); await player.current?.play(track); })}>{art(track, i)}<span className="song-info"><strong>{track.title}</strong><small>{track.artists.join(' / ')}</small>{!canPreview(track) && <small>試聴できません</small>}</span></button>
             <button className="icon-button select-song" aria-label={`${track.title}を選択`} aria-pressed={profile.items.includes(track.item_id)} onClick={() => toggle('items', track.item_id)}>{profile.items.includes(track.item_id) ? '✓' : '+'}</button>
           </article>)}
           {tracks.length < total && <button className="quiet more-tracks" disabled={busy} onClick={() => setOffset(tracks.length)}>さらに表示</button>}
@@ -161,7 +152,7 @@ export function Participant({ status }: { status: Status }) {
         <div className="section-heading"><h1 id="step-heading" tabIndex={-1}>おすすめ</h1>{periods > 1 && <span className="muted">{period} / {periods}</span>}</div>
         {status.experience !== 'experiment' && <div className="request-controls"><label className="sr-only" htmlFor="goal">聴き方</label><select id="goal" value={goal} onChange={e => setGoal(e.target.value)}><option value="auto">おまかせ</option><option value="discover">新しい曲</option><option value="familiar">いつもの好み</option></select><button className="quiet" disabled={busy} onClick={() => run(recommend)}>更新</button></div>}
         <div className="song-list recommendations scroll-region" aria-label="おすすめの楽曲" tabIndex={0}>{result?.tracks.map((track, i) => <article className={`song-row ${i === index ? 'current-song' : ''}`} data-item={track.item_id} key={track.item_id}>
-          <button className="track-open" aria-label={`${track.title}を開く`} disabled={busy || !playable(track)} onClick={() => run(async () => { if (result) { setIndex(i); await player.current?.play(track, result.request_id); } })}>{art(track, i)}<span className="song-info"><strong>{track.title}</strong><small>{track.artists.join(' / ')}</small>{!playable(track) && <small>試聴できません</small>}</span></button>
+          <button className="track-open" aria-label={`${track.title}を開く`} disabled={busy || !canPreview(track)} onClick={() => run(async () => { if (result) { setIndex(i); await player.current?.play(track, result.request_id); } })}>{art(track, i)}<span className="song-info"><strong>{track.title}</strong><small>{track.artists.join(' / ')}</small>{!canPreview(track) && <small>試聴できません</small>}</span></button>
           <div className="song-actions">{['like', 'save'].map((kind, n) => <button className="icon-button" key={kind} aria-label={['いいね', '保存'][n]} aria-pressed={actions.includes(`${kind}:${track.item_id}`)} disabled={busy || actions.includes(`${kind}:${track.item_id}`)} onClick={() => feedback(kind, track)}>{['♡', '＋'][n]}</button>)}</div>
         </article>)}</div>
         <div className="screen-actions">{result ? <button className="primary" disabled={busy} onClick={() => run(() => enter('evaluate'))}>次へ</button> : <button disabled={busy} onClick={() => run(() => enter('profile'))}>曲を選び直す</button>}</div>
@@ -171,7 +162,7 @@ export function Participant({ status }: { status: Status }) {
         <div className="screen-actions"><button className="quiet" disabled={busy} onClick={() => run(() => enter('listen'))}>戻る</button><button className="primary" disabled={busy} onClick={finishPeriod}>{period < periods ? '次のおすすめへ' : '終了する'}</button></div>
       </section>}
     </main>
-    {active && !finished && phase !== 'evaluate' && <Player ref={player} emit={emit} onError={error} onNext={phase === 'listen' ? nextTrack : undefined} canNext={!!result && index + 1 < result.tracks.length} onExpandedChange={setExpanded}
+    {active && !finished && phase !== 'evaluate' && <Player ref={player} emit={emit} onError={error} onExpandedChange={setExpanded}
       queue={phase === 'profile' ? tracks : result?.tracks}
       onChoose={track => run(async () => { if (phase === 'profile') { setPreviewTrack(track); await player.current?.play(track); } else if (result) { setIndex(result.tracks.indexOf(track)); await player.current?.play(track, result.request_id); } })}
       onSelect={phase === 'profile' && previewTrack ? () => toggle('items', previewTrack.item_id) : undefined}

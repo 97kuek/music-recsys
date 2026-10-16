@@ -6,6 +6,9 @@ export type Status = { audience: string; experience: string; ready: boolean; cat
 export type Recommendation = { request_id: string; tracks: Track[]; model_version: string; route: string; latency_ms: number; notice: string | null };
 export type EventInput = { request_id: string; kind: string; item_id?: string; rating?: number; playback_id?: string; position_seconds?: number; listened_seconds?: number; response_latency_ms?: number; display_latency_ms?: number };
 
+// Jamendo resolves current availability when the user requests a preview.
+export const canPreview = (track: Track) => track.playback_status === 'available' || track.provider === 'jamendo';
+
 const base = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
 if (!/^\/(?!\/)[a-zA-Z0-9/_-]+$/.test(base)) throw new Error('API接続は同一Originのパスを指定してください');
 export const apiUrl = (path: string) => `${base}/${path.replace(/^\/api\//, '')}`;

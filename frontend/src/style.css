@@ -97,14 +97,6 @@ a {
   font-size:12px;
   line-height:2
 }
-.dot {
-  display:inline-block;
-  width:6px;
-  height:6px;
-  border-radius:50%;
-  background:#c9df6b;
-  margin-right:6px
-}
 .sidebar .danger {
   margin-top:20px;
   color:#c4d3c5;
@@ -306,10 +298,6 @@ h2 {
   font-size:8px;
   letter-spacing:1px
 }
-.cover b {
-  z-index:1;
-  font-size:24px
-}
 .tone1 {
   background:linear-gradient(135deg,#d7bca4,#efe2a4)
 }
@@ -318,18 +306,6 @@ h2 {
 }
 .tone3 {
   background:linear-gradient(135deg,#ae9fac,#e1cbbb)
-}
-.track-title {
-  display:block;
-  font-size:12px;
-  margin-top:9px;
-  overflow-wrap:anywhere
-}
-.track-artist {
-  display:block;
-  color:var(--muted);
-  font-size:10px;
-  overflow-wrap:anywhere
 }
 .start-panel {
   margin-top:23px;
@@ -440,9 +416,6 @@ select {
   aspect-ratio:1;
   padding:5px
 }
-.result .cover b {
-  font-size:15px
-}
 .result .cover small {
   font-size:6px
 }
@@ -462,10 +435,6 @@ select {
 .result .actions {
   display:flex;
   gap:5px
-}
-.result .unavailable {
-  font-size:10px;
-  color:#917b5c
 }
 .ratings {
   display:flex;

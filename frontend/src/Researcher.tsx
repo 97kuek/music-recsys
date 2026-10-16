@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, type EventInput, type Recommendation, type Status, type Track } from './api';
+import { api, canPreview, type EventInput, type Recommendation, type Status, type Track } from './api';
 import { Comparison } from './Comparison';
 import { Player, type PlayerHandle } from './Player';
 
@@ -32,7 +32,6 @@ export function Researcher() {
   const [actions, setActions] = useState<string[]>([]);
   const player = useRef<PlayerHandle>(null);
   const queue = useRef(Promise.resolve());
-  const currentIndex = useRef(-1);
   const error = (e: unknown) => setMessage(e instanceof Error ? e.message : String(e));
   const run = async (fn: () => Promise<void>) => {
     setBusy(true); setMessage('');
@@ -67,7 +66,7 @@ export function Researcher() {
     const begin = performance.now();
     await stop(); await profile();
     const data = await api<Recommendation>('recommendations', 'POST', { version, goal, top_k: topK, text: note });
-    setResult(data); setActions([]); currentIndex.current = -1;
+    setResult(data); setActions([]);
     requestAnimationFrame(() => requestAnimationFrame(() => setElapsed(performance.now() - begin)));
   });
   // 実際に画面内に入った推薦行だけを1回ずつ記録する。
@@ -85,22 +84,13 @@ export function Researcher() {
     document.querySelectorAll('[data-item]').forEach(row => observer.observe(row));
     return () => observer.disconnect();
   }, [result, finished]);
-  const play = (index: number) => run(async () => {
+  const play = (track: Track) => run(async () => {
     if (!result || finished) return;
-    await player.current?.play(result.tracks[index], result.request_id); currentIndex.current = index;
+    await player.current?.play(track, result.request_id);
   });
   const action = (kind: string, item: string) => run(async () => {
     if (!result) return;
     await emit({ kind, request_id: result.request_id, item_id: item }); setActions(a => [...a, `${kind}:${item}`]);
-  });
-  const next = () => run(async () => {
-    if (!result || finished) return;
-    const current = result.tracks[currentIndex.current];
-    if (current) await emit({ kind: 'skip', request_id: result.request_id, item_id: current.item_id });
-    await stop();
-    const index = result.tracks.findIndex((t, i) => i > currentIndex.current && t.playback_status === 'available');
-    if (index >= 0) { await player.current?.play(result.tracks[index], result.request_id); currentIndex.current = index; }
-    else setMessage('試聴可能な次の曲はありません');
   });
   const end = () => run(async () => {
     await stop();
@@ -131,13 +121,13 @@ export function Researcher() {
         {model && <p className="muted">{model.algorithm} / {JSON.stringify(model.parameters)}{model.als_fold_in ? ' / 新規ユーザーのfold-in有効' : ''}</p>}
         {!!status?.unavailable.length && <p className="muted">実モデル未準備：{status.unavailable.join(' / ')}。自動的な再学習・デモへの切替は行いません。</p>}
         <p className="muted">{result ? `${result.model_version} · 経路 ${result.route} · 推論 ${result.latency_ms.toFixed(1)} ms · 要求開始〜描画 ${elapsed?.toFixed(1) ?? '計測中'} ms` : '開始して推薦方法を選ぶと、おすすめを表示できます。'}</p>{result?.notice && <p>{result.notice}</p>}
-        <div className="results">{result?.tracks.map((track, i) => <article className="result" data-item={track.item_id} key={track.item_id}><span className="rank">{String(i + 1).padStart(2, '0')}</span><Cover track={track} index={i} /><div className="identity"><strong>{track.title}</strong><small>{track.artists.join(' / ')} · {track.playback_status === 'available' ? (track.sample ? 'デモ試聴可能' : '試聴可能') : '音源未確認・再生不可'}</small></div><div className="actions"><button disabled={busy || finished || track.playback_status !== 'available'} onClick={() => play(i)} aria-label={`${track.title}を試聴`}>▶ 試聴</button>{[['like', '♡ いいね'], ['save', '＋ 保存'], ['skip', '↠ スキップ']].map(([kind, label]) => <button key={kind} disabled={busy || finished || actions.includes(`${kind}:${track.item_id}`)} onClick={() => action(kind, track.item_id)}>{label}</button>)}</div></article>)}</div>
+        <div className="results">{result?.tracks.map((track, i) => <article className="result" data-item={track.item_id} key={track.item_id}><span className="rank">{String(i + 1).padStart(2, '0')}</span><Cover track={track} index={i} /><div className="identity"><strong>{track.title}</strong><small>{track.artists.join(' / ')} · {track.playback_status === 'available' ? (track.sample ? 'デモ試聴可能' : '試聴可能') : '音源未確認・再生不可'}</small></div><div className="actions"><button disabled={busy || finished || !canPreview(track)} onClick={() => play(track)} aria-label={`${track.title}を試聴`}>▶ 試聴</button>{[['like', '♡ いいね'], ['save', '＋ 保存'], ['skip', '↠ スキップ']].map(([kind, label]) => <button key={kind} disabled={busy || finished || actions.includes(`${kind}:${track.item_id}`)} onClick={() => action(kind, track.item_id)}>{label}</button>)}</div></article>)}</div>
       </section>
       <Comparison />
       <section id="finish"><p className="eyebrow">03 / ONE LAST THOUGHT</p><h2>今日のおすすめは、どうでしたか？</h2><p className="muted">回答は任意です。最後にひとつだけ、気が向いたら。</p><div className="ratings" role="group" aria-label="満足度">{[1, 2, 3, 4, 5].map(n => <button key={n} disabled={!result || finished} aria-pressed={rating === n} onClick={() => setRating(rating === n ? undefined : n)}>{n}{n === 1 && <small>合わなかった</small>}{n === 5 && <small>よかった</small>}</button>)}</div>
         <button className="secondary" disabled={!started || finished || busy} onClick={end}>{rating ? '回答して終了' : '回答せずに終了'}</button><button className="quiet" disabled={!started || busy} onClick={() => run(async () => setLog(await api('session/export')))}>自分のログを確認</button>{log !== undefined && <pre>{JSON.stringify(log, null, 2)}</pre>}
-      </section><footer>music-recsys / music-recsys · Local development preview</footer>
+      </section><footer>music-recsys · Local development preview</footer>
     </main>
-    <Player ref={player} emit={emit} onError={error} onNext={next} />
+    <Player ref={player} emit={emit} onError={error} queue={result?.tracks} onChoose={play} />
   </>;
 }

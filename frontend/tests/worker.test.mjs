@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../worker/index.mjs';
 
-const request = (path, options) => new Request(`https://otolab.example${path}`, options);
+const request = (path, options) => new Request(`https://music-recsys.example${path}`, options);
 test('assets use the asset binding; no API configuration is needed', async () => {
-  const response = await worker.fetch(request('/listen'), { ASSETS: { fetch: () => new Response('OtoLab') } });
-  assert.equal(await response.text(), 'OtoLab');
+  const response = await worker.fetch(request('/listen'), { ASSETS: { fetch: () => new Response('music-recsys') } });
+  assert.equal(await response.text(), 'music-recsys');
 });
 test('unconfigured preview is explicit and never returns SPA HTML as API', async () => {
   const response = await worker.fetch(request('/api/status'), {});
@@ -24,7 +24,7 @@ test('proxy sends only the session cookie and server secret, with no cache', asy
     return new Response('{"accepted":true}', { headers: { 'Content-Type': 'application/json', 'Set-Cookie': 'music_session=test; Secure; HttpOnly; SameSite=Strict', 'X-Internal': 'hidden' } });
   };
   try {
-    const response = await worker.fetch(request('/api/events', { method: 'POST', headers: { 'X-Music-App': '1', Origin: 'https://otolab.example', Cookie: 'other=private; music_session=abc', Authorization: 'Bearer client-value' }, body: '{}' }), { BACKEND_ORIGIN: 'https://api.example', UPSTREAM_API_TOKEN: 'server-value' });
+    const response = await worker.fetch(request('/api/events', { method: 'POST', headers: { 'X-Music-App': '1', Origin: 'https://music-recsys.example', Cookie: 'other=private; music_session=abc', Authorization: 'Bearer client-value' }, body: '{}' }), { BACKEND_ORIGIN: 'https://api.example', UPSTREAM_API_TOKEN: 'server-value' });
     assert.equal(received.url, 'https://api.example/api/events');
     assert.equal(received.options.headers.get('Cookie'), 'music_session=abc');
     assert.equal(received.options.headers.get('Authorization'), 'Bearer server-value');

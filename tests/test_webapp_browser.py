@@ -15,10 +15,13 @@ def test_local_demo_browser():
     out.mkdir(exist_ok=True, parents=True)
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 1440, "height": 1100})
+        page = browser.new_page(
+            base_url=os.environ.get("MUSIC_RECSYS_RESEARCH_URL", "http://127.0.0.1:8768"),
+            viewport={"width": 1440, "height": 1100},
+        )
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
-        page.goto("http://127.0.0.1:8765")
+        page.goto("/")
         page.get_by_role("button", name="薄明のループ", exact=False).click()
         page.get_by_role("button", name="この好みで始める", exact=False).click()
         page.get_by_text("Validationの比較条件を見る", exact=True).click()
@@ -34,8 +37,8 @@ def test_local_demo_browser():
             time.sleep(0.1)
         else:
             raise AssertionError("audio did not play")
-        page.locator(".result").first.get_by_role("button", name="いいね", exact=False).click()
-        page.locator(".result").first.get_by_role("button", name="保存", exact=False).click()
+        modal = page.get_by_role("dialog", name="楽曲プレイヤー")
+        first_title = modal.locator(".player-title h2").inner_text()
         page.get_by_role("button", name="次の曲", exact=True).click()
 
         for _ in range(50):
@@ -44,25 +47,31 @@ def test_local_demo_browser():
             time.sleep(0.1)
         else:
             raise AssertionError("audio did not play")
+        expect(modal.locator(".player-title h2")).not_to_have_text(first_title)
+        page.get_by_role("button", name="前の曲", exact=True).click()
+        expect(modal.locator(".player-title h2")).to_have_text(first_title)
+        page.get_by_role("button", name="一覧に戻る", exact=True).click()
+        page.locator(".result").first.get_by_role("button", name="いいね", exact=False).click()
+        page.locator(".result").first.get_by_role("button", name="保存", exact=False).click()
         page.locator("audio").evaluate("el => el.pause()")
         page.evaluate("window.scrollTo(0, 0)")
-        page.screenshot(path=str(out / "mvp-desktop.png"), full_page=True)
+        page.screenshot(path=str(out / "researcher-desktop.png"), full_page=True)
         page.get_by_role("button", name="回答せずに終了", exact=True).click()
         page.get_by_role("button", name="自分のログを確認", exact=True).click()
-        exported = page.request.get("http://127.0.0.1:8765/api/session/export").json()
+        exported = page.request.get("/api/session/export").json()
         kinds = [e["kind"] for e in exported["events"]]
         assert {"play", "pause", "like", "save", "skip"}.issubset(kinds), kinds
         assert "rating" not in kinds
         page.get_by_role("button", name="セッションのデータを削除", exact=True).click()
         page.get_by_role("status").filter(has_text="削除しました").wait_for()
-        assert page.request.get("http://127.0.0.1:8765/api/session/export").status == 401
+        assert page.request.get("/api/session/export").status == 401
         page.set_viewport_size({"width": 390, "height": 844})
-        page.goto("http://127.0.0.1:8765")
+        page.goto("/")
         page.locator(".track-choice").first.wait_for()
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), (
             "mobile overflow"
         )
-        page.screenshot(path=str(out / "mvp-mobile.png"), full_page=True)
+        page.screenshot(path=str(out / "researcher-mobile.png"), full_page=True)
         assert not errors, errors
         print(
             json.dumps(

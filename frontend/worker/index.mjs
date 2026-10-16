@@ -12,7 +12,7 @@ export default {
       request.headers.get('X-Music-App') !== '1' ||
       (request.headers.has('Origin') && request.headers.get('Origin') !== url.origin)
     )) return reply('同じ画面から操作してください', 403);
-    if (!env.BACKEND_ORIGIN || !env.UPSTREAM_API_TOKEN) return reply('OtoLabのAPI接続は準備中です。デモ・実モデルはまだ接続されていません。', 503);
+    if (!env.BACKEND_ORIGIN || !env.UPSTREAM_API_TOKEN) return reply('music-recsysのAPI接続は準備中です。デモ・実モデルはまだ接続されていません。', 503);
     let backend;
     try { backend = new URL(env.BACKEND_ORIGIN); } catch { return reply('API接続設定が不正です', 503); }
     if (backend.protocol !== 'https:' || backend.username || backend.password || backend.pathname !== '/' || backend.search || backend.hash) return reply('API接続設定が不正です', 503);

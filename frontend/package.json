@@ -1,6 +1,6 @@
 {
   "name": "music-recsys-ui",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "type": "module",
   "engines": {
@@ -12,7 +12,7 @@
     "test:worker": "node --test tests/worker.test.mjs",
     "preview:cloudflare": "wrangler dev --env preview --ip 127.0.0.1",
     "deploy:preview": "npm run build:preview && wrangler deploy --env preview",
-    "check:deploy": "npm run build:preview && wrangler deploy --env preview --dry-run --outdir /tmp/otolab-worker-check",
+    "check:deploy": "npm run build:preview && wrangler deploy --env preview --dry-run --outdir /tmp/music-recsys-worker-check",
     "build:preview": "tsc --noEmit && VITE_PUBLIC_DEMO=1 vite build --mode preview"
   },
   "dependencies": {

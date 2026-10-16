@@ -1,15 +1,15 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { MediaIcon } from './MediaIcon';
-import { api, apiUrl, type EventInput, type Track } from './api';
+import { api, apiUrl, canPreview, type EventInput, type Track } from './api';
 
 export type PlayerHandle = { stop: () => Promise<void>; play: (track: Track, request?: string) => Promise<void> };
 type Binding = { track: Track; request?: string; playback?: string };
 const time = (n: number) => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
 export const Player = forwardRef<PlayerHandle, {
   emit: (event: EventInput) => Promise<void>; onError: (error: unknown) => void;
-  onNext?: () => void; canNext?: boolean; onExpandedChange?: (expanded: boolean) => void;
-  onSelect?: () => void; selected?: boolean; onLike?: () => void; liked?: boolean; onSave?: () => void; saved?: boolean; queue?: Track[]; onChoose?: (track: Track) => void;
-}>(function Player({ emit, onError, onNext, canNext = true, onExpandedChange, onSelect, selected, onLike, liked, onSave, saved, queue = [], onChoose }, ref) {
+  onExpandedChange?: (expanded: boolean) => void;
+  onSelect?: () => void; selected?: boolean; onLike?: () => void; liked?: boolean; onSave?: () => void; saved?: boolean; queue?: Track[]; onChoose: (track: Track) => void;
+}>(function Player({ emit, onError, onExpandedChange, onSelect, selected, onLike, liked, onSave, saved, queue = [], onChoose }, ref) {
   const audio = useRef<HTMLAudioElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const binding = useRef<Binding | null>(null);
@@ -76,18 +76,21 @@ export const Player = forwardRef<PlayerHandle, {
       if (audio.current) { audio.current.src = data.external ? data.url : apiUrl(data.url); await audio.current.play(); }
     } finally { if (token === generation.current) setLoading(false); }
   }}));
-  const available = queue.filter(item => item.playback_status === 'available' || item.provider === 'jamendo');
+  const available = queue.filter(canPreview);
+  const currentIndex = available.findIndex(item => item.item_id === track?.item_id);
+  const canPrevious = currentIndex > 0 || visitHistory.current.length > 0;
+  const canNext = shuffle ? available.length > 1 : currentIndex >= 0 && currentIndex < available.length - 1;
   const choose = (direction: 'next' | 'previous') => {
-    if (!track || loading || !onChoose) return;
+    if (!track || loading) return;
     let target: Track | undefined;
     if (direction === 'previous') {
       const previous = visitHistory.current.pop();
       target = available.find(item => item.item_id === previous);
-      if (!target) target = available[available.findIndex(item => item.item_id === track.item_id) - 1];
+      if (!target) target = available[currentIndex - 1];
     } else if (shuffle) {
       const candidates = available.filter(item => item.item_id !== track.item_id);
       if (candidates.length) target = candidates[Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296 * candidates.length)];
-    } else target = available[available.findIndex(item => item.item_id === track.item_id) + 1];
+    } else target = available[currentIndex + 1];
     if (target) {
       goingBack.current = direction === 'previous';
       const b = binding.current;
@@ -114,13 +117,13 @@ export const Player = forwardRef<PlayerHandle, {
       </div>
       <div className="timeline"><input aria-label="再生位置" type="range" min="0" max={duration || 0} step="0.1" value={Math.min(position, duration)} disabled={!duration} onChange={e => { tick(); lastTick.current = null; if (audio.current) audio.current.currentTime = Number(e.target.value); setPosition(Number(e.target.value)); }} /><div><span>{time(position)}</span><span>{time(duration)}</span></div></div>
       <div className="transport">
-        <button className="icon-button" aria-label="シャッフル" aria-pressed={shuffle} disabled={loading || !onChoose || available.length < 2} onClick={() => setShuffle(v => !v)}><MediaIcon name="shuffle" /></button>
-        <button className="icon-button" aria-label="前の曲" disabled={loading || !onChoose || (available.findIndex(item => item.item_id === track?.item_id) < 1 && !visitHistory.current.length)} onClick={() => choose('previous')}><MediaIcon name="previous" /></button>
+        <button className="icon-button" aria-label="シャッフル" aria-pressed={shuffle} disabled={loading || available.length < 2} onClick={() => setShuffle(v => !v)}><MediaIcon name="shuffle" /></button>
+        <button className="icon-button" aria-label="前の曲" disabled={loading || !canPrevious} onClick={() => choose('previous')}><MediaIcon name="previous" /></button>
         <button className="play-pause" aria-label={playing ? '一時停止' : '再生'} disabled={loading} onClick={() => toggle().catch(onError)}><MediaIcon name={playing ? 'pause' : 'play'} /></button>
-        <button className="icon-button" aria-label="次の曲" disabled={loading || (!onChoose && (!onNext || !canNext)) || (onChoose ? available.length < 2 || (!shuffle && available.findIndex(item => item.item_id === track?.item_id) >= available.length - 1) : false)} onClick={() => onChoose ? choose('next') : onNext?.()}><MediaIcon name="next" /></button>
+        <button className="icon-button" aria-label="次の曲" disabled={loading || !canNext} onClick={() => choose('next')}><MediaIcon name="next" /></button>
         <button className="icon-button" aria-label="リピート" aria-pressed={loop} onClick={() => setLoop(v => !v)}><MediaIcon name="repeat" /></button>
       </div>
-      </div>{queue.length > 0 && <aside className="playback-queue" aria-label="再生キュー"><h2>再生キュー</h2><div className="scroll-region">{queue.map(item => <button key={item.item_id} className={`queue-track ${item.item_id === track?.item_id ? 'current-song' : ''}`} aria-label={`${item.title}を再生`} aria-current={item.item_id === track?.item_id ? 'true' : undefined} disabled={item.playback_status !== 'available' && item.provider !== 'jamendo'} onClick={() => onChoose?.(item)}>{item.artwork ? <img src={item.artwork} alt="" referrerPolicy="no-referrer" /> : <span className="queue-art" aria-hidden="true">♪</span>}<span><strong>{item.title}</strong><small>{item.artists.join(' / ')}</small></span></button>)}</div></aside>}</div>
+      </div>{queue.length > 0 && <aside className="playback-queue" aria-label="再生キュー"><h2>再生キュー</h2><div className="scroll-region">{queue.map(item => <button key={item.item_id} className={`queue-track ${item.item_id === track?.item_id ? 'current-song' : ''}`} aria-label={`${item.title}を再生`} aria-current={item.item_id === track?.item_id ? 'true' : undefined} disabled={loading || !canPreview(item)} onClick={() => onChoose(item)}>{item.artwork ? <img src={item.artwork} alt="" referrerPolicy="no-referrer" /> : <span className="queue-art" aria-hidden="true">♪</span>}<span><strong>{item.title}</strong><small>{item.artists.join(' / ')}</small></span></button>)}</div></aside>}</div>
     </dialog>
   </>;
 });
