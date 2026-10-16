@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, type EventInput, type Recommendation, type Status, type Track } from './api';
 import { Player, type PlayerHandle } from './Player';
 import { Consent } from './Consent';
+import { MediaIcon } from './MediaIcon';
 
 type Phase = 'profile' | 'listen' | 'evaluate';
 type Profile = { items: string[]; artists: string[] };
@@ -116,7 +117,7 @@ export function Participant({ status }: { status: Status }) {
     if (!current || !result || index + 1 >= result.tracks.length) return;
     await emit({ kind: 'skip', request_id: result.request_id, item_id: current.item_id });
     if (index + 1 < result.tracks.length) {
-      await stop(); setIndex(index + 1);
+      setIndex(index + 1);
       await player.current?.play(result.tracks[index + 1], result.request_id);
     }
   });
@@ -140,7 +141,7 @@ export function Participant({ status }: { status: Status }) {
     ? <img src={track.artwork} alt="" loading="lazy" referrerPolicy="no-referrer" />
     : <span className={`cover tone${i % 4}`} aria-hidden="true" />;
   return <div className="participant app-shell">
-    <header><a className="brand" href="/" aria-label="music-recsys"><img src="/favicon.svg" width="28" height="28" alt="" /> music-recsys</a>{active && !finished && <button className="quiet" disabled={busy} onClick={remove}>終了・削除</button>}</header>
+    <header><a className="brand" href="/" aria-label="music-recsys"><img src="/favicon.svg" width="28" height="28" alt="" /> music-recsys</a>{active && !finished && <button className="icon-button" aria-label="終了・削除" title="終了・削除" disabled={busy} onClick={remove}><MediaIcon name="exit" /></button>}</header>
     <main>
       {message && <div className="notice" role="status" aria-live="polite">{message}</div>}
       {!status.ready && <p className="notice">ただいま準備中です。</p>}

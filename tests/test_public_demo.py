@@ -51,7 +51,7 @@ def test_public_demo_without_backend(public_bundle):
     url = os.environ.get("MUSIC_RECSYS_PUBLIC_URL", "http://127.0.0.1:8787")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page = browser.new_page(viewport={"width": 390, "height": 844}, color_scheme="dark")
         api_requests = []
         errors = []
         page.on("request", lambda r: api_requests.append(r.url) if "/api/" in r.url else None)
@@ -59,6 +59,7 @@ def test_public_demo_without_backend(public_bundle):
         page.goto(url)
         assert page.title() == "music-recsys"
         page.get_by_role("heading", name="利用について").wait_for()
+        assert page.locator("body").evaluate("el=>getComputedStyle(el).colorScheme") == "light"
         assert page.get_by_role("checkbox").count() == 0
         page.locator(".consent-copy").evaluate(
             "el=>{el.scrollTop=el.scrollHeight;el.dispatchEvent(new Event('scroll'))}"

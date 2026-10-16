@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 
 @pytest.mark.skipif(
@@ -91,7 +91,9 @@ def test_participant_viewport_and_playback(viewport):
     label = f"{viewport['width']}x{viewport['height']}"
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page(base_url="http://127.0.0.1:8765", viewport=viewport)
+        page = browser.new_page(
+            base_url="http://127.0.0.1:8765", viewport=viewport, color_scheme="dark"
+        )
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
 
@@ -112,6 +114,7 @@ def test_participant_viewport_and_playback(viewport):
 
         page.goto("/")
         page.get_by_role("heading", name="利用について", exact=True).wait_for()
+        assert page.locator("body").evaluate("el => getComputedStyle(el).colorScheme") == "light"
         fits()
         consent = page.locator(".consent-copy")
         if consent.evaluate("el => el.scrollHeight > el.clientHeight + 8"):
@@ -122,6 +125,9 @@ def test_participant_viewport_and_playback(viewport):
         page.screenshot(path=str(out / f"consent-{label}.png"))
         page.get_by_role("button", name="同意して進む", exact=True).click()
         page.locator(".song-row").first.wait_for()
+        exit_button = page.get_by_role("button", name="終了・削除", exact=True)
+        assert exit_button.locator("svg").count() == 1
+        assert not exit_button.inner_text()
         fits()
         assert page.get_by_role("textbox").count() == 0
         assert page.locator("details").count() == 0
@@ -137,6 +143,13 @@ def test_participant_viewport_and_playback(viewport):
             "el => el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth"
         ), label
         assert page.get_by_role("button", name="一時停止", exact=True).last.is_visible()
+        controls = modal.locator(".transport button").evaluate_all(
+            "els => els.map(el => { const r=el.getBoundingClientRect(); return r.x+r.width/2 })"
+        )
+        assert len(controls) == 5
+        gaps = [right - left for left, right in zip(controls, controls[1:], strict=False)]
+        assert max(gaps) - min(gaps) < 1, gaps
+        assert max(gaps) <= 64, gaps
         page.get_by_role("button", name="リピート", exact=True).click()
         assert page.locator("audio").evaluate("el => el.loop")
         assert not page.request.get("/api/session/export").json()["events"]
@@ -153,8 +166,24 @@ def test_participant_viewport_and_playback(viewport):
         page.locator(".recommendations .track-open").first.click()
         progressing()
         page.get_by_role("dialog").get_by_role("button", name="いいね", exact=True).click()
+        first_title = modal.locator(".player-title h2").inner_text()
+        modal.evaluate(
+            "el => {window.playerCloses=0; new MutationObserver(records => {for (const r of records) if(r.attributeName==='open' && r.oldValue!==null) window.playerCloses++}).observe(el,{attributes:true,attributeFilter:['open'],attributeOldValue:true})}"
+        )
         page.get_by_role("button", name="次の曲", exact=True).click()
+        expect(modal.locator(".player-title h2")).not_to_have_text(first_title)
         progressing()
+        page.get_by_role("button", name="前の曲", exact=True).click()
+        expect(modal.locator(".player-title h2")).to_have_text(first_title)
+        progressing()
+        page.get_by_role("button", name="シャッフル", exact=True).click()
+        expect(page.get_by_role("button", name="シャッフル", exact=True)).to_have_attribute(
+            "aria-pressed", "true"
+        )
+        page.get_by_role("button", name="次の曲", exact=True).click()
+        expect(modal.locator(".player-title h2")).not_to_have_text(first_title)
+        progressing()
+        assert page.evaluate("window.playerCloses") == 0
         page.get_by_role("dialog").get_by_role("button", name="一時停止", exact=True).click()
         exported = page.request.get("/api/session/export").json()
         assert {"play", "pause", "like", "skip"} <= {event["kind"] for event in exported["events"]}
