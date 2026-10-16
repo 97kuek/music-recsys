@@ -12,7 +12,8 @@ LLM・Agent・Web UIは未実装
 - 研究室での標準運用はParquet・JSON・SQLite、Docker・管理者権限不要
 - listening-v2で未聴曲の発見・定着の代理指標・既聴曲の再聴を評価
 - 共通RunnerがSmoke・Validation探索・選択・確認・固定・Testを管理
-- 全119,133人のPopularity Validationに対応、選択用主指標と最終Testは別段階
+- 全学習ユーザーのPopularity / ItemCF / Implicit ALS Validationに対応、選択用主指標と最終Testは別段階
+- ALSのfactors別・既存手法との比較は[モデルと実行方法](docs/models.md#標準parquet経路のimplicit-als)を参照
 
 ## 開始
 

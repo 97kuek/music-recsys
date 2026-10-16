@@ -82,6 +82,32 @@ flowchart TD
 - 同一条件の成功試行はhashを照合して再利用
 - 既存Runnerは2,000人・500万再生まで、全件への展開は別途対応が必要
 - 合成入力とモデル別設定例は `tests/fixtures/`、実データの代用にしない
-- 全件Popularityは `full_popularity`、小規模探索は `experiment_search` を使用
+- 全件Popularity/ItemCF/ALSは `full_evaluation`、小規模探索は `experiment_search` を使用
 
 - 全値が未測定の指標はPNGを生成・表示しない / 実測0は表示 / JSONのnullは保持
+
+## ItemCFのパラメータ比較
+
+```bash
+.venv/bin/python -m music_recsys.full_grid --config configs/itemcf.json
+```
+
+- `search.grid.similarity`: cosine / jaccard
+- `search.grid.neighbors`: 20 / 50 / 100
+- 近傍数は各履歴曲から使う類似曲数、推薦曲数Kとは別
+- 二値のユーザー・曲行列をブロック積で計算し、全曲の密行列を保持しない
+- 履歴曲ごとの近傍類似度を合計し、同点は学習再生回数・曲ID順
+- 同じ類似度の上位100近傍を再利用して、3つの近傍数を比較
+- 学習キャッシュは `data/processed/itemcf/`、学習入力hashを照合して再利用
+- 条件別JSONは `configs/itemcf/` へ自動生成、編集対象は親のitemcf.json
+- 生成済みJSONと条件が異なる場合は上書き拒否、別の設定・出力を使う
+- 各結果は `data/experiments/itemcf-{similarity}-{neighbors}/` に保存
+- 比較結果は `data/experiments/itemcf/`、親のJSONをNotebookで選択して確認
+- Recall・Repeat Recall・Binary NDCGは6条件のK=2〜20を重ねて表示
+- 色は類似度、線種と点の形は近傍数 / 線は離散的なKの点を結ぶ補助
+- `*_neighbors.png` はK=20固定の近傍数比較、`*_heatmap.png` は類似度×近傍数
+- 比較図は主評価期間90日の平均値、信頼区間と正確な値はmetrics.csv
+- 再描画は `python -m music_recsys.grid_report --config configs/itemcf.json`
+- Notebookでは条件別JSONを選択して確認、未指定時に自動選択しない
+- training_secondsは近傍構築の実測時間、再利用の有無はconfig.jsonのtraining_cache_hit
+- 主指標未指定のまま6条件を比較、最良条件の固定や最終Testは行わない

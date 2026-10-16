@@ -46,7 +46,7 @@ class ExperimentConfigPicker:
 
     def refresh(self, button=None):
         options = [("未選択", None)]
-        for path in sorted([*self.directory.glob("*.json"), *self.directory.glob("*.toml")]):
+        for path in sorted([*self.directory.rglob("*.json"), *self.directory.glob("*.toml")]):
             try:
                 raw = (
                     json.loads(path.read_text())
@@ -58,7 +58,7 @@ class ExperimentConfigPicker:
                 options.append((path.name + " [形式要確認]", str(path)))
                 continue
             if raw.get("experiment", {}).get("protocol") == "listening-v2":
-                options.append((path.name, str(path)))
+                options.append((str(path.relative_to(self.directory)), str(path)))
         self.dropdown.options = options
         self.dropdown.value = None
         self._changed()

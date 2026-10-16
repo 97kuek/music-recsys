@@ -24,7 +24,7 @@ flowchart LR
 
 | 場所 | 責務 |
 | --- | --- |
-| `full_popularity.py` / `streaming_metrics.py` | 集約履歴の順次読込み・全件Popularity評価 |
+| `full_evaluation.py` / `streaming_metrics.py` | 集約履歴の順次読込み・全件Popularity/ItemCF/ALS評価 |
 | `full_analysis.py` | 全件の母集団・保存結果の読込み |
 | `notebook_config.py` | 設定選択UI・明示的な読込み・変更検知 |
 | `lab_data.py` | 取得・照合・ファイル保存のみのコホート生成 |

@@ -73,3 +73,43 @@ uv run --locked --group data --group models --group tracking python -m music_rec
 01→02→03で確認し、`review --accept`→`freeze`→`test`へ進む。全モデルを固定・Test評価した場合、02で同条件の最終比較ができる。既存の生成済み合成bundleは上書きしないため、古い例にfeatures.jsonがなければ新しい出力先を指定してTOMLのパスを揃える。
 
 主指標未指定の診断探索では、02に指定trial（未指定なら最初の成功trial）を表示できる。02の`DIAGNOSTIC_TRIAL_ID`で変更する。この表示は最良設定の選択ではなく、選択・固定・Testは引き続き禁止する。CLIは結果を保存し、Notebookを閉じても失われない。
+
+## 標準Parquet経路のImplicit ALS
+
+[configs/als.json](../configs/als.json)はfactors=32 / 64 / 128、iterations=20、regularization=0.1、seed=0を比較する。選択用の主タスク・主指標は未指定のまま保持する。
+
+- 信頼度は `c_ui=1+alpha*log1p(n_ui)`、選好は `p_ui=1[n_ui>0]`
+- alphaの初期値は10。既存ALSの基準値を引き継ぎ、log1pで大量再生の影響を圧縮する比較開始値。1回で約7.93、10回で約24.98、100回で約47.15の信頼度となり、最適性を主張しない
+- `confidence_transform="linear"`で従来式も指定可能。小規模用ALSの従来既定値は互換性のため維持
+- 集約再生回数からCSR疎行列を作り、既存ALSと同じ正規方程式をfloat64で解く。未観測の信頼度1もGram行列に含む
+- 学習に渡すのは検証済みlearning.parquetだけ。観測値・特徴は学習に渡さず、評価器だけが使用する
+- newは学習カタログの本人未聴曲、repeatは本人既聴曲に限定。内積降順、同点は学習再生回数降順・ID昇順
+- 全学習ユーザーを評価し、指標・窓・K・候補・除外定義は[共通評価仕様](listening-evaluation.md)を再利用
+- 設定・seed・入力hash・コードhash・uv.lock hash・NumPy版・スレッド環境を保存。異なるBLAS環境間のビット一致は保証しない
+- JSON例の`memory_budget_mb=4096`は疎行列・因子・solve作業配列の推定上限。読込み時の文字列・index・一時配列を含むプロセスRSSの上限ではない
+- 正規方程式を直接解くため、因子数・履歴密度で学習時間が増える。全件の所要時間は未測定
+
+```mermaid
+flowchart LR
+    A[小規模の合成Parquet] --> B[ALSと既存評価器の一致テスト]
+    B --> C[同一Validationで32 / 64 / 128]
+    C --> D[保存済みPopularity・ItemCFと照合]
+    D --> E[K曲線・CSVでRecallとRepeat Recallを別々に比較]
+```
+
+実行例（先に小規模テストを実行、比較対象は保存済み結果が必要）:
+
+```bash
+OPENBLAS_NUM_THREADS=1 .venv/bin/pytest -q tests/test_full_als.py tests/test_full_popularity.py
+OPENBLAS_NUM_THREADS=1 .venv/bin/python -m music_recsys.als_grid \
+  --config configs/als.json \
+  --compare configs/popularity-plays.json --compare configs/itemcf.json
+```
+
+`--compare`は省略・複数指定可能。ItemCFのgrid JSONは各条件へ展開する。入力manifest・特徴hash・母集団・全評価条件が異なる結果、改変された個別成果物は拒否する。コードhashは出典として保持するため、異なる実装時期の比較では保存された実装差も確認する。
+
+各条件を`configs/als/{32,64,128}.json`へ展開し、`data/experiments/als-{32,64,128}/`に共通の全指標・観測分布・推薦/スコアParquetを保存する。既存の条件設定や成功結果は上書きしない。中断後は同じコマンドで完了条件を再利用する。ALS再利用時はコード・uv.lockのhash一致も必須とする。単一条件は`music_recsys.full_evaluation --config configs/als/32.json`でも実行できる。
+
+集約先`data/experiments/als/`は1指標1PNGとmetrics.csvを持つ。`recall_factors.png`・`repeat_recall_factors.png`・`binary_ndcg_factors.png`はALS条件間、同名の`_factors`なしは指定した既存モデルも含む比較。Graded NDCG・ILD・Coverage・Novelty・実測効率も個別出力し、全値未測定の図は作らない。
+
+Notebook 02では同じ`configs/als.json`を明示読込みして結果を確認する。CSVの同一task・metric・kでfactorsを比較し、RecallとRepeat Recallの最大値・同点・差を別々に確認する。曲線の交差やK依存も確認し、片方の最良条件を両タスク共通の最良設定と見なさない。これはValidationの診断で、設定選択・固定・最終Testは自動実行しない。
