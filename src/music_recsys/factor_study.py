@@ -11,7 +11,6 @@ from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
-from music_recsys.configuration import load_settings
 from music_recsys.experiment_search import load_study_config, study_lock
 from music_recsys.experiment_store import atomic_json
 from music_recsys.full_evaluation import run
@@ -47,36 +46,6 @@ def conditions(config):
                 max_trials=1,
             ),
         )
-    follow = load_settings(config.path).get("follow_up", {})
-    if follow:
-        if set(follow) != {"bm25_config", "neighbors"}:
-            raise ValueError("unknown follow_up settings")
-        base = load_study_config(config.path.parent / follow["bm25_config"])
-        if base.model != "bm25" or base.evaluation != config.evaluation:
-            raise ValueError("follow-up requires BM25 and identical evaluation")
-        for key in ("validation_dataset", "features"):
-            if getattr(base, key) != getattr(config, key):
-                raise ValueError("follow-up input mismatch")
-        values = follow["neighbors"]
-        if not isinstance(values, list) or len(set(values)) != len(values):
-            raise ValueError("follow-up neighbors must be unique list")
-        for neighbors in values:
-            integer(neighbors, "neighbors")
-            name = f"bm25-n{neighbors}"
-            yield (
-                name,
-                replace(
-                    base,
-                    path=config.path,
-                    name=f"{config.name}-{name}",
-                    output=config.output / name,
-                    parameters={**base.parameters, "neighbors": neighbors},
-                    grid={},
-                    seeds=(0,),
-                    stage="A",
-                    max_trials=1,
-                ),
-            )
 
 
 def verify(trial):
@@ -179,7 +148,6 @@ def run_study(path, *, minimum_free_gb=5):
     identity = dict(
         format="music-recsys-factor-study-config-v1",
         settings=json.loads(json.dumps(asdict(config), default=str)),
-        follow_up=load_settings(path).get("follow_up", {}),
         source_sha256=_source_sha256(),
         dependency_lock_sha256=file_sha256(Path(__file__).resolve().parents[2] / "uv.lock"),
         manifest_sha256=file_sha256(config.validation_dataset / "manifest.json"),

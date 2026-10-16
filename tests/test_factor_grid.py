@@ -18,7 +18,8 @@ def test_factor_grid_end_to_end_and_comparison_guards(tmp_path, model_name):
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = load_settings(Path(f"configs/{model_name}.json"))
+    config_path = "configs/bpr-30epoch/seed0.json" if model_name == "bpr" else "configs/als.json"
+    raw = load_settings(Path(config_path))
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(tmp_path / "never-open-test"),

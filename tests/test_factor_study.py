@@ -14,8 +14,7 @@ def small_study(tmp_path):
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = load_settings("configs/bpr-study.json")
-    raw.pop("follow_up")
+    raw = load_settings("configs/bpr-30epoch.json")
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(tmp_path / "test-must-not-be-opened"),
@@ -29,14 +28,18 @@ def small_study(tmp_path):
     return path
 
 
-def test_study_has_24_bpr_conditions_and_two_follow_ups():
-    planned = list(conditions(load_study_config("configs/bpr-study.json")))
-    assert len(planned) == 26
-    assert len({name for name, _ in planned}) == 26
-    assert {trial.seeds for _, trial in planned[:24]} == {(42,), (43,), (44,)}
-    assert {trial.parameters["iterations"] for _, trial in planned[:24]} == {30, 100}
-    assert {trial.parameters["neighbors"] for _, trial in planned[24:]} == {50, 100}
-    assert all(not trial.grid for _, trial in planned)
+def test_studies_separate_epochs_and_share_factors_seeds_and_inputs():
+    configs = [load_study_config(f"configs/bpr-{epoch}epoch.json") for epoch in (30, 100)]
+    assert configs[0].evaluation == configs[1].evaluation
+    assert configs[0].validation_dataset == configs[1].validation_dataset
+    assert configs[0].features == configs[1].features
+    for config, epoch in zip(configs, (30, 100), strict=True):
+        planned = list(conditions(config))
+        assert len(planned) == len({name for name, _ in planned}) == 12
+        assert {trial.seeds for _, trial in planned} == {(42,), (43,), (44,)}
+        assert {trial.parameters["iterations"] for _, trial in planned} == {epoch}
+        assert {trial.parameters["factors"] for _, trial in planned} == {32, 64, 128, 256}
+        assert all(not trial.grid and trial.model == "bpr" for _, trial in planned)
 
 
 def test_study_executes_exports_and_resumes_without_retraining(tmp_path):

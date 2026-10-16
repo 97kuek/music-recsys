@@ -1,8 +1,8 @@
 {
   "extends": "common.json",
   "experiment": {
-    "name": "music4all-bpr-study",
-    "output": "../data/experiments/bpr-study"
+    "name": "music4all-bpr-30epoch",
+    "output": "../data/experiments/bpr-30epoch"
   },
   "model": {
     "name": "bpr",
@@ -16,14 +16,10 @@
   "search": {
     "stage": "B",
     "seeds": [42, 43, 44],
-    "max_trials": 24,
+    "max_trials": 12,
     "grid": {
       "factors": [32, 64, 128, 256],
-      "iterations": [30, 100]
+      "iterations": [30]
     }
-  },
-  "follow_up": {
-    "bm25_config": "bm25.json",
-    "neighbors": [50, 100]
   }
 }

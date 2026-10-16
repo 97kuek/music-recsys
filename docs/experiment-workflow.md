@@ -64,21 +64,20 @@ uv sync --locked --group data --group models --group notebook --group tracking
 | `itemcf.json` | grid | `itemcf/`、`itemcf-{cosine,jaccard}-{20,50,100}/` |
 | `als.json` | grid | `als/`、`als-{32,64,128}/` |
 | `als/256.json` / `als/512.json` | full_evaluation | `als-256/` / `als-512/` |
-| `bpr.json` | grid | `bpr/`、`bpr-{32,64,128,256}/` |
+| `bpr-30epoch.json` / `bpr-100epoch.json` | factor_study | `bpr-30epoch/` / `bpr-100epoch/` |
+| `bpr-30epoch/seed0.json` | grid | `bpr-30epoch/seed0/`、`seed0-{32,64,128,256}/` |
 | `content.json` / `bm25.json` | full_evaluation | `content/` / `bm25/` |
+| `bm25/{50,100}.json` | full_evaluation | `bm25-{50,100}/` |
 
 ```bash
 .venv/bin/python -m music_recsys.grid --config configs/itemcf.json
 .venv/bin/python -m music_recsys.grid --config configs/als.json --compare configs/itemcf.json
 CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  .venv/bin/python -m music_recsys.grid --config configs/bpr.json \
-  --compare configs/popularity-plays.json --compare configs/popularity-users.json \
-  --compare configs/itemcf.json --compare configs/als.json \
-  --compare configs/als/256.json --compare configs/als/512.json
+  .venv/bin/python -m music_recsys.factor_study --config configs/bpr-100epoch.json
 ```
 
 - `--compare`は保存済み比較元を指定、入力・特徴・母集団・評価条件・成果物hashを検査する
-- `configs/itemcf/`・`configs/bpr/`・ALS 32/64/128はgridが展開、親JSONを編集する
+- `configs/itemcf/`・`configs/bpr-30epoch/seed0/`・ALS 32/64/128はgridが展開、親JSONを編集する
 - 展開済みJSONは結果からの参照があるため保持、GPUや一括実行だけの設定を増やさない
 - コード/lock/条件変更で再利用できない結果は保持し、再実験だけ新しい出力先へ保存する
 - ItemCF比較の再描画は`python -m music_recsys.itemcf_report --config configs/itemcf.json`
@@ -153,14 +152,18 @@ CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 
 ```bash
 CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  .venv/bin/python -m music_recsys.factor_study --config configs/bpr-study.json
+  .venv/bin/python -m music_recsys.factor_study --config configs/bpr-30epoch.json
+CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  .venv/bin/python -m music_recsys.factor_study --config configs/bpr-100epoch.json
 ```
 
-- 単一設定から32/64/128/256因子×30/100epochs×seed42/43/44の24条件を順次実行し、続けてBM25の50/100近傍を評価する
-- 30/100epochsは独立した学習であり、同一学習の学習曲線ではない。GPU BPRはseed固定でも並列更新順の非決定性がある
+- epoch別の設定から32/64/128/256因子×seed42/43/44の各12条件を順次実行、100epochは30epoch設定の差分だけを指定する
+- 30/100epochsは独立した学習であり、同一学習の学習曲線ではない、GPU BPRはseed固定でも並列更新順の非決定性がある
 - 全学習ユーザー・Validationのみ・K=2〜20・全観点は既存条件と共通、主指標選択・採用・Testは実行しない
-- `data/experiments/bpr-study/<条件>/`に標準結果と`model/`を保存し、ルートのresult.jsonは完了数・実行中条件・失敗を示す
-- 最後にルートへ全条件CSVとseed平均±標準偏差の図を保存する。標準偏差はモデル採用の検定や信頼区間ではない
+- `data/experiments/bpr-{30,100}epoch/<条件>/`に標準結果と`model/`を保存、各epoch直下のresult.jsonは完了数・実行中条件・失敗を示す
+- 初回seed0の4条件と従来手法比較は`bpr-30epoch/seed0/`と`seed0-{因子数}/`へ分離し、3シードの平均へ混ぜない
+- 保存先の移動では評価値・成果物hash・ModelSpecのID・学習時のsource/lock/Git revisionを保持、config.jsonのrelocationに元設定と移動前hashを記録する
+- 各epoch直下へCSVとseed平均±標準偏差の図を保存、標準偏差はモデル採用の検定や信頼区間ではない
 - 同じコマンドで再開し、入力・コード・lock・条件・結果/モデルhashが一致する成功条件だけを再利用する
 - 空き5GiB未満・GPU競合・不整合・学習失敗では停止する。途中モデルが残る条件は自動削除せず点検する
 - コードや条件が変わった場合は設定の出力先を新しくし、保存済み実験・重みを上書きしない

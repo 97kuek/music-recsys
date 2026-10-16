@@ -181,5 +181,6 @@ flowchart LR
 - 総再生回数: [Binary NDCG](../data/experiments/popularity-plays/binary_ndcg.png) / [既聴曲Graded NDCG](../data/experiments/popularity-plays/graded_ndcg_repeat.png)
 - 再生ユーザー数: [Recall](../data/experiments/popularity-users/recall.png) / [ヒートマップ](../data/experiments/popularity-users/recall_heatmap.png) / [Repeat Recall](../data/experiments/popularity-users/repeat_recall.png)
 - 原本: [総再生回数の結果](../data/experiments/popularity-plays/result.json) / [再生ユーザー数の結果](../data/experiments/popularity-users/result.json)
-- ItemCF・ALS・BPR: [比較CSV](../data/experiments/bpr/metrics.csv) / [BPR NDCG因子比較](../data/experiments/bpr/binary_ndcg_factors.png)
+- ItemCF・ALS・BPR初回seed0: [比較CSV](../data/experiments/bpr-30epoch/seed0/metrics.csv) / [BPR NDCG因子比較](../data/experiments/bpr-30epoch/seed0/binary_ndcg_factors.png)
+- BPRの3シード比較: [30epoch](../data/experiments/bpr-30epoch/metrics.csv) / [100epoch](../data/experiments/bpr-100epoch/metrics.csv)
 - 図と実験原本はGit管理外のため、上記リンクは実験成果物がある環境で利用

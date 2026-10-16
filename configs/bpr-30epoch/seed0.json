@@ -1,8 +1,8 @@
 {
-  "extends": "common.json",
+  "extends": "../common.json",
   "experiment": {
     "name": "music4all-bpr",
-    "output": "../data/experiments/bpr"
+    "output": "../../data/experiments/bpr-30epoch/seed0"
   },
   "model": {
     "name": "bpr",

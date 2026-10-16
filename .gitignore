@@ -43,7 +43,7 @@ node_modules/
 /configs/als/*.json
 !/configs/als/256.json
 
-/configs/bpr/
+/configs/bpr-30epoch/seed0/
 !/configs/als/512.json
 
 # 公開用の合成デモ生成物
