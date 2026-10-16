@@ -12,7 +12,7 @@ flowchart LR
     T --> E[listening_export: 観測集計]
     E --> B[Validation / Test bundle]
     R --> F[タグ特徴JSON]
-    B --> S[full_popularity / 小規模experiment_search]
+    B --> S[full_evaluation / 小規模experiment_search]
     F --> S
     S --> M[recommenders]
     M --> V[Evaluator]
@@ -24,9 +24,18 @@ flowchart LR
 
 | 場所 | 責務 |
 | --- | --- |
-| `full_evaluation.py` / `streaming_metrics.py` | 集約履歴の順次読込み・全件Popularity/ItemCF/ALS評価 |
+| `full_evaluation.py` / `streaming_metrics.py` | 集約履歴の順次読込み・全件Popularity/ItemCF/ALS/BPR評価 |
+| `recommenders/full_factors.py` | ALS/BPRの学習Parquet読込み・候補制約・同点順位の共通処理 |
+| `recommenders/full_als.py` / `full_bpr.py` | 各モデルのCPU/GPU学習 |
+| `recommenders/gpu_runtime.py` | GPU空き確認・実行環境の記録 |
+| `grid.py` | ItemCF近傍・類似度とALS/BPR因子数の順次実行・設定展開・再利用 |
+| `comparison.py` | 比較元の出典照合・指標抽出・完了後のレポート公開 |
+| `factor_report.py` / `itemcf_report.py` | 因子数比較・ItemCF比較の描画 |
+| `full_scoring.py` / `gpu_evaluation.py` / `gpu_metrics.py` | CPU参照評価・GPUバッチ順位・全指標・bootstrap |
+| `full_io.py` | 共通の逐次入力・Parquet書込み |
 | `full_analysis.py` | 全件の母集団・保存結果の読込み |
 | `notebook_config.py` | 設定選択UI・明示的な読込み・変更検知 |
+| `configuration.py` | 共通設定の継承・定義元を基準とするパス解決 |
 | `lab_data.py` | 取得・照合・ファイル保存のみのコホート生成 |
 | `music4all.py` | 全量Parquet変換・全量EDA |
 | `temporal.py` | 時刻境界による分割・読戻し検証 |
@@ -51,6 +60,35 @@ flowchart LR
 | `configs/popularity-plays.json` | 全件Popularityの設定 |
 | `tests/fixtures/configs/workflow-suite-*.toml` | 合成データで7モデルを確認する設定 |
 | `tests/fixtures/examples/` | 自動テスト・明示した操作確認用の合成fixture |
+
+## 実験設定
+
+`configs/common.json`にデータパス・評価期間・K・seedを集約し、各実験JSONは`extends`で参照する。
+辞書はキー単位で上書き、配列・値は置換する。相対パスはその値を書いたJSONを基準に解決する。
+共通設定は実行対象ではない。CLIとNotebookは同じ解決済み設定を使う。
+CLIは単一条件が`music_recsys.full_evaluation`、Grid探索が`music_recsys.grid`に統一する。
+
+| 設定 | 出力先（`data/experiments/`以下） |
+| --- | --- |
+| `configs/popularity-plays.json` / `popularity-users.json` | `popularity-plays/` / `popularity-users/` |
+| `configs/itemcf.json` | `itemcf/`と6条件の`itemcf-{similarity}-{neighbors}/` |
+| `configs/als.json` | `als/`と`als-{32,64,128}/` |
+| `configs/als/256.json` / `512.json` | `als-256/` / `als-512/` |
+| `configs/bpr.json` | `bpr/`（他方式との比較も含む）と`bpr-{32,64,128,256}/` |
+
+```mermaid
+flowchart LR
+    C[common.json] --> E[実験JSONの差分]
+    E --> R[CLI / Notebookで同じ設定を解決]
+    R --> G[Grid条件を自動展開]
+    G --> S[config.jsonに実行条件を固定して保存]
+    S --> V[結果と出典を照合して表示]
+```
+
+- Gridが生成する`configs/itemcf/`・`configs/bpr/`・ALS 32/64/128は手編集しない
+- 生成済み設定は保存結果から参照されるため保持する。Notebookではチェック欄で詳細条件を表示する
+- 共通設定変更もNotebookの再読込み対象。保存済み実験と異なる設定で結果を表示しない
+- `data/provenance/`は移行前の設定・出典・ログの保管先。通常の実験一覧には含めない
 
 ## 保存と再現性
 

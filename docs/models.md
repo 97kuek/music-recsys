@@ -100,8 +100,8 @@ flowchart LR
 実行例（先に小規模テストを実行、比較対象は保存済み結果が必要）:
 
 ```bash
-OPENBLAS_NUM_THREADS=1 .venv/bin/pytest -q tests/test_full_als.py tests/test_full_popularity.py
-OPENBLAS_NUM_THREADS=1 .venv/bin/python -m music_recsys.als_grid \
+OPENBLAS_NUM_THREADS=1 .venv/bin/pytest -q tests/test_full_als.py tests/test_full_evaluation.py
+OPENBLAS_NUM_THREADS=1 .venv/bin/python -m music_recsys.grid \
   --config configs/als.json \
   --compare configs/popularity-plays.json --compare configs/itemcf.json
 ```
@@ -120,3 +120,74 @@ OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 集約先`data/experiments/als/`は1指標1PNGとmetrics.csvを持つ。`recall_factors.png`・`repeat_recall_factors.png`・`binary_ndcg_factors.png`はALS条件間、同名の`_factors`なしは指定した既存モデルも含む比較。Graded NDCG・ILD・Coverage・Novelty・実測効率も個別出力し、全値未測定の図は作らない。
 
 Notebook 02では同じ`configs/als.json`を明示読込みして結果を確認する。CSVの同一task・metric・kでfactorsを比較し、RecallとRepeat Recallの最大値・同点・差を別々に確認する。曲線の交差やK依存も確認し、片方の最良条件を両タスク共通の最良設定と見なさない。これはValidationの診断で、設定選択・固定・最終Testは自動実行しない。
+
+## 標準Parquet経路のBPR
+
+[configs/bpr.json](../configs/bpr.json)は32 / 64 / 128 / 256因子を順次評価する。
+`implicit==0.7.2`のBPR-MFを使用し、30 epochs（`iterations=30`）、
+learning_rate=0.01、regularization=0.01、seed=0、float32に固定する。CPU学習はnum_threads=1。
+この設定は`use_gpu=true`とし、GPU学習・GPUバッチ評価を行う。
+GPUは固定seedでも並列更新順による非決定性がある。CPU/GPU結果は別出力へ保存する。
+学習率・正則化はライブラリ既定の初期値で、最適化済みの設定ではない。
+スコアは潜在因子内積＋楽曲バイアス（因子配列の追加1列）。
+
+- 入力は学習Parquetのみ。ユーザー×楽曲を二値化し、再生回数で正例を増やさない
+- 1 epochはユニーク正例数だけ復元抽出を試行する
+- 負例候補は学習CSRの楽曲エントリから抽出するため、学習ユーザー数に比例する分布
+- `verify_negative_samples=True`で本人既聴の負例を棄却し、その更新をスキップする
+- 全曲既聴ユーザーはrepeatに学習Popularityを使用する
+- 小規模用BPRの一様未聴抽出とは別実装。実装・版・seed・入力hashを保存する
+- new / repeat候補、全学習ユーザー、正解集合、90日主表示・30/180日感度、K=2〜20はALSと共通
+- Graded NDCG・ILD・Coverage・Novelty・観測分布・実測効率も共通評価器で出力する
+- 学習時間は入力読込みから因子学習完了、評価時間は推薦・指標計算・bootstrapまで（描画を除く）
+- 既存結果に評価時間がない場合は未測定のまま扱う
+
+```mermaid
+flowchart LR
+    A[学習Parquetのみ] --> B[二値CSR / BPR SGD]
+    B --> C[newとrepeatを別々に推薦]
+    D[Validation正解 / 共通特徴] --> E[共通評価器]
+    C --> E
+    E --> F[全指標 / Parquet / PNG]
+    F --> G[同条件の保存済み手法と比較]
+```
+
+```bash
+OPENBLAS_NUM_THREADS=1 .venv/bin/pytest -q tests/test_full_bpr.py tests/test_grid.py
+CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  .venv/bin/python -m music_recsys.grid --config configs/bpr.json \
+  --compare configs/popularity-plays.json --compare configs/popularity-users.json \
+  --compare configs/itemcf.json --compare configs/als.json --compare configs/als/256.json
+```
+
+個別設定は`configs/bpr/{32,64,128,256}.json`、個別結果は`data/experiments/bpr-{factors}/`。
+比較先は`data/experiments/bpr/`。`recall`・`repeat_recall`・`binary_ndcg`等のPNGを出力し、
+`_factors`はBPR4条件のK曲線、`_k20`はBPR4条件のK=20比較、接尾辞なしは全方式・全条件の比較。
+Notebook 02は同じJSONを明示読込みできる。主指標選択・固定・最終Testは自動実行しない。
+因子数比較はNDCG・Recall・Repeat Recall・Latency・学習時間を先に表示し、`COMPARE_ALL_MODELS=True`で他方式も含める。
+アルゴリズム詳細は[implicit CPU BPR](https://benfred.github.io/implicit/api/models/cpu/bpr.html)を参照。
+
+GPU評価は128ユーザー単位で順位・全精度指標・多様性指標・bootstrapを計算する。
+`uv sync --locked --group data --group models --group gpu --group notebook --group tracking`でCuPyを導入する。
+GPU利用にはホストのNVIDIAデバイスへのアクセスが必要。`nvidia-smi`と小規模学習で確認してから実行する。
+
+### ALS 512因子のGPU実行
+
+[configs/als/512.json](../configs/als/512.json)は512因子、20 iterations、
+alpha=10、log1p信頼度、regularization=0.1、seed=0を指定する。
+`implicit` GPU共役勾配法（cg_steps=20、float32）で、観測信頼度を明示的に`1+10*log1p(n)`へ変換する。
+初期因子は既存CPU版と同じseedの正規乱数をfloat32へ変換する。
+CPU版のfloat64直接解法との数値的な同一性は保証せず、因子数と解法の両方が変わる比較として扱う。
+同じ全件評価器と候補・正解集合を使用し、`data/experiments/als-512/`へ保存する。
+
+```bash
+CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  .venv/bin/python -m music_recsys.full_evaluation --config configs/als/512.json
+```
+
+BPR比較コマンドへ`--compare configs/als/512.json`を追加すると512因子も含められる。
+GPU学習直前にも他のGPU計算プロセスを確認し、使用中なら停止する。
+因子モデルの上位K取得はスコアの部分選択後に同点を含めて整列し、全件ソートと同じ順位を維持する。
+
+GPUレイテンシは転送・安定ソートを含むバッチ時間をユーザー×タスク数で割った値で、単発CPU応答時間とは区別する。
+`CUDA_PATH=/usr`は研究室サーバーのToolkit配置。他環境では実際の配置を指定する。

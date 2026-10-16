@@ -86,12 +86,94 @@
 - 差の統計的有意性は未検証で、どちらが常に優れているとは結論づけない
 - 人気の定義によって新規曲・既聴曲の結果が異なるため、今後のモデル比較では両者を基準として残す
 
+## ItemCF: 新規発見と再聴で最適な近傍数が異なる
+
+以下は同じ90日間・K=20の実測値。Recallは既聴曲を除いた新規曲のRecallであり、全聴取曲をまとめた指標ではない。
+
+| 類似度 / 近傍数 | Recall | Repeat Recall | Binary NDCG |
+| --- | ---: | ---: | ---: |
+| Cosine / 20 | 0.022720 | 0.051548 | 0.030334 |
+| Cosine / 50 | 0.020393 | 0.057439 | 0.030171 |
+| Cosine / 100 | 0.019265 | 0.059764 | 0.029625 |
+| Jaccard / 20 | 0.022052 | 0.044668 | 0.028490 |
+| Jaccard / 50 | 0.020615 | 0.049701 | 0.029200 |
+| Jaccard / 100 | 0.019830 | 0.053146 | 0.029514 |
+
+- 観測: 全条件でPopularityよりRecallが高い。Cosine・Jaccardとも20近傍がRecall最大で、近傍を増やすほど低下した
+- 仮説: 類似度の低い曲まで参照すると、新規曲の推薦では嗜好と関係の薄い情報が混ざる可能性
+- 観測: Repeat Recallは両類似度とも近傍数とともに上昇し、同じ近傍数ならCosineが高い
+- 仮説: 再聴曲は既存嗜好と結びつきやすく、近傍を広げることで履歴周辺の共聴取構造を拾える可能性
+- Cosineが再聴に有利な類似関係を捉える可能性はあるが、類似度分布や的中曲の分析なしに原因は断定しない
+- 観測: 6条件中、Recall・Binary NDCGはCosine/20、Repeat RecallはCosine/100が最大
+- JaccardのBinary NDCGは近傍数とともに上昇するため、「少数近傍が常に良い」とは一般化しない
+- 推薦目的によって良い設定が異なることが、戦略を選択する研究の動機になる
+
+## ALS: 因子数の効果は指標によって異なる
+
+| 因子数 | Recall | Repeat Recall | Binary NDCG |
+| --- | ---: | ---: | ---: |
+| 32 | 0.015642 | 0.062842 | 0.026117 |
+| 64 | 0.017847 | 0.064409 | 0.027526 |
+| 128 | 0.020700 | 0.065377 | 0.029893 |
+| 256 | 0.021917 | 0.066336 | 0.030558 |
+| 512 | 0.023083 | 0.063075 | 0.030495 |
+
+- 観測: 32→128でRecallは約32%増、Repeat Recallは約4%増。新規曲のRecallの方が因子数の影響が大きい
+- 仮説: 再聴される曲は少ない因子でも捉えられ、新規曲の予測には高次元の潜在表現が役立つ可能性
+- 観測: 256までは両Recallが改善するが、Repeat Recallの改善幅は小さい。256→512ではRecallが上昇し、Repeat Recallは低下した
+- ALSの因子数比較は今回512で区切る。最大値はRecallが512、Repeat Recall・Binary NDCGが256
+- 「256まで指標低下がない」ことは過学習がない証拠ではない。512の低下だけでも過学習とは断定できない
+- 512はGPU・float32・共役勾配法、32〜256はCPU・float64・直接解法。同じ目的関数だが因子数だけを変えた比較ではない
+- 解法差が大きいと確認したわけではない。影響を切り分けるなら、まず同じ256因子をGPUでも測定する
+- 計算量・学習時間も考慮する。実装差を含むCPU/GPU時間を因子数だけの効果として比較しない
+- ItemCF Cosine/20はALS 32〜256よりRecallが高いが、ALS 512はそれを上回った
+- ALSは今回の全因子数でItemCF最良条件よりRepeat Recallが高い
+- 仮説: 履歴から学ぶユーザーの潜在的な嗜好が再聴予測に有効な可能性。ただし候補制約・信頼度重み等の寄与は未分離
+- Binary NDCGの最大値はALS 256の0.030558とItemCF Cosine/20の0.030334で近い。統計的な同等性は未検証
+
+## BPR: ランキング学習の効果を確認する
+
+- 32/64/128/256因子、30 epochs、学習率0.01、正則化0.01、seed=0を比較
+- 学習入力は学習期間のみ。未観測負例で観測曲との相対順位を学習するが、NDCGを直接最適化するわけではない
+- 観測: NDCG@20は順に0.022584 / 0.023116 / 0.023113 / 0.023251。256が最大だが、64以降の差は小さい
+- 今回の設定ではALS・ItemCFの最良Binary NDCGを上回らず、「BPRはNDCGに優れる」とは言えない
+- Recallは64因子、Repeat Recallは128因子が最大。単調な因子数増加による改善は見られない
+- 分析順はBPR内のBinary NDCG→Recall→Repeat Recall、次に他方式との比較、Latency・学習時間、Coverage・ILD等
+- 表示の優先順は設定選択用の主指標を確定するものではない。他方式の「最良」は指標ごとのValidation診断値
+- GPU Latencyは128人のバッチ時間を按分した値。CPUの単発リクエスト時間と同一条件の速度比較にはならない
+- Epoch別のValidation NDCGは未測定。学習不足・過学習の判断には、検証条件を固定したEpoch別測定が必要
+- Negative Sampling・学習率・正則化・複数seedも未比較。ユーザーbootstrapは学習のばらつきを測らない
+
+## LLM・Agentによる推薦戦略選択の研究案
+
+以下は未実装・未検証の構想。Decisions APIは検討候補名で、提供元・仕様・料金・速度・対応出力は未確認。
+
+- 最終出力は文章でなく楽曲でもよい。推薦器・パラメータ・tool選択を構造化された判断として返す設計を検討する
+- LLM段階の主題は「どの推薦器・設定を使うか」。ユーザー入力・学習時点の嗜好情報から一度選択し、推薦器を実行して楽曲を返す
+- 通常LLMとDecisions APIによる選択を比較する。結果を見た戦略変更はこの段階には含めない
+- Agent段階の主題は「推薦結果を見て次に何をするか」。tool選択→実行→結果確認→再判断を繰り返す
+- Agent単独と、Agentが全体を制御してDecisions APIへ選択・スコアリングを委任する構成を比較する
+- 「安価で高速」は仮説として検証する。判断の適切さ・推薦性能・Latency・料金・トークン・LLM/tool呼出し数を測る
+- 最適戦略の正解は目的によって変わる。判断精度を測る前に目的と採点基準を定義し、最良戦略を知るoracleは評価上限として分ける
+- Agentの再判断に未来の正解を渡さない。利用可能な推薦結果・特徴・明示的フィードバックと呼出し上限を揃える
+
+```mermaid
+flowchart LR
+    U[ユーザー入力と利用可能な嗜好情報] --> D[LLM / Decisions APIで戦略選択]
+    D --> R[推薦器とパラメータを実行]
+    R --> O[楽曲を返す: 一度の判断]
+    R --> A[Agentが結果を確認]
+    A --> N[次の行動を選択 / 必要なら判断を委任]
+    N --> R
+    A --> F[終了して楽曲を返す]
+```
+
 ## 次に確認したいこと
 
-- ItemCFを同じ母集団・候補・4観点の指標で評価し、個人の履歴を使う順位付けの効果を比較
 - 同じ評価ユーザーに揃えて期間別の正解曲数・的中曲数を比較
 - ユーザー単位の対応のある差を用いて、方式間の差の不確実性を確認
 - 精度と併せてILD・Coverage・Novelty・効率性を確認
+- 実装・候補・正解の詳細は[評価仕様](listening-evaluation.md)と[モデル](models.md)を参照
 
 ## 図と原本
 
@@ -99,4 +181,5 @@
 - 総再生回数: [Binary NDCG](../data/experiments/popularity-plays/binary_ndcg.png) / [既聴曲Graded NDCG](../data/experiments/popularity-plays/graded_ndcg_repeat.png)
 - 再生ユーザー数: [Recall](../data/experiments/popularity-users/recall.png) / [ヒートマップ](../data/experiments/popularity-users/recall_heatmap.png) / [Repeat Recall](../data/experiments/popularity-users/repeat_recall.png)
 - 原本: [総再生回数の結果](../data/experiments/popularity-plays/result.json) / [再生ユーザー数の結果](../data/experiments/popularity-users/result.json)
+- ItemCF・ALS・BPR: [比較CSV](../data/experiments/bpr/metrics.csv) / [BPR NDCG因子比較](../data/experiments/bpr/binary_ndcg_factors.png)
 - 図と実験原本はGit管理外のため、上記リンクは実験成果物がある環境で利用
