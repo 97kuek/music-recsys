@@ -24,6 +24,9 @@
 ## 音源と許諾
 
 [Music4All公式](https://sites.google.com/view/contact4music4all)は109,269曲・30秒clip・ID/曲名/artist/spotifyidと提供申請先を説明
+取得申請先: **contact4music4all@gmail.com**（公式サイト確認日: 2026-10-16）
+必要なのは30秒clip、元の16文字IDと曲名/artistの対応表、取得・利用条件の3点
+公開Onion履歴を取得しただけではclipと曲名対応表は揃わない
 [Onion v2](https://zenodo.org/records/15394646)は履歴・特徴量の公開であり、原曲をWeb配信する包括許諾とは扱わない
 提供元への問い合わせ事項（送信は未実施）:
 - 研究室所属前の教育プロジェクト、少人数の仮名ユーザーへの30秒clip試聴
