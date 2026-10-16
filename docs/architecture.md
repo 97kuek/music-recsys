@@ -43,6 +43,11 @@ flowchart LR
 | `features.py` | 重み付きタグ特徴・checksum |
 | `recommenders/` | 7モデルの学習・推薦・説明 |
 | `candidates.py` / `types.py` | 共通要求・応答・候補の判定 |
+| `catalog.py` | 既存IDを維持した外部楽曲参照・文脈別の再生可否・Adapter契約 |
+| `model_artifacts.py` / `recommenders/deployed.py` | [全件モデルの配信](model-serving.md)、検証付き保存・学習なしの推論 |
+| `profiles.py` | 初期選択と実履歴の区別・曲/artist選択の入力変換 |
+| `serving.py` | 学習済み推薦器の登録・戦略選択・推論、[アプリ基盤](app-foundation.md) |
+| `events.py` | 同意済みセッションのメモリ内ログ、[制約と保存設計](online-study.md) |
 | `evaluation/` | 精度・多様性・効率の評価、追跡 |
 | `experiment_search.py` / `search_protocols.py` | 探索・再利用・選択・確認・固定・Test |
 | `search_analysis.py` / `listening_analysis.py` | 保存結果の分析・可視化 |

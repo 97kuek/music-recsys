@@ -1,0 +1,14 @@
+# Macの自宅回線用。研究室サーバーで起動しない。
+# 実値へ編集したコピーはリポジトリ外に保存する。
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: /absolute/private/path/TUNNEL_UUID.json
+ingress:
+  - hostname: otolab.example.com
+    service: http://127.0.0.1:8765
+    originRequest:
+      access:
+        required: true
+        teamName: REPLACE_WITH_ACCESS_TEAM
+        audTag:
+          - REPLACE_WITH_ACCESS_APPLICATION_AUD
+  - service: http_status:404

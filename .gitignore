@@ -27,6 +27,12 @@ __pycache__/
 htmlcov/
 /build/
 /dist/
+node_modules/
+.wrangler/
+.dev.vars*
+!.dev.vars.example
+/src/music_recsys/webapp/static/assets/
+/src/music_recsys/webapp/static/index.html
 
 # Notebook・OSの生成物
 .ipynb_checkpoints/
@@ -39,3 +45,7 @@ htmlcov/
 
 /configs/bpr/
 !/configs/als/512.json
+
+# 公開用の合成デモ生成物
+/frontend/public/demo/
+/src/music_recsys/webapp/static/demo/

@@ -1,0 +1,33 @@
+name: otolab
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      OTOLAB_MODEL_VERSION: ${OTOLAB_MODEL_VERSION:-}
+      OTOLAB_ACCESS_TEAM: ${OTOLAB_ACCESS_TEAM:-}
+      OTOLAB_ACCESS_AUD: ${OTOLAB_ACCESS_AUD:-}
+      OTOLAB_ALLOWED_ORIGINS: ${OTOLAB_ALLOWED_ORIGINS:-}
+      OTOLAB_ALLOWED_HOSTS: ${OTOLAB_ALLOWED_HOSTS:-}
+    volumes:
+      - type: bind
+        source: ${OTOLAB_BUNDLE:?Set absolute OTOLAB_BUNDLE path}
+        target: /bundle
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${OTOLAB_STATE:?Set absolute OTOLAB_STATE path}
+        target: /state
+        bind:
+          create_host_path: false

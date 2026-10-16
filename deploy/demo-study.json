@@ -1,0 +1,17 @@
+{
+  "protocol_id": "demo-ux-only",
+  "seed": 42,
+  "top_k": 5,
+  "conditions": [
+    {
+      "condition_id": "A",
+      "version": "demo-itemcf",
+      "required_route": "itemcf_history"
+    },
+    {
+      "condition_id": "B",
+      "version": "demo-als",
+      "required_route": "als_fold_in_binary_seeds"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 音楽推薦システムの研究用実装
 従来モデルを共通条件で検証し、LLM・Agentの追加効果を比較するための基盤
-LLM・Agent・Web UIは未実装
+music-recsysの音楽推薦MVP（React＋TypeScript＋FastAPI）に対応、LLM・Agentは未実装
 
 ## 現在の構成
 
@@ -16,6 +16,7 @@ LLM・Agent・Web UIは未実装
 - ALSのfactors別・既存手法との比較は[モデルと実行方法](docs/models.md#標準parquet経路のimplicit-als)を参照
 
 - BPRの4因子数比較は[モデルと実行方法](docs/models.md#標準parquet経路のbpr)を参照
+- [アプリMVP](docs/app-mvp.md)でプロフィール・推薦・デモ試聴・同意付きローカルログを接続、実音源は未接続、[Cloudflare公開デモ](docs/cloudflare.md)は合成音源で操作可能
 
 ## 開始
 
@@ -46,6 +47,17 @@ Notebookの選択欄でJSONを選び「読み込む」を押す / 初期状態�
 | --- | --- |
 | [考察](docs/discussion.md) | 各方式の観測結果・仮説・LLM/Agentによる戦略選択の研究案 |
 | [構成](docs/architecture.md) | モジュール・保存物・データの流れ |
+| [Macでの運用](docs/mac-study.md) | Docker・配信成果物移行・参加者限定の遠隔接続 |
+| [研究室の被験者実験準備](docs/lab-study.md) | Music4All音源・実モデル・実験ログ・研究室配置 |
+| [music-recsys配信](docs/cloudflare.md) | ブランド・Cloudflare・環境分離・ホスティング費用 |
+| [オンライン予備実験](docs/online-pilot.md) | 固定画面・プレイヤー・条件秘匿・行動ログ |
+| [アプリMVP](docs/app-mvp.md) | React画面・API・起動・実モデルとデモ・検証 |
+| [アプリ基盤](docs/app-foundation.md) | 共通楽曲・推薦APIの設計、選択肢と判断事項 |
+| [モデル配信](docs/model-serving.md) | 全件モデルexport/load・新規ユーザー・UI接続の準備 |
+| [Jamendo実曲モード](docs/jamendo.md) | API登録・100曲検証・Content推薦と試聴接続 |
+| [カタログPoC](docs/catalog-poc.md) | 学習データ×再生元・100曲の実データ検証・無料運用 |
+| [再生方式](docs/playback-options.md) | 音源・SDK・利用条件の比較と推奨 |
+| [オンライン研究ログ](docs/online-study.md) | セッション・行動・主観評価・同意と保存の境界 |
 | [運用](docs/lab-operation.md) | 環境・取得・接続・再開・保管 |
 | [検証手順](docs/experiment-workflow.md) | Notebook・CLI・状態遷移 |
 | [評価仕様](docs/listening-evaluation.md) | 候補・正解・指標・集計・制限 |

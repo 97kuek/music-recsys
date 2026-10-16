@@ -1,0 +1,19 @@
+[Unit]
+Description=music-recsys restricted local study development
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/projects/music-recsys
+EnvironmentFile=%h/.config/otolab/service.env
+Environment=OMP_NUM_THREADS=1
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=MKL_NUM_THREADS=1
+ExecStart=%h/projects/music-recsys/.venv/bin/python -m music_recsys.webapp.server --host 127.0.0.1 --port 8765 --config ${OTOLAB_CONFIG} --database ${OTOLAB_DATABASE} --study ${OTOLAB_STUDY}
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target
