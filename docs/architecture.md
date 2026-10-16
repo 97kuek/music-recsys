@@ -46,13 +46,36 @@ flowchart LR
 | `catalog.py` | 既存IDを維持した外部楽曲参照・文脈別の再生可否・Adapter契約 |
 | `model_artifacts.py` / `recommenders/deployed.py` | [全件モデルの配信](model-serving.md)、検証付き保存・学習なしの推論 |
 | `profiles.py` | 初期選択と実履歴の区別・曲/artist選択の入力変換 |
-| `serving.py` | 学習済み推薦器の登録・戦略選択・推論、[アプリ基盤](app-foundation.md) |
+| `serving.py` | ModelSpec・Strategy・RecommendationService、登録済み推薦器の選択と推論 |
 | `events.py` | 同意済みセッションのメモリ内ログ、[制約と保存設計](online-study.md) |
 | `evaluation/` | 精度・多様性・効率の評価、追跡 |
 | `experiment_search.py` / `search_protocols.py` | 探索・再利用・選択・確認・固定・Test |
 | `search_analysis.py` / `listening_analysis.py` | 保存結果の分析・可視化 |
 | `recommendation_inspection.py` | 選択設定の個別推薦・根拠・音源確認 |
 | `ingestion/` / `adapters/` / `temporal_cli.py` | 任意のDB経路、[接続手順](optional-storage.md) |
+
+## アプリの共通契約
+
+モジュラーモノリスを維持し、データ取得・学習・推薦戦略・順位付け・再生・ログを分離する
+既存のMusic4All item_id、学習済みindex、実験JSONと指標計算は変更しない
+
+| 契約 | 現在の責務・制約 |
+| --- | --- |
+| TrackRef / CatalogTrack | providerとsource_idを内部item_idへ対応付ける。出典revisionを保持し、同一参照の二重割当てを拒否 |
+| TrackLink | 同一録音・バージョンを確認した外部参照だけを追加。曲名・ISRCだけで自動統合しない |
+| CatalogAdapter / TrackCatalog | 表示メタデータと文脈別PlaybackAvailabilityを返す。unknown・期限切れは再生成功と扱わない |
+| RecommendationRequest / Response | 候補・実履歴・top_kの既存契約。初期選択はprofiles.pyで別入力として明示変換 |
+| ModelSpec | モデル版・アルゴリズム・不変のパラメータJSON・seed・学習/カタログ/コードの出典 |
+| Strategy | 登録済み推薦器を選択する。現在は固定選択、LLM・Agentによる選択は未実装 |
+| RecommendationService | 学習せず推論し、応答ID・重複・top_k・候補制約を検査。選択時間と推論時間を別計測 |
+| Playback Adapter | 試聴開始時の音源解決、期限・許諾・失敗の判定。認証トークンを公開メタデータへ保存しない |
+| SessionLog | 推薦要求・条件・モデル版と操作イベントを関連付ける。オフライン評価とは別の保存層 |
+
+全件モデルはDeployedRecommenderで共通recommend契約へ接続し、実モデルとmanifestをロード時に照合する
+新規楽曲のCatalog登録だけでは既存ALS/BPRの因子を追加しない
+新規ユーザー・fold-in・フォールバックは[モデル配信](model-serving.md)を参照
+録音の対応表永続化・新規ID採番・Agentの複数ステップ制御は未実装
+現在の楽曲データと再生元は[カタログ](catalog-poc.md)、同意と保存境界は[オンラインログ](online-study.md)を参照
 
 ## 保存物
 

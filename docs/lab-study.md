@@ -14,7 +14,7 @@
 | ItemCF | Cosine/Jaccard×20/50/100の実モデル6条件 | 比較条件を明示、採用モデルは未確定 |
 | ALS/BPR | 実データ重み未発見、デモ用の小規模重みだけ | Validation比較設定を明示して学習＋export |
 | 研究同意 | 開発用24時間保持・任意保存・削除のみ | 説明文/保持期間/撤回/参加者アクセス方針の決定 |
-| ホスト | 現在sushi、tyan/microの利用権限・接続先は未確認 | 管理者の利用許可・経路・保存領域の確認 |
+| 配置先 | 学習・評価は研究室、アプリは個人Mac | 実モデルbundleを移し、Dockerでローカル検証 |
 
 今回の音源監査範囲は `data/`。既存学習IDとファイル名stemの対応は0/45,888
 これは手元の確認範囲に対する値であり、Music4All全体の配布音源の存在率ではない
@@ -28,9 +28,9 @@
 必要なのは30秒clip、元の16文字IDと曲名/artistの対応表、取得・利用条件の3点
 公開Onion履歴を取得しただけではclipと曲名対応表は揃わない
 [Onion v2](https://zenodo.org/records/15394646)は履歴・特徴量の公開であり、原曲をWeb配信する包括許諾とは扱わない
-提供元への問い合わせ事項（送信は未実施）:
+提供元へ取得・少人数の限定試聴について申請済み、回答待ち。確認する条件:
 - 研究室所属前の教育プロジェクト、少人数の仮名ユーザーへの30秒clip試聴
-- アクセス制限付き研究室サーバーでの複製・配信、学内/学外の参加範囲
+- 個人Macでの複製・試聴、招待参加者に限定した認証付き遠隔アクセス
 - タイトル・artist・画像等の表示、帰属表示、取得経路、期限、音源削除条件
 - 行動ログ・主観評価の収集/分析、将来の研究発表・一般公開に別許諾が必要か
 - 研究室が取得済みの場合、当初の提供条件が上記用途を含むか
@@ -119,37 +119,14 @@ ALS/BPR再学習は設定/計算計画を明示して別出力へexport。評価
 オフライン指標をオンライン主観評価へ混ぜず、モデル版・条件参照で対応付ける
 LLM/AgentはStrategy交換で追加、今回実装しない
 
-## 研究室への配置
+## アプリの配置
 
-React buildをFastAPIから同一Origin配信し、loopbackだけで起動する。Docker・常駐DB不要
-SQLiteは研究室の許可された永続領域、モデル/音源は非公開領域へ置く
-1 workerで起動、現行メモリ内セッションを複数workerへ無条件分散しない
-
-```bash
-uv sync --locked --group app --group data --group models
-cd frontend
-npm ci
-npm run build
-cd ..
-# 明示的な合成音源の開発用比較
-.venv/bin/python -m music_recsys.webapp.server \
-  --config data/app/demo/config.json --study deploy/demo-study.json \
-  --database data/app/development.sqlite --host 127.0.0.1 --port 8765
-```
-
-デモ未準備時は[アプリMVP](app-mvp.md)の準備手順を使う
-サーバー内の接続先は `http://127.0.0.1:8765`。外部インターフェースへbindしない
-SSHポート転送は利用可否未確認。通常のSSHログイン権限から転送の許可を推定しない
-実験用のSSHアカウント共有はしない。学外接続は研究室VPN/SSH等の許可経路を管理者へ確認する
-常駐化テンプレートは `deploy/music-recsys.service.example`。user systemd利用許可後にコピー・パスを調整する
-`~/.config/otolab/service.env`に絶対パスのOTOLAB_CONFIG/OTOLAB_DATABASE/OTOLAB_STUDYを設定し0600で保持
-systemdのenable/start・linger設定・ポート開放・外部公開は今回実施していない
-Cloudflareフロントエンドから研究室APIへ接続しない。既存Cloudflare設定は別環境用の選択肢として保持
-被験者向け運用は[個人Macへ移行](mac-study.md)。自宅回線での遠隔接続は研究室環境と分離する
-既存Bearerはバックエンド保護用で参加者認証の代わりではない
-
-管理者確認事項: tyan/micro使用可否、SSH/VPN、CPU/RAM/GPU制限、永続領域/quota/backup、user service、ローカル利用/SSH転送の可否
-実験責任者確認事項: 音源許諾、保持/削除期間、比較条件、fallback扱い、説明同意、3〜5人の予備実験実施可否
+学習・評価は[研究室の標準運用](lab-operation.md)、参加者向けアプリは[個人Mac](mac-study.md)で動かす
+ReactとAPIをFastAPIから同一Origin配信し、モデルは起動時にロードする
+現行セッションはメモリ内なので1 workerを使い、ログSQLiteはMacの共通stateへ保存する
+研究室サーバーの外部公開・ポート開放・Tunnel起動は行わない
+Cloudflare公開プレビューは[合成デモ](cloudflare.md)で、研究室APIや実音源へ接続しない
+遠隔試聴を追加する場合はMac側だけに参加者認証を設け、提供条件と同意範囲を確認する
 
 ## 検証と残作業
 

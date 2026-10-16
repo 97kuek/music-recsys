@@ -52,11 +52,9 @@ Notebookの選択欄でJSONを選び「読み込む」を押す / 初期状態�
 | [music-recsys配信](docs/cloudflare.md) | ブランド・Cloudflare・環境分離・ホスティング費用 |
 | [オンライン予備実験](docs/online-pilot.md) | 固定画面・プレイヤー・条件秘匿・行動ログ |
 | [アプリMVP](docs/app-mvp.md) | React画面・API・起動・実モデルとデモ・検証 |
-| [アプリ基盤](docs/app-foundation.md) | 共通楽曲・推薦APIの設計、選択肢と判断事項 |
 | [モデル配信](docs/model-serving.md) | 全件モデルexport/load・新規ユーザー・UI接続の準備 |
 | [Jamendo実曲モード](docs/jamendo.md) | API登録・100曲検証・Content推薦と試聴接続 |
-| [カタログPoC](docs/catalog-poc.md) | 学習データ×再生元・100曲の実データ検証・無料運用 |
-| [再生方式](docs/playback-options.md) | 音源・SDK・利用条件の比較と推奨 |
+| [楽曲カタログと再生元](docs/catalog-poc.md) | Music4Allと外部サービス・照合PoC・利用条件 |
 | [オンライン研究ログ](docs/online-study.md) | セッション・行動・主観評価・同意と保存の境界 |
 | [運用](docs/lab-operation.md) | 環境・取得・接続・再開・保管 |
 | [検証手順](docs/experiment-workflow.md) | Notebook・CLI・状態遷移 |

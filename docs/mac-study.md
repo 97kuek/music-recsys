@@ -19,7 +19,7 @@ flowchart LR
 旧フォルダへ重ねて展開せず、実験終了後に更新する
 
 ```bash
-cd "$HOME/Downloads/music-recsys-mac-0.3.1"
+cd "$HOME/Downloads/music-recsys-mac-0.3.2"
 bash deploy/mac.sh start
 ```
 
@@ -48,8 +48,8 @@ URL: http://127.0.0.1:8765
   --output data/app/mac-demo
 
 .venv/bin/python -m music_recsys.webapp.distribution \
-  --root . --bundle data/app/mac-demo --version 0.3.1 \
-  --output data/app/music-recsys-mac-0.3.1.zip
+  --root . --bundle data/app/mac-demo --version 0.3.2 \
+  --output data/app/music-recsys-mac-0.3.2.zip
 ```
 
 ZIPは現在の作業ツリーのコードを含む。Git未コミットの実装も転送可能

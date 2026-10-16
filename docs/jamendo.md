@@ -1,6 +1,7 @@
 # Jamendo実曲モード
 
 公式仕様確認日: 2026-10-16。アプリ登録は承認待ち、実API・実音源の成功は未確認
+Music4Allを優先し、このモードは任意の接続候補として保持する
 デモ/ベンチマークとは別の `mode=jamendo`、既定設定は変更しない
 
 ## 本人による登録と設定
@@ -100,7 +101,7 @@ Mockテスト: read応答/停止/レート制限/秘密保護/録音版の矛盾
 履歴が不足した新規ユーザーは選択曲Contentを使用。CFとHybridの自動切替は未実装
 今後のStrategyでCFが適用不能ならContentへ明示フォールバックし、その経路をログへ残す
 LLM/Agentも既存Strategyを交換。外部コンテンツをLLMへ入力する権利は別途確認
-[ListenBrainzの調査・500件PoC](listenbrainz-poc.md)を参照
+[ListenBrainzの調査・500件PoC](catalog-poc.md#listenbrainz照合poc)を参照
 
 [Jamendo規約](https://devportal.jamendo.com/api_terms_of_use)は非商用API無料、将来の課金/制限変更可能性あり
 50万hitsは無条件の固定無料枠ではなく、超過見込み時の連絡基準。応答の利用制限に従う

@@ -77,7 +77,6 @@ Popularityのexportだけは学習Parquetの統計を再集約する
 保存時間は既存の学習時間・評価時間に加算しない
 既存結果を上書きしたり、Testスコアから設定を自動選択したりしない
 すでに終了した旧ALS/BPR実験の重みを、結果JSONから復元することはできない
-今回のコード追加前から動いているプロセスにもexport機能は遡って追加されない
 
 ## 新規ユーザーと初期プロフィール
 
@@ -135,7 +134,7 @@ ALSの解法をBPRへ流用しない
 | 曲・アーティストの候補表示 | Catalog、内部artist対応表 | 検索・表示メタデータと利用許諾 |
 | 初期プロフィール作成 | InitialProfile.to_request | 本人認証、入力上限、プロフィール保存 |
 | 推薦取得 | 起動時load済みRecommendationService | 認可、要求上限、タイムアウト、モデル版の配布管理 |
-| 試聴・状態表示 | Catalog.presentation / CatalogAdapter | [再生元の選択](playback-options.md)、SDK接続 |
+| 試聴・状態表示 | Catalog.presentation / CatalogAdapter | [再生元の選択](catalog-poc.md)、SDK接続 |
 | 行動記録 | SessionLog.record / append | 同意、永続化、撤回削除、再生イベントの正規化 |
 
 inference_routeとinput_kindはログへ保存し、BPRのPopularity補完をBPR固有の新規ユーザー性能と数えない
