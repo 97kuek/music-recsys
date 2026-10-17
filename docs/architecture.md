@@ -4,6 +4,7 @@
 
 - 対象は推薦の学習・候補制約・戦略選択・順位付け・評価
 - UI・音源配信・配置は[アプリ全体](app-architecture.md)、コードと保存先は[実行フロー](experiment-workflow.md)
+- アイコン付き全体図・DDD/Cleanの将来案は[設計図HTMLのソース](https://github.com/97kuek/music-recsys/blob/main/docs/architecture.html)をブラウザで開く
 - モジュラーモノリスを維持し、推薦器と推薦戦略を分離する
 - Music4Allの既存item_id・実験結果・学習index・Pythonパッケージ名を維持する
 
@@ -103,7 +104,7 @@ flowchart LR
 ```mermaid
 flowchart LR
     Q[同じ要求・候補・情報権限] --> F[固定 / ルール選択]
-    Q --> L[LLM / 軽量意思決定API: 1回選択]
+    Q --> L[LLM / OpenAI Decisions API: 1回選択]
     Q --> A[Agent: 選択・実行・結果確認・再判断]
     F --> S[既存Service / 登録済み推薦器]
     L --> S
@@ -113,6 +114,8 @@ flowchart LR
 ```
 
 - 現在の実装は固定Strategyまで、ルール選択・LLM・軽量意思決定API・Agentは未実装
+- [OpenAI Decisions API](https://developers.openai.com/api/docs/guides/decisions)はchoice/predicate/scoreを返す判断用の候補、登録推薦器の選択や条件判定に使う構想
+- 文章生成やtool呼出しは[Responses API](https://developers.openai.com/api/docs/guides/function-calling)、複数段の進行制御はアプリ側オーケストレーターで扱う
 - 単発選択は「どの推薦器/設定を使うか」、Agentは「結果を見て次に何をするか」を比較対象にする
 - 選択候補は検証済み登録モデルに限定、LLMにモデルファイル・DB・音源への任意アクセスを与えない
 - 候補・初期プロフィール・K・呼出し上限・時間/料金予算を揃え、再推薦回数・tool callも測る
