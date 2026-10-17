@@ -1,0 +1,27 @@
+{
+  "extends": "common.json",
+  "experiment": {
+    "name": "music4all-als-sensitivity",
+    "output": "../data/experiments/als-sensitivity"
+  },
+  "model": {
+    "name": "als",
+    "parameters": {
+      "confidence_transform": "log1p",
+      "memory_budget_mb": 4096,
+      "use_gpu": true,
+      "cg_steps": 20
+    }
+  },
+  "search": {
+    "stage": "B",
+    "seeds": [42, 43, 44],
+    "max_trials": 27,
+    "grid": {
+      "factors": [256],
+      "iterations": [20],
+      "alpha": [1.0, 10.0, 100.0],
+      "regularization": [0.01, 0.1, 1.0]
+    }
+  }
+}

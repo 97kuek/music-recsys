@@ -9,7 +9,7 @@ from src.experiment_search import load_study_config
 from src.factor_study import conditions, run_study
 
 
-def small_study(tmp_path):
+def small_study(tmp_path, model="bpr"):
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
@@ -23,6 +23,12 @@ def small_study(tmp_path):
     )
     raw["model"]["parameters"]["use_gpu"] = False
     raw["search"].update(grid={"factors": [3], "iterations": [1]}, seeds=[7, 8], max_trials=2)
+    if model == "als":
+        raw["model"] = dict(name="als", parameters=dict(use_gpu=False))
+        raw["search"].update(
+            grid=dict(factors=[3], iterations=[1], alpha=[1.0, 10.0], regularization=[0.1]),
+            seeds=[7],
+        )
     path = tmp_path / "study.json"
     path.write_text(json.dumps(raw))
     return path
@@ -42,14 +48,15 @@ def test_studies_separate_epochs_and_share_factors_seeds_and_inputs():
         assert all(not trial.grid and trial.model == "bpr" for _, trial in planned)
 
 
-def test_study_executes_exports_and_resumes_without_retraining(tmp_path):
+@pytest.mark.parametrize("model", ["bpr", "als"])
+def test_study_executes_exports_and_resumes_without_retraining(tmp_path, model):
     import shutil
     import subprocess
     import sys
 
     if shutil.disk_usage(tmp_path).free < 5 * 1024**3:
         pytest.skip("CLI study has a 5 GiB free-space guard")
-    path = small_study(tmp_path)
+    path = small_study(tmp_path, model)
     subprocess.run(
         [sys.executable, "-m", "src.factor_study", "--config", str(path)],
         check=True,
@@ -92,3 +99,19 @@ def test_low_disk_stops_with_explicit_failure_and_no_fake_success(tmp_path):
     assert state["status"] == "failed"
     assert state["completed"] == 0
     assert not (output / "metrics.csv").exists()
+
+
+def test_als_sensitivity_keeps_shared_population_metrics_and_distinct_conditions():
+    config = load_study_config("configs/als-sensitivity.json")
+    base = load_study_config("configs/bpr-200epoch.json")
+    trials = list(conditions(config))
+    assert len(trials) == len({name for name, _ in trials}) == 27
+    assert config.evaluation == base.evaluation
+    assert config.validation_dataset == base.validation_dataset
+    assert config.features == base.features
+    assert {trial.parameters["alpha"] for _, trial in trials} == {1.0, 10.0, 100.0}
+    assert {trial.parameters["regularization"] for _, trial in trials} == {0.01, 0.1, 1.0}
+    assert all(
+        trial.parameters["use_gpu"] and trial.parameters["cg_steps"] == 20 for _, trial in trials
+    )
+    assert len(list(conditions(load_study_config("configs/bpr-500epoch.json")))) == 12

@@ -64,7 +64,7 @@ uv sync --locked --group data --group models --group notebook --group tracking
 | `itemcf.json` | grid | `itemcf/`、`itemcf-{cosine,jaccard}-{20,50,100}/` |
 | `als.json` | grid | `als/`、`als-{32,64,128}/` |
 | `als/256.json` / `als/512.json` | full_evaluation | `als-256/` / `als-512/` |
-| `bpr-30epoch.json` / `bpr-100epoch.json` | factor_study | `bpr-30epoch/` / `bpr-100epoch/` |
+| `bpr-{30,100,200,500}epoch.json` / `als-sensitivity.json` | factor_study | `bpr-{epoch}epoch/` / `als-sensitivity/` |
 | `bpr-30epoch/seed0.json` | grid | `bpr-30epoch/seed0/`、`seed0-{32,64,128,256}/` |
 | `content.json` / `bm25.json` | full_evaluation | `content/` / `bm25/` |
 | `bm25/{50,100}.json` | full_evaluation | `bm25-{50,100}/` |
@@ -148,24 +148,25 @@ CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 - 保存形式・検証・Cold-startは[推薦アーキテクチャ](architecture.md#保存済みモデルとcold-start)
 - Content全件モデルの疎行列exportは未対応、BM25はItemCF配信形式へ接続する
 
-## BPRの因子数・epoch・seed比較
+## ALS/BPRの感度分析・seed比較
 
 ```bash
 CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  .venv/bin/python -m src.factor_study --config configs/bpr-30epoch.json
+  .venv/bin/python -m src.factor_study --config configs/bpr-200epoch.json --minimum-free-gb 6
 CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  .venv/bin/python -m src.factor_study --config configs/bpr-100epoch.json
+  .venv/bin/python -m src.factor_study --config configs/als-sensitivity.json --minimum-free-gb 6
 ```
 
-- epoch別の設定から32/64/128/256因子×seed42/43/44の各12条件を順次実行、100epochは30epoch設定の差分だけを指定する
-- 30/100epochsは独立した学習であり、同一学習の学習曲線ではない、GPU BPRはseed固定でも並列更新順の非決定性がある
+- BPRは30/100/200/500 epoch別に32/64/128/256因子×seed42/43/44の各12条件、epoch設定は継承で差分指定する
+- ALSは256因子・20反復・GPU float32共役勾配cg_steps=20でalpha=1/10/100×正則化=.01/.1/1×seed42/43/44の27条件
+- BPRのepoch別は独立した学習であり同一学習の学習曲線ではない、GPU並列更新の非決定性とALSのCPU直接解法との差を区別する
 - 全学習ユーザー・Validationのみ・K=2〜20・全観点は既存条件と共通、主指標選択・採用・Testは実行しない
-- `data/experiments/bpr-{30,100}epoch/<条件>/`に標準結果と`model/`を保存、各epoch直下のresult.jsonは完了数・実行中条件・失敗を示す
+- 各実験の`<条件>/`に標準結果と`model/`を保存、実験直下のresult.jsonは完了数・実行中条件・失敗を示す
 - 初回seed0の4条件と従来手法比較は`bpr-30epoch/seed0/`と`seed0-{因子数}/`へ分離し、3シードの平均へ混ぜない
 - 保存先の移動では評価値・成果物hash・ModelSpecのID・学習時のsource/lock/Git revisionを保持、config.jsonのrelocationに元設定と移動前hashを記録する
-- 各epoch直下へCSVとseed平均±標準偏差の図を保存、標準偏差はモデル採用の検定や信頼区間ではない
+- 実験直下へCSVとseed平均±標準偏差の図を保存、ALSはalpha/正則化を区別し、標準偏差を採用の検定や信頼区間と解釈しない
 - 同じコマンドで再開し、入力・コード・lock・条件・結果/モデルhashが一致する成功条件だけを再利用する
-- 空き5GiB未満・GPU競合・不整合・学習失敗では停止する。途中モデルが残る条件は自動削除せず点検する
+- 空き容量は既定5GiB、--minimum-free-gbで開始条件を明示、GPU競合・不整合・学習失敗でも停止、途中モデルは自動削除しない
 - コードや条件が変わった場合は設定の出力先を新しくし、保存済み実験・重みを上書きしない
 
 ## 長時間運用・開発

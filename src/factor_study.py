@@ -1,8 +1,9 @@
-"""Sequential, resumable BPR epoch/factor/seed experiments using full Validation."""
+"""Sequential, resumable ALS/BPR sensitivity experiments using full Validation."""
 
 import argparse
 import itertools
 import json
+import math
 import shutil
 import subprocess
 import sys
@@ -18,28 +19,43 @@ from src.listening_data import file_sha256
 
 
 def conditions(config):
-    from src.recommenders.factors import integer
+    from src.recommenders.factors import integer, number
 
-    if config.model != "bpr" or set(config.grid) != {"factors", "iterations"}:
-        raise ValueError("BPR study requires factors/iterations grid")
+    required = {"factors", "iterations"}
+    optional = {"alpha", "regularization"} if config.model == "als" else set()
+    if (
+        config.model not in {"als", "bpr"}
+        or not required <= set(config.grid)
+        or set(config.grid) - required - optional
+    ):
+        raise ValueError("ALS/BPR study requires factors/iterations and supported sensitivity grid")
     count = len(config.seeds)
-    for values in config.grid.values():
+    for key, values in config.grid.items():
+        if not values:
+            raise ValueError("study grid must not be empty")
         count *= len(values)
         for value in values:
-            integer(value, "grid value")
+            if key in required:
+                integer(value, key)
+            else:
+                number(value, key, positive=key == "regularization")
     if count > config.max_trials:
-        raise ValueError("BPR study exceeds max_trials")
-    for factors, epochs, seed in itertools.product(
-        config.grid["factors"], config.grid["iterations"], config.seeds
-    ):
-        name = f"f{factors}-e{epochs}-s{seed}"
+        raise ValueError("factor study exceeds max_trials")
+    keys = ["factors", "iterations", *sorted(set(config.grid) - required)]
+    for values in itertools.product(*(config.grid[key] for key in keys), config.seeds):
+        parameters, seed = dict(zip(keys, values[:-1], strict=True)), values[-1]
+        name = f"f{parameters['factors']}-e{parameters['iterations']}"
+        for key, short in (("alpha", "a"), ("regularization", "r")):
+            if key in parameters:
+                name += f"-{short}{parameters[key]:g}"
+        name += f"-s{seed}"
         yield (
             name,
             replace(
                 config,
                 name=f"{config.name}-{name}",
                 output=config.output / name,
-                parameters={**config.parameters, "factors": factors, "iterations": epochs},
+                parameters={**config.parameters, **parameters},
                 grid={},
                 seeds=(seed,),
                 stage="A",
@@ -85,6 +101,8 @@ def summarize(config, finished):
                 factors=trial.parameters.get("factors"),
                 epochs=trial.parameters.get("iterations"),
                 neighbors=trial.parameters.get("neighbors"),
+                alpha=trial.parameters.get("alpha"),
+                regularization=trial.parameters.get("regularization"),
                 **row,
             )
             for row in metric_rows(result, config.evaluation)
@@ -98,13 +116,19 @@ def summarize(config, finished):
             continue
         name, title = ACCURACY_NAMES.get((task, metric), (f"{metric}_{task}", metric))
         fig, ax = plt.subplots(figsize=(12, 7), layout="constrained")
-        for (model, factors, epochs, neighbors), group in subset.groupby(
-            ["model", "factors", "epochs", "neighbors"], dropna=False, sort=False
+        for (model, factors, epochs, neighbors, alpha, regularization), group in subset.groupby(
+            ["model", "factors", "epochs", "neighbors", "alpha", "regularization"],
+            dropna=False,
+            sort=False,
         ):
             label = (
                 f"BPR f={int(factors)}, epochs={int(epochs)}"
                 if model == "bpr"
-                else f"BM25 n={int(neighbors)}"
+                else (
+                    f"ALS f={int(factors)}, alpha={alpha:g}, reg={regularization:g}"
+                    if model == "als"
+                    else f"BM25 n={int(neighbors)}"
+                )
             )
             if task == "all":
                 ax.bar(
@@ -241,8 +265,13 @@ def run_study(path, *, minimum_free_gb=5):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True, type=Path)
+    parser.add_argument(
+        "--minimum-free-gb", type=float, default=5, help="各条件開始時の最低空きGiB"
+    )
     parser.add_argument("--condition", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if not math.isfinite(args.minimum_free_gb) or args.minimum_free_gb < 0:
+        parser.error("--minimum-free-gb must be finite and non-negative")
     if args.condition:
         config = load_study_config(args.config)
         matches = [trial for name, trial in conditions(config) if name == args.condition]
@@ -256,7 +285,10 @@ def main():
         )
     else:
         started = time.perf_counter()
-        print(run_study(args.config), f"elapsed={time.perf_counter() - started:.1f}s")
+        print(
+            run_study(args.config, minimum_free_gb=args.minimum_free_gb),
+            f"elapsed={time.perf_counter() - started:.1f}s",
+        )
 
 
 if __name__ == "__main__":
