@@ -8,9 +8,8 @@ venv/
 *.key
 /.aws/
 
-# データ・評価結果（説明だけ管理）
-/data/*
-!/data/README.md
+# 元データ・中間生成物・評価結果をフォルダ全体で管理外にする
+/data/
 /mlruns/
 /models/
 /artifacts/
@@ -31,8 +30,8 @@ node_modules/
 .wrangler/
 .dev.vars*
 !.dev.vars.example
-/src/music_recsys/webapp/static/assets/
-/src/music_recsys/webapp/static/index.html
+/src/webapp/static/assets/
+/src/webapp/static/index.html
 
 # Notebook・OSの生成物
 .ipynb_checkpoints/
@@ -46,17 +45,13 @@ node_modules/
 /configs/bpr-30epoch/seed0/
 !/configs/als/512.json
 
-# 公開用の合成デモ生成物
+# ローカル確認用の合成デモ生成物
 /frontend/public/demo/
-/src/music_recsys/webapp/static/demo/
-
-# Pages advanced-mode build artifacts
-/src/music_recsys/webapp/static/_worker.js
-/src/music_recsys/webapp/static/_routes.json
+/src/webapp/static/demo/
 
 /frontend/public/license.txt
 /frontend/public/notice.txt
 /frontend/public/third-party-licenses.txt
-/src/music_recsys/webapp/static/license.txt
-/src/music_recsys/webapp/static/notice.txt
-/src/music_recsys/webapp/static/third-party-licenses.txt
+/src/webapp/static/license.txt
+/src/webapp/static/notice.txt
+/src/webapp/static/third-party-licenses.txt

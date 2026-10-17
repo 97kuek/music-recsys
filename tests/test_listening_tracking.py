@@ -6,10 +6,10 @@ from listening_support import write_bundle
 def test_v2_mlflow_sends_only_aggregates_and_marks_model_failures(tmp_path):
     from mlflow import MlflowClient
 
-    from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
-    from music_recsys.evaluation.tracking import TrackingConfig
-    from music_recsys.listening_data import load_listening_dataset
-    from music_recsys.listening_types import ListeningConfig
+    from src.evaluation.listening_benchmark import run_listening_benchmark
+    from src.evaluation.tracking import TrackingConfig
+    from src.listening_data import load_listening_dataset
+    from src.listening_types import ListeningConfig
 
     config = ListeningConfig(window_days=(90,))
     data = load_listening_dataset(write_bundle(tmp_path / "bundle"), config)

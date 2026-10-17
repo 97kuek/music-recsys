@@ -14,8 +14,8 @@ from test_publication import members, new_run, snapshot
 from test_schema import artifact, dataset, execute, source_catalog
 from test_snapshot_frames import saved_snapshot
 
-from music_recsys.ingestion.artifacts import ArtifactStore
-from music_recsys.ingestion.types import ValidationError
+from src.ingestion.artifacts import ArtifactStore
+from src.ingestion.types import ValidationError
 
 pytestmark = pytest.mark.db
 CONFIG = {
@@ -51,8 +51,8 @@ SUMMARY = {
 
 
 def history_snapshot(db, music4all_factory, tmp_path, *, name="history_source", data=EVENTS):
-    from music_recsys.adapters.music4all import Music4AllAdapter
-    from music_recsys.ingestion.pipeline import import_dataset
+    from src.adapters.music4all import Music4AllAdapter
+    from src.ingestion.pipeline import import_dataset
 
     files = music4all_factory(name=name, events_data=data)
     adapter = Music4AllAdapter(
@@ -85,7 +85,7 @@ def split_inputs(db, music4all_factory, tmp_path):
 
 
 def publish(db, inputs, **overrides):
-    from music_recsys.ingestion.splits import publish_split
+    from src.ingestion.splits import publish_split
 
     root, snapshot_id, artifacts = inputs
     params = dict(
@@ -99,7 +99,7 @@ def publish(db, inputs, **overrides):
 
 
 def test_split_roundtrip_and_identical_rerun_reuse(db, split_inputs):
-    from music_recsys.ingestion.splits import load_split
+    from src.ingestion.splits import load_split
 
     split_id = publish(db, split_inputs)
     assert publish(db, split_inputs) == split_id
@@ -128,7 +128,7 @@ def test_concurrent_identical_publication_reuses_one_split(db, split_inputs):
 
 @pytest.mark.parametrize("role", ["validation_benchmark", "test_benchmark"])
 def test_optional_benchmark_artifacts_roundtrip(db, split_inputs, tmp_path, role):
-    from music_recsys.ingestion.splits import load_split
+    from src.ingestion.splits import load_split
 
     path = tmp_path / "benchmark.json"
     path.write_text('{"users": []}')
@@ -166,7 +166,7 @@ def test_non_object_metadata_is_rejected(db, split_inputs, field):
 
 
 def test_unknown_snapshot_and_split_rejected(db, split_inputs):
-    from music_recsys.ingestion.splits import load_split
+    from src.ingestion.splits import load_split
 
     with pytest.raises(ValidationError, match="published snapshot"):
         publish(db, split_inputs, snapshot_id=uuid4())
@@ -192,7 +192,7 @@ def test_split_and_all_role_memberships_are_immutable(db, split_inputs, statemen
 
 
 def test_loader_and_publisher_reject_tampered_file(db, split_inputs):
-    from music_recsys.ingestion.splits import load_split
+    from src.ingestion.splits import load_split
 
     split_id = publish(db, split_inputs)
     split_inputs[2]["train"].path.write_bytes(b"tampered")
@@ -208,7 +208,7 @@ def clone_split(c, split_id, *, recalculate=False, **overrides):
     )
     row.update(id=uuid4(), **overrides)
     if recalculate:
-        from music_recsys.ingestion.types import fingerprint
+        from src.ingestion.types import fingerprint
 
         row["content_fingerprint"] = fingerprint(
             {
@@ -219,7 +219,7 @@ def clone_split(c, split_id, *, recalculate=False, **overrides):
             }
         )
     # DBに渡すJSONは、通常のSQLクライアントと同じく明示的に符号化する。
-    from music_recsys.ingestion.types import canonical_json
+    from src.ingestion.types import canonical_json
 
     for key in ("config", "summary", "artifact_manifest"):
         row[key] = canonical_json(row[key])
@@ -345,7 +345,7 @@ def test_split_rejects_other_snapshot_history(
 def test_loader_rejects_registry_referencing_other_snapshot_history(
     db, split_inputs, music4all_factory, tmp_path
 ):
-    from music_recsys.ingestion.splits import load_split
+    from src.ingestion.splits import load_split
 
     split_id = publish(db, split_inputs)
     _, other_snapshot, _ = history_snapshot(
@@ -452,13 +452,13 @@ def test_valid_history_multiplicity_and_boundary_cases(db, music4all_factory, tm
     else:
         data = EVENTS.replace(b"2018-01-01", b"2017-03-29").replace(b"2020-01-01", b"2018-09-21")
     root, snapshot_id, events = history_snapshot(db, music4all_factory, tmp_path, data=data)
-    from music_recsys.temporal import TemporalConfig, prepare_temporal
+    from src.temporal import TemporalConfig, prepare_temporal
 
     result = prepare_temporal(events.path, tmp_path / "split", TemporalConfig(), provenance={})
     store = ArtifactStore(root, "music4all-onion")
     artifacts = {role: store.put(path, format="parquet") for role, path in result.files.items()}
     split_id = publish(db, (root, snapshot_id, artifacts), summary=result.summary)
-    from music_recsys.ingestion.splits import load_split
+    from src.ingestion.splits import load_split
 
     loaded = load_split(db, root, split_id)
     assert loaded["artifacts"]["events"].row_count == (
@@ -468,7 +468,7 @@ def test_valid_history_multiplicity_and_boundary_cases(db, music4all_factory, tm
 
 
 def test_loader_rejects_self_consistent_hash_with_invalid_summary_counts(db, split_inputs):
-    from music_recsys.ingestion.splits import load_split
+    from src.ingestion.splits import load_split
 
     split_id = publish(db, split_inputs)
     summary = deepcopy(SUMMARY)

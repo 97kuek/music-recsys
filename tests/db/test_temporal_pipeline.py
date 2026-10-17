@@ -6,11 +6,11 @@ pytestmark = pytest.mark.db
 
 
 def test_snapshot_split_export_round_trip(db, music4all_factory, tmp_path):
-    from music_recsys.adapters.music4all import Music4AllAdapter
-    from music_recsys.data import load_dataset
-    from music_recsys.ingestion.pipeline import import_dataset
-    from music_recsys.ingestion.splits import load_split
-    from music_recsys.temporal_cli import export_split, split_snapshot
+    from src.adapters.music4all import Music4AllAdapter
+    from src.data import load_dataset
+    from src.ingestion.pipeline import import_dataset
+    from src.ingestion.splits import load_split
+    from src.temporal_cli import export_split, split_snapshot
 
     files = music4all_factory(
         events_data=b"user_id\ttrack_id\ttimestamp\na\t01\t2016-01-01 00:00:00\nb\t02\t2016-01-01 00:00:00\na\t02\t2018-01-01 00:00:00\nb\t01\t2020-01-01 00:00:00\n"
@@ -41,8 +41,8 @@ def test_snapshot_split_export_round_trip(db, music4all_factory, tmp_path):
     assert dataset.provenance["snapshot_id"] == str(snapshot.snapshot_id)
     assert len(dataset.train_interactions) == 3
 
-    from music_recsys.listening_data import load_listening_dataset
-    from music_recsys.listening_types import ListeningConfig
+    from src.listening_data import load_listening_dataset
+    from src.listening_types import ListeningConfig
 
     bundle = tmp_path / "listening-test"
     export_split(db, root, split_id, bundle, phase="test", protocol="listening-v2")

@@ -9,13 +9,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "node scripts/licenses.mjs && tsc --noEmit && vite build",
-    "test:worker": "node --test tests/worker.test.mjs",
-    "preview:cloudflare": "wrangler dev --config wrangler.workers.jsonc --env preview --ip 127.0.0.1",
-    "deploy:preview": "npm run build:preview && wrangler deploy --config wrangler.workers.jsonc --env preview",
-    "check:deploy": "npm run build:preview && wrangler deploy --config wrangler.workers.jsonc --env preview --dry-run --outdir /tmp/music-recsys-worker-check",
-    "build:preview": "node scripts/licenses.mjs && tsc --noEmit && VITE_PUBLIC_DEMO=1 vite build --mode preview",
-    "build:pages": "npm run build:preview && node scripts/pages.mjs",
-    "deploy:pages": "npm run build:pages && wrangler pages deploy --project-name musicrecsys --branch main"
+    "build:demo": "node scripts/licenses.mjs && tsc --noEmit && VITE_PUBLIC_DEMO=1 vite build --mode demo"
   },
   "dependencies": {
     "react": "^19.2.0",
@@ -25,8 +19,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "typescript": "~5.9.3",
-    "vite": "^8.0.0",
-    "wrangler": "^4.151.1"
+    "vite": "^8.0.0"
   },
   "license": "MIT"
 }

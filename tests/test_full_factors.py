@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from music_recsys.recommenders.full_factors import FullFactorModel
+from src.recommenders.full_factors import FullFactorModel
 
 
 def test_shared_learning_sorts_and_aggregates_counts(tmp_path):

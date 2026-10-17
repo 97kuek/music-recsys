@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 pytest.importorskip("pandas", reason="install the data dependency group")
-from music_recsys import snapshot_analysis as analysis
+from src import snapshot_analysis as analysis
 
 FIXTURE = Path(__file__).resolve().parents[1] / "tests/fixtures/examples/catalog/snapshot.json"
 

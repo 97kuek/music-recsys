@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def saved_snapshot(db, music4all_factory, tmp_path):
-    from music_recsys.adapters.music4all import Music4AllAdapter
-    from music_recsys.ingestion.pipeline import import_dataset
+    from src.adapters.music4all import Music4AllAdapter
+    from src.ingestion.pipeline import import_dataset
 
     files = music4all_factory()
     adapter = Music4AllAdapter(
@@ -30,7 +30,7 @@ def saved_snapshot(db, music4all_factory, tmp_path):
 
 
 def test_sql_reader_pins_snapshot_version_and_validates_frames(db, music4all_factory, tmp_path):
-    from music_recsys.snapshot_analysis import load_snapshot_frames, validation_rows
+    from src.snapshot_analysis import load_snapshot_frames, validation_rows
 
     root, snapshot_id = saved_snapshot(db, music4all_factory, tmp_path)
     snapshot = load_snapshot_frames(
@@ -58,7 +58,7 @@ def test_sql_reader_pins_snapshot_version_and_validates_frames(db, music4all_fac
 def test_sql_reader_rejects_wrong_dataset_or_version(
     db, music4all_factory, tmp_path, dataset_key, version
 ):
-    from music_recsys.snapshot_analysis import load_snapshot_frames
+    from src.snapshot_analysis import load_snapshot_frames
 
     root, snapshot_id = saved_snapshot(db, music4all_factory, tmp_path)
     with pytest.raises(ValueError, match="dataset/version"):
@@ -66,7 +66,7 @@ def test_sql_reader_rejects_wrong_dataset_or_version(
 
 
 def test_sql_reader_rejects_unknown_snapshot(db, tmp_path):
-    from music_recsys.snapshot_analysis import load_snapshot_frames
+    from src.snapshot_analysis import load_snapshot_frames
 
     with pytest.raises(ValueError, match="published snapshot"):
         load_snapshot_frames(
@@ -75,7 +75,7 @@ def test_sql_reader_rejects_unknown_snapshot(db, tmp_path):
 
 
 def test_sql_reader_rejects_corrupted_parquet(db, music4all_factory, tmp_path):
-    from music_recsys.snapshot_analysis import load_snapshot_frames
+    from src.snapshot_analysis import load_snapshot_frames
 
     root, snapshot_id = saved_snapshot(db, music4all_factory, tmp_path)
     with db.connect() as connection:

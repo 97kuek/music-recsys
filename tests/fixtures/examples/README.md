@@ -13,7 +13,7 @@
 
 ```bash
 .venv/bin/python tests/fixtures/examples/toy/create_listening.py --output data/benchmarks/toy-listening
-.venv/bin/python -m music_recsys.experiment_search --config tests/fixtures/configs/workflow-suite-popularity.toml smoke
+.venv/bin/python -m src.experiment_search --config tests/fixtures/configs/workflow-suite-popularity.toml smoke
 ```
 
 以後は[検証手順](../../../docs/experiment-workflow.md)に従う

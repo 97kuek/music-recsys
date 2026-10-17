@@ -19,9 +19,9 @@ def create_learning(path):
 def test_bm25_matches_implicit_weighting_and_export(tmp_path):
     from implicit.nearest_neighbours import bm25_weight
 
-    from music_recsys.model_artifacts import export_model, load_model
-    from music_recsys.recommenders.full_bm25 import FullBM25
-    from music_recsys.types import RecommendationRequest
+    from src.model_artifacts import export_model, load_model
+    from src.recommenders.full_bm25 import FullBM25
+    from src.types import RecommendationRequest
 
     path = tmp_path / "learning.parquet"
     create_learning(path)
@@ -45,7 +45,7 @@ def test_bm25_matches_implicit_weighting_and_export(tmp_path):
 
 @pytest.mark.parametrize("parameters", [{"neighbors": 0}, {"k1": 0}, {"b": 1.1}, {"use_gpu": 1}])
 def test_bm25_invalid_parameters_before_reading(parameters):
-    from music_recsys.recommenders.full_bm25 import FullBM25
+    from src.recommenders.full_bm25 import FullBM25
 
     with pytest.raises(ValueError):
         FullBM25("not-read.parquet", **parameters)
@@ -56,7 +56,7 @@ def test_gpu_bm25_neighbors_match_cpu(tmp_path):
 
     if os.environ.get("MUSIC_RECSYS_TEST_GPU") != "1":
         pytest.skip("explicit GPU test required")
-    from music_recsys.recommenders.full_bm25 import FullBM25
+    from src.recommenders.full_bm25 import FullBM25
 
     path = tmp_path / "learning.parquet"
     create_learning(path)

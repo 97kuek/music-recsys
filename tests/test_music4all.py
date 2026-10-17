@@ -49,7 +49,7 @@ def events(tmp_path):
 def test_conversion_preserves_all_events_and_has_source_fingerprint(events, tmp_path):
     import duckdb
 
-    from music_recsys.music4all import convert_events
+    from src.music4all import convert_events
 
     target = tmp_path / "events.parquet"
     manifest = convert_events(events, target)
@@ -66,7 +66,7 @@ def test_conversion_preserves_all_events_and_has_source_fingerprint(events, tmp_
 
 
 def test_conversion_does_not_reuse_cache_for_changed_source(events, tmp_path):
-    from music_recsys.music4all import convert_events
+    from src.music4all import convert_events
 
     target = tmp_path / "events.parquet"
     convert_events(events, target)
@@ -81,7 +81,7 @@ def test_conversion_rejects_modified_parquet_cache(events, tmp_path):
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from music_recsys.music4all import convert_events
+    from src.music4all import convert_events
 
     target = tmp_path / "events.parquet"
     convert_events(events, target)
@@ -93,7 +93,7 @@ def test_conversion_rejects_modified_parquet_cache(events, tmp_path):
 
 
 def test_global_split_counts_and_novel_truth_exclude_validation_history(events, tmp_path):
-    from music_recsys.music4all import convert_events, profile_events
+    from src.music4all import convert_events, profile_events
 
     target = tmp_path / "events.parquet"
     convert_events(events, target)
@@ -117,7 +117,7 @@ def test_global_split_counts_and_novel_truth_exclude_validation_history(events, 
 
 
 def test_daily_boundary_proposal_keeps_same_day_events_together(tmp_path):
-    from music_recsys.music4all import convert_events, profile_events
+    from src.music4all import convert_events, profile_events
 
     path = tmp_path / "days.tsv.bz2"
     write_events(path, [("u", "a", f"2020-01-{day:02d} 12:00:00") for day in range(1, 11)])
@@ -132,7 +132,7 @@ def test_daily_boundary_proposal_keeps_same_day_events_together(tmp_path):
 
 
 def test_bad_timestamp_does_not_publish_partial_cache(tmp_path):
-    from music_recsys.music4all import convert_events
+    from src.music4all import convert_events
 
     source = tmp_path / "bad.tsv.bz2"
     write_events(source, [("u", "a", "not-a-time")])
@@ -143,7 +143,7 @@ def test_bad_timestamp_does_not_publish_partial_cache(tmp_path):
 
 
 def test_equal_or_reversed_boundaries_are_rejected(events, tmp_path):
-    from music_recsys.music4all import convert_events, profile_events
+    from src.music4all import convert_events, profile_events
 
     target = tmp_path / "events.parquet"
     convert_events(events, target)
@@ -152,7 +152,7 @@ def test_equal_or_reversed_boundaries_are_rejected(events, tmp_path):
 
 
 def test_profile_save_preserves_existing_runs_and_contains_provenance(events, tmp_path):
-    from music_recsys.music4all import convert_events, profile_events, save_profile
+    from src.music4all import convert_events, profile_events, save_profile
 
     target = tmp_path / "events.parquet"
     convert_events(events, target)
@@ -174,7 +174,7 @@ def test_profile_cli_runs_from_explicit_paths(events, tmp_path):
         [
             sys.executable,
             "-m",
-            "music_recsys.music4all",
+            "src.music4all",
             "--source",
             str(events),
             "--parquet",

@@ -3,8 +3,8 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from music_recsys.webapp.prepare import demo
-from music_recsys.webapp.server import create_app
+from src.webapp.prepare import demo
+from src.webapp.server import create_app
 
 
 @pytest.fixture(scope="module")

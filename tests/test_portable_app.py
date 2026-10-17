@@ -8,10 +8,10 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
-from music_recsys.webapp.access import AccessVerifier
-from music_recsys.webapp.bundle import package, verify
-from music_recsys.webapp.prepare import demo
-from music_recsys.webapp.server import create_app
+from src.webapp.access import AccessVerifier
+from src.webapp.bundle import inventory, package, verify
+from src.webapp.prepare import demo
+from src.webapp.server import create_app
 
 
 @pytest.fixture(scope="module")
@@ -61,6 +61,26 @@ def test_corrupt_copy_is_not_published(bundle, tmp_path):
         package(source / "config.json", tmp_path / "output")
     assert not (tmp_path / "output").exists()
     assert not list(tmp_path.glob(".bundle-*"))
+
+
+def test_capacity_budget_is_checked_before_copy_and_before_publication(bundle, tmp_path):
+    report = inventory(bundle)
+    assert report["audio_count"] == 12
+    assert report["payload_bytes"] == sum(report["bytes"].values())
+    output = tmp_path / "output"
+    with pytest.raises(ValueError, match="exceeds max_bytes"):
+        package(bundle, output, max_bytes=1)
+    assert not output.exists()
+    # Payloadが収まっても生成JSONを含む完成物が超過したら公開しない
+    with pytest.raises(ValueError, match="including generated JSON"):
+        package(bundle, output, max_bytes=report["payload_bytes"])
+    assert not output.exists()
+    assert not list(tmp_path.glob(".bundle-*"))
+    package(bundle, output, max_bytes=report["payload_bytes"] + 100_000)
+    verify(output)
+    assert sum(p.stat().st_size for p in output.rglob("*") if p.is_file()) <= (
+        report["payload_bytes"] + 100_000
+    )
 
 
 def test_access_verifies_signature_issuer_audience_expiry(monkeypatch):

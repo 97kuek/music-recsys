@@ -5,22 +5,25 @@
 ```mermaid
 flowchart LR
     subgraph Lab[研究室: 外部公開しない]
-      D[Music4All履歴・タグ / Parquet] --> B[バッチ学習・オフライン評価]
+      D[学習用Parquet / 分割・特徴] --> B[バッチ学習・オフライン評価]
       B --> M[manifest付き配信モデル]
     end
     M -->|許可された成果物を転送| F[個人Macのbundle / 読取り専用]
-    A[取得・Web試聴許諾済み音源 / Catalog] --> F
-    F --> L[FastAPI起動時load / 常駐1 worker]
-    U[React UI] -->|推薦要求| R[リアルタイムRecommendationService]
-    L --> R
-    R -->|順位付き曲ID| U
-    U -->|試聴開始 / Playback Adapter| L
-    L -->|セッションに結び付く音声URL| U
-    U -->|同意済み操作イベント| S[MacのSQLite / 管理export]
-    P[遠隔参加者] -.認証付きMac接続・未設定.-> U
+    subgraph Mac[個人Mac]
+      A[元データ保管 / 必要曲の情報・MP3] --> F
+      subgraph Container[Docker 1コンテナ]
+        F --> L[FastAPI / 起動時load / 推論・音声API]
+        U[React build / 同じFastAPIから配信] --> L
+      end
+      L --> S[stateのSQLite / 評価・操作ログ]
+      T[ホストのcloudflared] --> L
+    end
+    P[被験者ブラウザ] --> C[Cloudflare Access認証]
+    C -->|HTTPS / Tunnel| T
 ```
 
 - React＋TypeScript＋Vite、FastAPI、既存RecommendationServiceのモジュラーモノリス
+- Pages・Workersは使用しない、cloudflaredはMacのホストで動かし、Dockerはアプリ1コンテナだけ
 - 学習/評価はバッチ、アプリは保存済みモデルを起動時に検証ロードしてリアルタイム推論する
 - APIリクエストごとの学習・重み再読込み・モデル選択の自動確定は行わない
 - 研究室サーバーの外部公開・ポート開放・Tunnel起動は禁止、Mac側の遠隔設定と分離する
@@ -29,12 +32,13 @@ flowchart LR
 
 | 要素 | 実体・保存場所 |
 | --- | --- |
-| 実験データ/結果 | 研究室のParquet/JSON、[コード実行フロー](experiment-workflow.md#保存物) |
+| 学習データ/評価結果 | 研究室のParquet/JSON/PNG、[コード実行フロー](experiment-workflow.md#保存物) |
+| Music4All元データ | Mac内蔵SSDの非公開source領域、取得record・hashを併置、外付けSSDは使用しない |
 | 配信モデル | `data/models/`または`data/app/`のmanifest＋NPY、ユーザー因子はサーバー専用 |
 | 配信用bundle | config・catalog・モデル・音源・transfer.json、Macで`/bundle`へread-only mount |
 | 楽曲情報 | TrackCatalog/CatalogTrack/TrackRef、catalog.json等のhash固定ファイル、常駐DBは不要 |
-| 音源 | bundle内の許諾済み音源、またはAdapterで解決する提供元stream、API鍵はサーバーだけ |
-| React | `frontend/src`、通常buildは`src/music_recsys/webapp/static`へ生成 |
+| 音源 | 実験の固定楽曲集合に必要な許諾済みMP3等だけをbundleへ配置、source領域をHTTP公開しない |
+| React | `frontend/src`、通常buildは`src/webapp/static`へ生成 |
 | ログ | Macの`~/music-recsys/state/sessions.sqlite`、Dockerでは`/state/sessions.sqlite` |
 | 管理export | 同stateの`exports/SESSION_ID.json`、[権限・期限・削除](online-study.md#保存権限削除) |
 
@@ -44,6 +48,28 @@ flowchart LR
 - 少人数向け1 workerと直列化を使い、一般公開の同時接続性能は未検証
 - 8実モデル常駐の既存測定は約364MiB・ロード0.91秒、Macでの値は別途測定する
 - GPUバッチ評価と単発配信のNumPy CPU経路は別、デバイス選択は実測に基づく
+
+## 容量と元データの配置
+
+- 研究室には学習・評価で必要な加工物を保持し、元データからの変換も研究室のバッチ準備として実行する
+- `lab_data`の取得キャッシュは現在研究室の`data/raw/`、Macへの実転送は未実施、既存データを自動移動・削除しない
+- Macの元データ保管先と配信bundleとstateは分離、元データ全体をDocker imageや配布ZIPへ含めない
+- Macの確認時点の空きは174GiB、外付けSSDなし、空き40GiBを残す暫定計画なら作業予算は134GiB、実転送直前に再確認する
+- 提供ファイルの圧縮時/展開後サイズは未確認、元データと配信コピーを含めて予算内に収め、全量が収まると仮定しない
+- 必要曲は実験者がID集合で指定、モデルごとの上位曲から自動選択しない、初期選択と全比較条件で共通にする
+- カタログ縮小は候補制約であり再学習ではない、曲順index・重み・近傍は維持し、全カタログのオフライン値と区別する
+- 容量は元データ＋bundle＋state＋Docker image/cache＋更新中の旧新版の合計、ZIPやmedia生成物の併存分も加算する
+- `bundle --dry-run`は対象ファイルのhash・実測bytes・曲数を表示、生成JSON・元データ保管・Docker・ログ容量は含まない
+- `--max-bytes`は生成JSONを含む完成bundleの上限、超過時は途中物を公開せず停止する、曲やモデルを自動で削らない
+
+```bash
+# media処理後のconfigを指定、Macへのコピー前にも容量確認
+.venv/bin/python -m src.webapp.bundle \
+  --config /private/listening/config.json --dry-run
+# 容量予算をbytesで明示し、新規出力へ梱包
+.venv/bin/python -m src.webapp.bundle \
+  --config /private/listening/config.json --output /private/bundle-v1 --max-bytes 1073741824
+```
 
 ## Macで起動・更新
 
@@ -59,15 +85,16 @@ bash deploy/mac.sh stop
 - Docker Desktopを起動し、版付きZIPを新しいフォルダへ展開する、旧コードへ重ねない
 - Finderの`MusicRecsys.command`も利用可、URLは`http://127.0.0.1:8765`
 - ホストの待受は127.0.0.1のみ、MacへのPython/Node導入は不要
+- これは配信時の要件、media/bundleの準備CLIをMacで実行する場合は別途Python環境を用意する
 - 移行対象は旧配布の`state/`または`~/OtoLab/state`、既存移行先への上書きを拒否する
 - 旧ログを検出した場合は移行まで新規起動を拒否、`MUSIC_RECSYS_STATE`で保存先を明示変更できる
-- 起動中の移行・実験中の更新は行わない、再起動後のセッション継続は未実装
+- 起動中の移行・実験中の更新は行わない、ログと再開条件は[オンライン評価](online-study.md#保存権限削除)
 - `logs`はプロセス診断、参加者ログの管理は`sessions` / `export SESSION_ID`を使う
 
 ```bash
-.venv/bin/python -m music_recsys.webapp.bundle \
+.venv/bin/python -m src.webapp.bundle \
   --config data/app/demo/config.json --study deploy/demo-study.json --output data/app/mac-demo-new
-.venv/bin/python -m music_recsys.webapp.distribution \
+.venv/bin/python -m src.webapp.distribution \
   --root . --bundle data/app/mac-demo-new --version 0.4.0 \
   --output data/app/music-recsys-mac-0.4.0.zip
 ```
@@ -81,8 +108,8 @@ bash deploy/mac.sh stop
 uv sync --locked --group app --group data --group models
 (cd frontend && npm ci && npm run build)
 # 未作成の場合だけ、合成デモを新規作成
-.venv/bin/python -m music_recsys.webapp.prepare --demo --output data/app/demo
-.venv/bin/python -m music_recsys.webapp.server \
+.venv/bin/python -m src.webapp.prepare --demo --output data/app/demo
+.venv/bin/python -m src.webapp.server \
   --config data/app/demo/config.json --model-version demo-itemcf --port 8765
 ```
 
@@ -114,26 +141,29 @@ uv sync --locked --group app --group data --group models
 | 対象 | 現状 |
 | --- | --- |
 | Popularity / ItemCF | 実学習の2条件 / 6条件が配信済み、採用条件は未確定 |
-| ALS / BPR | export/load対応、配信用の実データ重みは未保存、過去の評価JSONは重みではない |
+| ALS / BPR | export/load対応、BPR比較条件の実重みは実験内model/に保存、ALSの過去評価JSONは重みではない |
 | BM25 / Content | 全件Validation対応、BM25の配信用重み保存済み、Content疎行列exportは未実装 |
-| 実曲表示/音源 | 45,888学習IDのタイトル/artist未接続、実音源なし、提供元への申請回答待ち |
+| 実曲表示/音源 | Music4Allからデータ提供の連絡あり、ファイル受領・45,888学習IDとの対応付け・音源登録は未実施 |
 | 合成デモ | 架空12曲・独自CC0 WAV、実Music4Allの音源や推薦評価と混ぜない |
 
 - [Music4All公式申請先](https://sites.google.com/view/contact4music4all): contact4music4all@gmail.com
 - [Onion v2](https://zenodo.org/records/15394646)の公開履歴取得と、原版clip/メタデータの提供・Web試聴許諾は別
-- 音源は取得条件・少人数への認証付きブラウザ試聴・帰属表示・期限を確認するまで配信しない
+- 提供案内の取得条件・招待被験者への認証付きWeb試聴範囲・帰属表示・期限を確認し、受領ファイルを照合して登録する
 - 外部IDはTrackRefで保持、タイトル/artist一致だけで同一録音を確定せず、live/remix等の版を区別する
 - Playback Adapterはavailable/unavailable/unknown/expiredを区別、URL取得をブラウザ再生成功としない
 
 ```bash
-.venv/bin/python -m music_recsys.webapp.audit --config data/app/music4all/config.json \
+.venv/bin/python -m src.webapp.audit --config data/app/music4all/config.json \
   --audio-root /許可された音源保存先 --output data/app/music4all/audio-audit-new.json
-.venv/bin/python -m music_recsys.webapp.media --config data/app/music4all/config.json \
+.venv/bin/python -m src.webapp.media --config data/app/music4all/config.json \
   --metadata /private/tracks.csv --audio-root /private/clips \
-  --permission /private/permission.json --output data/app/music4all-listening
+  --permission /private/permission.json --items /private/study-items.json \
+  --output data/app/music4all-listening
 ```
 
 - metadataは`item_id,title,artists`、複数artistは`|`区切り、音源stemはitem_idと一致させる
+- `--items`は重複なし楽曲IDのJSON配列、許諾IDの部分集合だけをコピーし、カタログ・推薦候補も同じ集合へ限定する
+- `--items`省略時は許諾ID全件、選んだ全曲でメタデータと音源が必要、欠損は別データで埋めない
 - permissionは`web_preview=true`・`access_scope=restricted-study`・確認済み`evidence_ref`・timezone付き`expires_at`・明示`item_ids`
 - 許諾JSONは確認済み条件の記録であり、それ自体が法的許諾を発生させるものではない
 - mediaは新bundleへコピー/hash検証、モデルの絶対参照を残すので別ホストへ移す場合はbundle化する
@@ -141,35 +171,27 @@ uv sync --locked --group app --group data --group models
 - JamendoはAPI承認待ち、ListenBrainz履歴は音源配信権を含まず、未許諾の外部データを学習可能と推測しない
 - 公式資料: [Jamendo tracks/規約](https://developer.jamendo.com/v3.0/tracks) / [規約](https://devportal.jamendo.com/api_terms_of_use) / [ListenBrainz](https://listenbrainz.org/data/) / [FMA](https://github.com/mdeff/fma)
 
-## 公開デモ・遠隔接続・稼働案内
+## Cloudflare Tunnel / Accessでの遠隔接続
 
-- Cloudflare公開デモは合成音源/合成ItemCFだけをブラウザ内実行、実モデル/研究ログ/秘密情報を含めない
-- [公開合成デモ](https://musicrecsys.pages.dev)、実モデルの参加者実験とは別環境
-- Pagesは`frontend/wrangler.jsonc`、旧Workersは`frontend/wrangler.workers.jsonc`、既存Workers設定を保持
-- Mac未接続の公開デモを、実モデルが稼働中と表示しない
-- `/availability`は稼働・停止・認証必要・未接続を区別、応答の有無だけで本人認証の成功を偽らない
-- 次回予定はMacの`MUSIC_RECSYS_NEXT_OPEN_AT` / Workerの`NEXT_OPEN_AT`で手動指定、timezone付きISO日時が必要
-- 未指定/過去日時は予定未定、Macのスリープ・ネット切断・Docker停止中は実アプリを利用できない
+- [Cloudflareの手順](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/)でnamed tunnelとAccessアプリを用意、対象hostname全体を保護し被験者だけAllowにする
+- Macのホストへcloudflaredを導入、`deploy/cloudflared.example.yml`をprivate領域へコピーしてUUID・credentials・hostname・TEAM/AUDを設定する
+- 以下のTEAM/AUD・Origin/hostはAccessアプリと一致させる、認証情報をGit・Vite変数・ブラウザへ含めない
 
 ```bash
-.venv/bin/python -m music_recsys.webapp.public_demo \
-  --config data/app/demo/config.json --output frontend/public/demo
-(cd frontend && npm run build:preview && npm run test:worker && npm run check:deploy)
-(cd frontend && npm run preview:cloudflare -- --port 8787)
-# 認証済み・公開合成デモだけを配信
-(cd frontend && npm run deploy:pages)
-# 旧Workersの公開デモを更新する場合だけ使用
-(cd frontend && npm run deploy:preview)
+# Macの非公開設定から実値を指定、保持日数は説明文に合う値を決める
+export MUSIC_RECSYS_ACCESS_TEAM=REPLACE_WITH_TEAM
+export MUSIC_RECSYS_ACCESS_AUD=REPLACE_WITH_AUD
+export MUSIC_RECSYS_ALLOWED_ORIGINS=https://music-recsys.example.com
+export MUSIC_RECSYS_ALLOWED_HOSTS=music-recsys.example.com
+export MUSIC_RECSYS_RETENTION_DAYS=REPLACE_WITH_DAYS
+bash deploy/mac.sh start-remote
+cloudflared tunnel --config /absolute/private/cloudflared.yml run
 ```
 
-- 既に生成済みならpublic_demoを省略、実データmodeの公開exportは拒否する
-- 公開buildだけ`VITE_PUBLIC_DEMO=1`、通常buildはFastAPIへ接続、VITE変数に認証情報を入れない
-- 遠隔実験は個人Macのnamed tunnel＋[Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/)を全パスへ適用する案、実接続は未設定
-- `deploy/cloudflared.example.yml`をprivate領域へコピーし、参加者Allow、TEAM/AUD、HTTPSの許可Origin/hostを設定する
-- Mac側`MUSIC_RECSYS_ACCESS_TEAM/ACCESS_AUD/ALLOWED_ORIGINS/ALLOWED_HOSTS`でJWTをAPIでも検証、認証は研究同意と別
-- `mac.sh start`はローカル確認専用、遠隔運用は設定確認後にComposeで起動し、401確認後にMacでTunnelを開始する
-- API中継はWorkerのBACKEND_ORIGIN/UPSTREAM_API_TOKENとMacのMUSIC_RECSYS_API_TOKENを使い、Bearerをブラウザへ渡さない
-- 有料リソース・独自ドメイン・研究室の公開設定は自動作成しない
-- UI/音声/APIは同一Origin、更新APIはOrigin/専用ヘッダー、cookieはHttpOnly/SameSite、API/音声はno-store
-- テストは`tests/test_webapp*.py`・`test_lab_study.py`・`test_distribution.py`、ブラウザE2Eは明示有効化時だけ実行する
-- スクリーンショットは通常生成しない、Mac実機・実曲E2E・遠隔Tunnelの成功をMock試験から推測しない
+- `start-remote`は認証/保持日数の必須設定と未認証401を確認する、`start`はローカル確認専用、Tunnelは自動起動しない
+- UI/音声/APIは同一Origin、全パスでAccess JWTを検証、更新APIはOrigin/専用ヘッダー、cookieはHttpOnly/SameSite/Secure
+- API/音声はno-store、Access認証と研究参加の同意・参加コードを分離、`MUSIC_RECSYS_API_TOKEN`は本構成では設定しない
+- Macのスリープ・回線切断・Docker/Tunnel停止中は利用できない、常時稼働する外部案内ページは置かない
+- `/availability`も認証対象、次回予定は`MUSIC_RECSYS_NEXT_OPEN_AT`で明示、timezone付きISO日時、未指定/過去は予定未定
+- ローカル合成デモはprepareで作成、ブラウザのみの確認はpublic_demo export＋`npm run build:demo`、通常buildはFastAPIへ接続する
+- 遠隔接続・Mac実機・実曲再生は実地確認が必要、既存Cloudflare上のPages/Workersは本リポジトリの設定削除だけでは停止されない

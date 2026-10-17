@@ -6,20 +6,20 @@ from pathlib import Path
 
 import pytest
 
-from music_recsys.listening_data import file_sha256
-from music_recsys.webapp.distribution import ROOT_FILES, archive
+from src.listening_data import file_sha256
+from src.webapp.distribution import ROOT_FILES, archive
 
 
 def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path):
     root, bundle = tmp_path / "source", tmp_path / "bundle"
-    for name in (*ROOT_FILES, "src/music_recsys/new.py", "frontend/src/App.tsx"):
+    for name in (*ROOT_FILES, "src/new.py", "frontend/src/App.tsx"):
         file = root / name
         file.parent.mkdir(parents=True, exist_ok=True)
         file.write_text("uncommitted content")
     for name in (
         ".env",
         "frontend/.env",
-        "src/music_recsys/private.key",
+        "src/private.key",
         "data/learning.parquet",
         "state/log.sqlite",
     ):
@@ -39,7 +39,7 @@ def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path):
     output = archive(root, bundle, tmp_path / "app.zip", version="0.2.0")
     with zipfile.ZipFile(output) as package:
         names = package.namelist()
-        assert "music-recsys-mac-0.2.0/src/music_recsys/new.py" in names
+        assert "music-recsys-mac-0.2.0/src/new.py" in names
         assert "music-recsys-mac-0.2.0/bundle/config.json" in names
         assert not any(name.endswith((".env", ".key", ".sqlite", ".parquet")) for name in names)
         assert package.read("music-recsys-mac-0.2.0/VERSION") == b"0.2.0\n"
@@ -51,7 +51,8 @@ def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path):
         archive(root, bundle, output, version="0.2.0")
 
 
-def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path):
+@pytest.mark.parametrize("remote", [False, True])
+def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, remote):
     root = tmp_path / "music-recsys mac"
     (root / "deploy").mkdir(parents=True)
     script = Path("deploy/mac.sh").read_text()
@@ -73,16 +74,36 @@ def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path):
         PATH=f"{binaries}:/usr/bin:/bin",
         TEST_LOG=str(tmp_path / "commands"),
     )
+    if remote:
+        env.update(
+            MUSIC_RECSYS_ACCESS_TEAM="study-test",
+            MUSIC_RECSYS_ACCESS_AUD="audience-test",
+            MUSIC_RECSYS_ALLOWED_ORIGINS="https://music.example",
+            MUSIC_RECSYS_ALLOWED_HOSTS="music.example",
+            MUSIC_RECSYS_RETENTION_DAYS="7",
+        )
+    action = "start-remote" if remote else "start"
     response = subprocess.run(
-        ["bash", str(root / "deploy/mac.sh"), "start"], env=env, capture_output=True, text=True
+        ["bash", str(root / "deploy/mac.sh"), action], env=env, capture_output=True, text=True
     )
     assert response.returncode == 0, response.stderr
-    assert "http://127.0.0.1:8765" in response.stdout
+    assert ("未認証401" if remote else "http://127.0.0.1:8765") in response.stdout
     assert (tmp_path / "home/music-recsys/state").is_dir()
     calls = (tmp_path / "commands").read_text()
     assert str(root / "bundle") in calls
     assert "up --build -d" in calls
     assert "--project-directory" not in calls
+    if remote:
+        assert "assert e.code == 401" in calls
+        del env["MUSIC_RECSYS_ACCESS_AUD"]
+        response = subprocess.run(
+            ["bash", str(root / "deploy/mac.sh"), action],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        assert response.returncode == 1
+        assert "MUSIC_RECSYS_ACCESS_AUD" in response.stderr
     env["MUSIC_RECSYS_ACCESS_TEAM"] = "remote"
     response = subprocess.run(
         ["bash", str(root / "deploy/mac.sh"), "start"], env=env, capture_output=True, text=True

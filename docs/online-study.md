@@ -3,14 +3,14 @@
 ## 対象と現在の境界
 
 - 自然な試聴・いいね・スキップと任意の満足度1問を中心に、小規模な被験者内比較を準備する
-- 現在の同意・24時間保持は開発専用、実被験者の収集は保持/削除規程・音源条件・アクセス方針を確定してから開始する
+- 現在の説明文は開発用、実被験者の収集は保持/削除規程・音源条件・アクセス方針を確定してから開始する
 - 学習ユーザー全員の[オフライン評価](listening-evaluation.md)と、新規参加者の主観評価を分けて管理する
 - 参加者画面にモデル名・パラメータ・推論経路・Validation表を表示しない
-- 公開合成デモはブラウザメモリだけ、MacのSQLiteへ送信しない
+- 配信はMacのReact＋FastAPI 1コンテナとTunnel/Access、[構成・保存先・容量](app-architecture.md)に従う
 
 ```mermaid
 flowchart LR
-    C[説明・同意版・任意のログ保存] --> P[仮名participant_id / session_id]
+    C[説明・同意版・ログ保存への同意] --> P[仮名participant_id / session_id]
     P --> I[初期選択: 実履歴と分離]
     I --> R[request_id / 割当条件 / モデル版]
     R --> T[推薦曲ID・順位・提示時の再生可否]
@@ -44,7 +44,7 @@ flowchart LR
 - 自由文入力は参加者画面に置かない、研究者APIでも保存の別同意がなければ内容・hashとも残さない
 - 初期選択中の試聴は推薦イベント・heardへ加算せず、現在はその試聴ログも保存しない
 - 生cookie・APIキー・Access JWT/メールを研究ログへ入れない、研究者が設定するModelSpecにも秘密情報を入れない
-- 複数セッションで同一人物を追跡する機能・実名対応表は未実装
+- 参加コードと本人cookieで仮名参加者を再開する、Accessのメールとの実名対応表は保存しない
 
 ## 計測と解釈
 
@@ -70,18 +70,18 @@ flowchart LR
 
 | 項目 | 現行実装 |
 | --- | --- |
-| 保存しない場合 | プロセスメモリ内だけ、本人削除/期限/プロセス停止で破棄 |
+| 旧APIで保存しない場合 | プロセスメモリ内だけ、本人削除/期限/プロセス停止で破棄、新UIは保存同意が開始条件 |
 | Mac既定 | `~/music-recsys/state/sessions.sqlite`、Docker内は`/state/sessions.sqlite` |
 | Python直接起動 | `--database`で指定、既定`data/app/local.sqlite` |
 | アクセス権 | SQLite/管理exportは0600、管理exportディレクトリ0700、生tokenの代わりにhashを保存 |
-| 保持期限 | 開始から24時間、起動時・操作時・稼働中約60秒ごとに期限削除 |
+| 保持期限 | 新UIはMUSIC_RECSYS_RETENTION_DAYSで明示、参加者登録時に固定、旧セッションは24時間 |
 | 本人の削除 | 起動画面/画面上部からDELETE /api/session、メモリ・DB・管理exportを削除 |
-| 再起動後 | 元の本人cookieがあれば削除可能、継続セッションの復元は未実装 |
+| 再起動後 | 保存同意あり・期限内・同じconfig/計画/公開範囲なら復元、同じcookieまたは参加コードで再開 |
 | 管理者の取得 | Mac上のCLIだけ、未期限切れ・同意済みセッションを一覧/非上書きexport |
 
-- 同意UIの現行説明版はlocal-ui-v3、旧local-ui-v2の開始要求は読込み互換を維持
-- 保存同意と利用開始は分離、説明文の末尾までスクロール後に開始できる
-- 終了は収集停止、削除は撤回として区別し、新しいセッション開始時にも旧本人データを削除する
+- 同意UIの現行説明版はlocal-ui-v4、保持日数未設定時は新規参加を開始できない、旧v2/v3は読込み互換を維持
+- 新UIは説明文の末尾までスクロールし、ログ保存へ同意後に開始する、拒否時は開始しない
+- 退室と本人データ削除は区別し、削除は参加コード・関連セッション・プロフィールにも適用する
 - サーバー停止中は削除タイマーが動かない、再起動時に期限切れを削除する
 - `secure_delete=ON`はSQLite内の削除補助であり、SSD・OSバックアップの完全消去保証ではない
 - DBの暗号化・自動バックアップ・管理者アクセス監査は未実装、Mac利用者/管理者のOS権限で保護する
@@ -97,8 +97,8 @@ bash deploy/mac.sh export SESSION_ID
 # 保存先: ~/music-recsys/state/exports/SESSION_ID.json
 
 # Pythonでの管理: 所有する既存DBを明示
-.venv/bin/python -m music_recsys.webapp.logs --database /private/sessions.sqlite list
-.venv/bin/python -m music_recsys.webapp.logs --database /private/sessions.sqlite export SESSION_ID
+.venv/bin/python -m src.webapp.logs --database /private/sessions.sqlite list
+.venv/bin/python -m src.webapp.logs --database /private/sessions.sqlite export SESSION_ID
 ```
 
 - 管理exportは`music-recsys-log-v1`のJSON、export時刻と元payloadを保持し、既存ファイルを上書きしない
@@ -111,7 +111,7 @@ bash deploy/mac.sh export SESSION_ID
 | 揃える条件 | 現行・準備内容 |
 | --- | --- |
 | 入力 | 同じ初期プロフィール、後の条件へ途中再生による嗜好変化を持ち越さない |
-| 候補 | 全条件の共通学習カタログ、表示メタデータと許諾音源が揃う曲 |
+| 候補 | 全条件共通の学習曲の部分集合、media --itemsで固定したカタログ・音源、hashを計画と併せて保管 |
 | 提示 | 同じK・プレイヤー・試聴長・質問/尺度、モデル名は秘匿 |
 | 順序 | 仮名IDとseedによる再現可能なランダム順、少人数の均等割付は未実装 |
 | 呼出し | 各条件1要求、再送は同じ推薦を再利用、Agent再推薦は別の明示予算 |

@@ -29,14 +29,12 @@ jobs:
           MKL_NUM_THREADS: '1'
       - run: npm ci --no-audit --no-fund
         working-directory: frontend
-      - run: npm run test:worker && npm run build
+      - run: npm run build
         working-directory: frontend
-      - run: .venv/bin/python -m music_recsys.webapp.prepare --demo --output data/app/ci-demo
+      - run: .venv/bin/python -m src.webapp.prepare --demo --output data/app/ci-demo
         env:
           OMP_NUM_THREADS: '1'
           OPENBLAS_NUM_THREADS: '1'
-      - run: .venv/bin/python -m music_recsys.webapp.public_demo --config data/app/ci-demo/config.json --output frontend/public/demo
-      - run: npm run check:deploy
+      - run: .venv/bin/python -m src.webapp.public_demo --config data/app/ci-demo/config.json --output frontend/public/demo
+      - run: npm run build:demo
         working-directory: frontend
-        env:
-          WRANGLER_SEND_METRICS: 'false'

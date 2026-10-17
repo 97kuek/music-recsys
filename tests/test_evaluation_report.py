@@ -5,7 +5,7 @@ import pytest
 
 
 def completed(factory):
-    from music_recsys.experiment_search import load_study_config, run_search, smoke
+    from src.experiment_search import load_study_config, run_search, smoke
 
     config = factory(metric=None)
     config.path.write_text(config.path.read_text().replace("neighbors=[1,2]", "neighbors=[1]"))
@@ -16,8 +16,8 @@ def completed(factory):
 
 
 def test_flat_report_preserves_trials_and_separates_figures(listening_study, tmp_path):
-    from music_recsys.evaluation_report import build_report
-    from music_recsys.experiment_search import read_json
+    from src.evaluation_report import build_report
+    from src.experiment_search import read_json
 
     config = completed(listening_study)
     before = read_json(config.output / "study.json")
@@ -47,9 +47,9 @@ def test_flat_report_preserves_trials_and_separates_figures(listening_study, tmp
 
 
 def test_compact_result_can_be_read_and_reused(listening_study):
-    from music_recsys.experiment_search import _verified_trial, load_study, run_search, study_lock
-    from music_recsys.experiment_store import compact
-    from music_recsys.search_analysis import trial_curves
+    from src.experiment_search import _verified_trial, load_study, run_search, study_lock
+    from src.experiment_store import compact
+    from src.search_analysis import trial_curves
 
     config = completed(listening_study)
     with study_lock(config):
@@ -69,18 +69,18 @@ def test_compact_result_can_be_read_and_reused(listening_study):
 def test_single_axes_for_each_metric(listening_study):
     import matplotlib.pyplot as plt
 
-    from music_recsys.evaluation_figures import (
+    from src.evaluation_figures import (
         accuracy_figures,
         diversity_figures,
         efficiency_figures,
     )
-    from music_recsys.evaluation_views import diversity_table, efficiency_table
-    from music_recsys.experiment_search import load_study
-    from music_recsys.search_analysis import trial_curves
+    from src.evaluation_views import diversity_table, efficiency_table
+    from src.experiment_search import load_study
+    from src.search_analysis import trial_curves
 
     config = completed(listening_study)
     curves = trial_curves(config, load_study(config)["planned"][0], resamples=100)
-    from music_recsys.listening_analysis import primary_rows
+    from src.listening_analysis import primary_rows
 
     figures = accuracy_figures(primary_rows(curves))
     figures.update(diversity_figures(diversity_table(curves)))
@@ -92,7 +92,7 @@ def test_single_axes_for_each_metric(listening_study):
 def test_cli_smoke_search_and_status_use_flat_output(listening_study, monkeypatch):
     import sys
 
-    from music_recsys.experiment_search import load_study, load_study_config, main
+    from src.experiment_search import load_study, load_study_config, main
 
     config = listening_study(metric=None)
     config.path.write_text(config.path.read_text().replace("neighbors=[1,2]", "neighbors=[1]"))
@@ -109,9 +109,9 @@ def test_cli_smoke_search_and_status_use_flat_output(listening_study, monkeypatc
 
 
 def test_archive_tampering_and_historical_mutations_are_rejected(listening_study, monkeypatch):
-    import music_recsys.experiment_search as search
-    from music_recsys.experiment_search import _verified_trial, load_study, run_search, study_lock
-    from music_recsys.experiment_store import atomic_json, compact, read_document
+    import src.experiment_search as search
+    from src.experiment_search import _verified_trial, load_study, run_search, study_lock
+    from src.experiment_store import atomic_json, compact, read_document
 
     config = completed(listening_study)
     with study_lock(config):
@@ -133,7 +133,7 @@ def test_unmeasured_figures_omitted_but_measured_zero_kept(tmp_path):
     import matplotlib.pyplot as plt
     import pandas as pd
 
-    from music_recsys.evaluation_figures import efficiency_figures, prune_generated_figures
+    from src.evaluation_figures import efficiency_figures, prune_generated_figures
 
     frame = pd.DataFrame(
         [

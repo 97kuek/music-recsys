@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from music_recsys.configuration import load_settings
+from src.configuration import load_settings
 
 
 def test_inheritance_paths_overrides_and_cycles(tmp_path):
@@ -40,7 +40,7 @@ def test_inheritance_paths_overrides_and_cycles(tmp_path):
 
 
 def test_picker_invalidates_shared_settings_and_hides_template(tmp_path):
-    from music_recsys.notebook_config import ExperimentConfigPicker
+    from src.notebook_config import ExperimentConfigPicker
 
     base = tmp_path / "common.json"
     base.write_text(

@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from music_recsys.configuration import load_settings
-from music_recsys.experiment_search import load_study_config
-from music_recsys.factor_study import conditions, run_study
+from src.configuration import load_settings
+from src.experiment_search import load_study_config
+from src.factor_study import conditions, run_study
 
 
 def small_study(tmp_path):
@@ -29,11 +29,11 @@ def small_study(tmp_path):
 
 
 def test_studies_separate_epochs_and_share_factors_seeds_and_inputs():
-    configs = [load_study_config(f"configs/bpr-{epoch}epoch.json") for epoch in (30, 100)]
+    configs = [load_study_config(f"configs/bpr-{epoch}epoch.json") for epoch in (30, 100, 200)]
     assert configs[0].evaluation == configs[1].evaluation
     assert configs[0].validation_dataset == configs[1].validation_dataset
     assert configs[0].features == configs[1].features
-    for config, epoch in zip(configs, (30, 100), strict=True):
+    for config, epoch in zip(configs, (30, 100, 200), strict=True):
         planned = list(conditions(config))
         assert len(planned) == len({name for name, _ in planned}) == 12
         assert {trial.seeds for _, trial in planned} == {(42,), (43,), (44,)}
@@ -51,7 +51,7 @@ def test_study_executes_exports_and_resumes_without_retraining(tmp_path):
         pytest.skip("CLI study has a 5 GiB free-space guard")
     path = small_study(tmp_path)
     subprocess.run(
-        [sys.executable, "-m", "music_recsys.factor_study", "--config", str(path)],
+        [sys.executable, "-m", "src.factor_study", "--config", str(path)],
         check=True,
         capture_output=True,
         text=True,

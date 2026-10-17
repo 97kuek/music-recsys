@@ -22,7 +22,7 @@ def test_v2_notebooks_run_from_selected_artifact(
     import nbformat
     from nbclient import NotebookClient
 
-    from music_recsys.experiment_search import freeze_selection, review_selection, run_final_test
+    from src.experiment_search import freeze_selection, review_selection, run_final_test
 
     config, _ = prepared(listening_study)
     if finalize:

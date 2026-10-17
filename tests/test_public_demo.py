@@ -3,10 +3,10 @@ import os
 
 import pytest
 
-from music_recsys.model_artifacts import load_model
-from music_recsys.profiles import InitialProfile
-from music_recsys.webapp.prepare import demo
-from music_recsys.webapp.public_demo import export
+from src.model_artifacts import load_model
+from src.profiles import InitialProfile
+from src.webapp.prepare import demo
+from src.webapp.public_demo import export
 
 
 @pytest.fixture(scope="module")

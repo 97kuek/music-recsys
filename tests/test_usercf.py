@@ -2,9 +2,9 @@ import math
 
 import pytest
 
-from music_recsys.data import Interaction
-from music_recsys.recommenders import create_recommender
-from music_recsys.types import RecommendationRequest
+from src.data import Interaction
+from src.recommenders import create_recommender
+from src.types import RecommendationRequest
 
 
 def events():

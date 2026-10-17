@@ -6,10 +6,10 @@ from listening_support import write_partitions
 
 
 def test_export_counts_dates_and_excludes_window_end(tmp_path):
-    from music_recsys.listening_data import load_listening_dataset
-    from music_recsys.listening_export import export_listening_phase
-    from music_recsys.listening_types import ListeningConfig
-    from music_recsys.temporal import TemporalConfig
+    from src.listening_data import load_listening_dataset
+    from src.listening_export import export_listening_phase
+    from src.listening_types import ListeningConfig
+    from src.temporal import TemporalConfig
 
     files = write_partitions(tmp_path / "source")
     out = tmp_path / "bundle"
@@ -40,8 +40,8 @@ def test_export_counts_dates_and_excludes_window_end(tmp_path):
 
 
 def test_test_learning_includes_entire_train_and_validation(tmp_path):
-    from music_recsys.listening_export import export_listening_phase
-    from music_recsys.temporal import TemporalConfig
+    from src.listening_export import export_listening_phase
+    from src.temporal import TemporalConfig
 
     files = write_partitions(tmp_path / "source")
     out = tmp_path / "test-bundle"
@@ -57,8 +57,8 @@ def test_test_learning_includes_entire_train_and_validation(tmp_path):
 
 
 def test_export_is_deterministic_and_validation_never_reads_test(tmp_path):
-    from music_recsys.listening_export import export_listening_phase
-    from music_recsys.temporal import TemporalConfig
+    from src.listening_export import export_listening_phase
+    from src.temporal import TemporalConfig
 
     files = write_partitions(tmp_path / "source")
     first = export_listening_phase(
@@ -82,8 +82,8 @@ def test_export_is_deterministic_and_validation_never_reads_test(tmp_path):
 def test_bad_partition_has_no_completed_manifest(tmp_path):
     import pyarrow as pa
 
-    from music_recsys.listening_export import export_listening_phase
-    from music_recsys.temporal import TemporalConfig
+    from src.listening_export import export_listening_phase
+    from src.temporal import TemporalConfig
 
     files = write_partitions(tmp_path / "source")
     rows = pq.read_table(files["train"]).to_pylist()
@@ -96,8 +96,8 @@ def test_bad_partition_has_no_completed_manifest(tmp_path):
 
 
 def test_export_spills_multiple_buckets_with_small_memory(tmp_path):
-    from music_recsys.listening_export import export_listening_phase
-    from music_recsys.temporal import TemporalConfig
+    from src.listening_export import export_listening_phase
+    from src.temporal import TemporalConfig
 
     files = write_partitions(tmp_path / "source")
     out = tmp_path / "bounded"
@@ -108,8 +108,8 @@ def test_export_spills_multiple_buckets_with_small_memory(tmp_path):
 
 
 def test_existing_temporal_datetime_formats_are_accepted(tmp_path):
-    from music_recsys.listening_export import export_listening_phase
-    from music_recsys.temporal import TemporalConfig
+    from src.listening_export import export_listening_phase
+    from src.temporal import TemporalConfig
 
     config = TemporalConfig(train_end="2017-03-29 00:00:00", validation_end="2018-09-21 00:00:00")
     target = export_listening_phase(

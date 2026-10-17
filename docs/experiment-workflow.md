@@ -2,14 +2,14 @@
 
 ## パッケージ構成
 
-- Python 3.12・uv.lock・srcレイアウトを維持する
-- `src/`はインストール対象のルート、`music_recsys/`はimportするPython名前空間
-- `pyproject.toml`のwheel対象・`music_recsys.*` import・CLI・Notebook・配布物がこの名前空間を共有する
-- `src`直下への平坦化はそれらの互換変更を必要とし、推論速度やメモリを改善しないため行わない
+- Python 3.12・uv.lockを維持し、コードを`src/`直下と役割別のサブパッケージへ配置する
+- `src/`自体をPythonパッケージにし、`from src...`と`python -m src...`を共通で使う
+- `pyproject.toml`のwheel対象・CLI・Notebook・Docker・配布物も同じ構成にする
+- `src/`自体をPYTHONPATHへ追加せず、プロジェクトをuvでインストールして使う
 
 | 場所 | 責務 |
 | --- | --- |
-| `src/music_recsys/lab_data.py` / `music4all.py` | 取得・checksum照合・全量Parquet変換・学習ユーザー抽出 |
+| `src/lab_data.py` / `music4all.py` | 取得・checksum照合・全量Parquet変換・学習ユーザー抽出 |
 | `temporal.py` / `listening_export.py` / `listening_data.py` | 時系列分割・窓別観測の生成・hash検証 |
 | `features.py` | タグ特徴の変換・checksum |
 | `configuration.py` / `notebook_config.py` | 共通JSON継承・パス解決・Notebookの明示読込み |
@@ -42,8 +42,8 @@ flowchart TD
 
 ```bash
 uv sync --locked --group data --group models --group notebook --group tracking
-.venv/bin/python -m music_recsys.lab_data
-.venv/bin/python -m music_recsys.full_evaluation --config configs/popularity-plays.json
+.venv/bin/python -m src.lab_data
+.venv/bin/python -m src.full_evaluation --config configs/popularity-plays.json
 .venv/bin/jupyter lab --no-browser --ip=127.0.0.1 --port=8888
 ```
 
@@ -70,23 +70,23 @@ uv sync --locked --group data --group models --group notebook --group tracking
 | `bm25/{50,100}.json` | full_evaluation | `bm25-{50,100}/` |
 
 ```bash
-.venv/bin/python -m music_recsys.grid --config configs/itemcf.json
-.venv/bin/python -m music_recsys.grid --config configs/als.json --compare configs/itemcf.json
+.venv/bin/python -m src.grid --config configs/itemcf.json
+.venv/bin/python -m src.grid --config configs/als.json --compare configs/itemcf.json
 CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  .venv/bin/python -m music_recsys.factor_study --config configs/bpr-100epoch.json
+  .venv/bin/python -m src.factor_study --config configs/bpr-100epoch.json
 ```
 
 - `--compare`は保存済み比較元を指定、入力・特徴・母集団・評価条件・成果物hashを検査する
 - `configs/itemcf/`・`configs/bpr-30epoch/seed0/`・ALS 32/64/128はgridが展開、親JSONを編集する
 - 展開済みJSONは結果からの参照があるため保持、GPUや一括実行だけの設定を増やさない
 - コード/lock/条件変更で再利用できない結果は保持し、再実験だけ新しい出力先へ保存する
-- ItemCF比較の再描画は`python -m music_recsys.itemcf_report --config configs/itemcf.json`
+- ItemCF比較の再描画は`python -m src.itemcf_report --config configs/itemcf.json`
 
 ## 保存物
 
 | 場所 / ファイル | 内容 |
 | --- | --- |
-| `data/raw/music4all-onion-v2/` | 元TSV.bz2・配布record・取得途中の.part |
+| `data/raw/music4all-onion-v2/` | 研究室での取得/変換キャッシュ、元データ保管のMac移行は[配置方針](app-architecture.md#容量と元データの配置) |
 | `data/processed/music4all-onion-v2/` | events.parquet・変換manifest |
 | `data/benchmarks/music4all/` | 履歴・分割・Validation/Test bundle・features.json・ready.json |
 | bundleの`learning.parquet` | user_id・item_id・play_count・active_daysの学習集約 |
@@ -124,12 +124,12 @@ CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 ## 明示的な選択・固定
 
 ```bash
-.venv/bin/python -m music_recsys.experiment_search --config <設定JSON> smoke
-.venv/bin/python -m music_recsys.experiment_search --config <設定JSON> search
-.venv/bin/python -m music_recsys.experiment_search --config <設定JSON> select
-.venv/bin/python -m music_recsys.experiment_search --config <設定JSON> review --accept --note '<確認内容>'
-.venv/bin/python -m music_recsys.experiment_search --config <設定JSON> freeze
-.venv/bin/python -m music_recsys.experiment_search --config <設定JSON> test
+.venv/bin/python -m src.experiment_search --config <設定JSON> smoke
+.venv/bin/python -m src.experiment_search --config <設定JSON> search
+.venv/bin/python -m src.experiment_search --config <設定JSON> select
+.venv/bin/python -m src.experiment_search --config <設定JSON> review --accept --note '<確認内容>'
+.venv/bin/python -m src.experiment_search --config <設定JSON> freeze
+.venv/bin/python -m src.experiment_search --config <設定JSON> test
 ```
 
 - この共通Loaderは2,000ユーザー・500万イベントまで、全件採点の代わりに人数を暗黙制限しない
@@ -140,7 +140,7 @@ CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 ## 学習と配信export
 
 ```bash
-.venv/bin/python -m music_recsys.full_evaluation --config <未使用出力先の設定JSON> \
+.venv/bin/python -m src.full_evaluation --config <未使用出力先の設定JSON> \
   --export-model data/models/model-v1 --model-version model-v1
 ```
 
@@ -152,9 +152,9 @@ CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 
 ```bash
 CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  .venv/bin/python -m music_recsys.factor_study --config configs/bpr-30epoch.json
+  .venv/bin/python -m src.factor_study --config configs/bpr-30epoch.json
 CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  .venv/bin/python -m music_recsys.factor_study --config configs/bpr-100epoch.json
+  .venv/bin/python -m src.factor_study --config configs/bpr-100epoch.json
 ```
 
 - epoch別の設定から32/64/128/256因子×seed42/43/44の各12条件を順次実行、100epochは30epoch設定の差分だけを指定する
@@ -186,7 +186,7 @@ uv build
 - 実行中の入力・設定・コードを書き換えず、進捗はrun.log、成功はresult.jsonで確認する
 - SSHでNotebookへ接続する例: `ssh -L 8888:127.0.0.1:8888 <研究室サーバー>`、外部公開は禁止
 - DB/大規模試験は専用環境で`MUSIC_RECSYS_TEST_DB=1` / `MUSIC_RECSYS_TEST_SCALE=1`を明示する
-- 任意のPostgreSQL経路は`compose.yaml`＋Alembic、`music_recsys.ingestion.cli` / `temporal_cli` / `features --help`を参照
+- 任意のPostgreSQL経路は`compose.yaml`＋Alembic、`src.ingestion.cli` / `temporal_cli` / `features --help`を参照
 - DBの公開済みsnapshotは不変、ファイル経路の内容由来IDをDB用UUIDとして渡さない
 - コード・lock・設定をGit管理、生成物・履歴・音源・モデル・.env・ログ・認証情報は管理外
 - 作業ブランチを使用し、依頼時だけ`種別: 日本語の変更内容`でコミット・pushする

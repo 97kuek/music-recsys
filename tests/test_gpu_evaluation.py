@@ -12,10 +12,10 @@ pytestmark = pytest.mark.skipif(
 def test_gpu_rank_accuracy_diversity_matches_cpu():
     import cupy as cp
 
-    from music_recsys.gpu_evaluation import GPURanker
-    from music_recsys.gpu_metrics import GPUAccuracy, GPUDiversity
-    from music_recsys.recommenders.full_factors import FullFactorModel
-    from music_recsys.streaming_metrics import DiversityAccumulator, accuracy_vectors
+    from src.gpu_evaluation import GPURanker
+    from src.gpu_metrics import GPUAccuracy, GPUDiversity
+    from src.recommenders.full_factors import FullFactorModel
+    from src.streaming_metrics import DiversityAccumulator, accuracy_vectors
 
     model = FullFactorModel()
     model.items = np.array(["a", "b", "c", "d", "e"])
@@ -93,13 +93,13 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
 
     import duckdb
 
-    from music_recsys.configuration import load_settings
-    from music_recsys.experiment_search import load_study_config
-    from music_recsys.features import load_features
-    from music_recsys.full_evaluation import run
-    from music_recsys.full_scoring import score_cpu
-    from music_recsys.listening_data import validate_bundle
-    from music_recsys.recommenders import full_als, full_bm25, full_bpr, full_content
+    from src.configuration import load_settings
+    from src.experiment_search import load_study_config
+    from src.features import load_features
+    from src.full_evaluation import run
+    from src.full_scoring import score_cpu
+    from src.listening_data import validate_bundle
+    from src.recommenders import full_als, full_bm25, full_bpr, full_content
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")

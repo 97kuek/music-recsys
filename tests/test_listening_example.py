@@ -7,8 +7,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_synthetic_example_is_usable_and_refuses_overwrite(tmp_path):
-    from music_recsys.listening_data import load_listening_dataset
-    from music_recsys.listening_types import ListeningConfig
+    from src.listening_data import load_listening_dataset
+    from src.listening_types import ListeningConfig
 
     create = runpy.run_path(str(ROOT / "tests/fixtures/examples/toy/create_listening.py"))[
         "create_example"

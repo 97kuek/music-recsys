@@ -6,10 +6,10 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from music_recsys.jamendo import JamendoClient, JamendoError, match_record, public_url
-from music_recsys.listening_data import file_sha256
-from music_recsys.serving import ModelSpec
-from music_recsys.webapp.server import create_app
+from src.jamendo import JamendoClient, JamendoError, match_record, public_url
+from src.listening_data import file_sha256
+from src.serving import ModelSpec
+from src.webapp.server import create_app
 
 
 def transport(rows, status="success", code=0):

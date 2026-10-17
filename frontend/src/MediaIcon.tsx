@@ -1,4 +1,4 @@
-type Name = 'play' | 'pause' | 'next' | 'previous' | 'repeat' | 'down' | 'like' | 'shuffle' | 'exit' | 'forward' | 'back' | 'check' | 'refresh' | 'trash' | 'spark';
+type Name = 'play' | 'pause' | 'next' | 'previous' | 'repeat' | 'down' | 'like' | 'shuffle' | 'exit' | 'forward' | 'back' | 'check' | 'refresh' | 'trash' | 'spark' | 'help';
 const paths: Record<Name, string> = {
   play: 'M8 5l12 7-12 7z', pause: 'M8 5v14M16 5v14',
   next: 'M5 5l11 7-11 7zM19 5v14', previous: 'M19 5L8 12l11 7zM5 5v14',
@@ -9,6 +9,7 @@ const paths: Record<Name, string> = {
   forward: 'M5 12h14M13 6l6 6-6 6', back: 'M19 12H5M11 6l-6 6 6 6',
   check: 'M5 12l4 4L19 6', refresh: 'M20 11a8 8 0 1 0-2 6M20 4v7h-7',
   trash: 'M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7',
+  help: 'M9.1 9a3 3 0 1 1 5.8 1c-.9 1-2.9 1.1-2.9 3M12 17h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',
   spark: 'M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z',
 };
 export function MediaIcon({name}: {name: Name}) {

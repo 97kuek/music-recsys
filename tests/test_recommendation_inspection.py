@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from music_recsys import recommendation_inspection as inspection
-from music_recsys.data import load_dataset
-from music_recsys.types import GroundTruth
+from src import recommendation_inspection as inspection
+from src.data import load_dataset
+from src.types import GroundTruth
 
 DATA = Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json"
 

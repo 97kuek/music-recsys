@@ -8,7 +8,7 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from music_recsys.temporal import TemporalConfig
+from src.temporal import TemporalConfig
 
 LEARNING_SCHEMA = pa.schema(
     [

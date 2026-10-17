@@ -18,7 +18,7 @@ export async function browserDemo(path:string, method:string, input:unknown): Pr
     heard=new Set();requests.clear();events.length=0;result=undefined;return session;
   }
   if(!session) throw new Error('セッションを開始してください');
-  if(route === 'session' && method === 'DELETE') {session=undefined;requests.clear();events.length=0;result=undefined;heard.clear();return {deleted:true};}
+  if((route === 'session' && method === 'DELETE') || route === 'session/logout') {session=undefined;requests.clear();events.length=0;result=undefined;heard.clear();return {deleted:true};}
   if(route === 'session/state') return session;
   if(route === 'session/export') return {events,requests:[...requests],session};
   if(route === 'catalog') {const offset=Number(url.searchParams.get('offset') || 0);return {tracks:d.tracks.slice(offset,offset+24),total:d.tracks.length,artists:[]};}

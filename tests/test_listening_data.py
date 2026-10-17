@@ -5,7 +5,7 @@ from listening_support import write_bundle
 
 
 def config():
-    from music_recsys.listening_types import ListeningConfig
+    from src.listening_types import ListeningConfig
 
     return ListeningConfig(window_days=(90,), ks=(1, 10, 20))
 
@@ -13,7 +13,7 @@ def config():
 def test_loader_preserves_learning_and_keeps_truth_out_of_requests(tmp_path):
     import duckdb
 
-    from music_recsys.listening_data import load_listening_dataset, read_user_observations
+    from src.listening_data import load_listening_dataset, read_user_observations
 
     data = load_listening_dataset(write_bundle(tmp_path / "bundle"), config())
     requests = {(r.user_id, r.task): r for r in data.requests}
@@ -29,7 +29,7 @@ def test_loader_preserves_learning_and_keeps_truth_out_of_requests(tmp_path):
 
 @pytest.mark.parametrize("path", ["../outside.parquet", "/tmp/outside.parquet"])
 def test_loader_rejects_escaping_references(tmp_path, path):
-    from music_recsys.listening_data import load_listening_dataset
+    from src.listening_data import load_listening_dataset
 
     bundle = write_bundle(tmp_path / "bundle")
     target = bundle / "manifest.json"
@@ -42,7 +42,7 @@ def test_loader_rejects_escaping_references(tmp_path, path):
 
 @pytest.mark.parametrize("mutation", ["hash", "duplicate", "count", "cold", "days"])
 def test_loader_rejects_corrupt_or_inconsistent_observations(tmp_path, mutation):
-    from music_recsys.listening_data import load_listening_dataset
+    from src.listening_data import load_listening_dataset
 
     obs = {
         "user_id": "u",
@@ -71,7 +71,7 @@ def test_loader_rejects_corrupt_or_inconsistent_observations(tmp_path, mutation)
 
 
 def test_real_parquet_counts_enforce_user_limit(tmp_path):
-    from music_recsys.listening_data import load_listening_dataset
+    from src.listening_data import load_listening_dataset
 
     learning = [
         {"user_id": f"u{i}", "item_id": "a", "play_count": 1, "active_days": 1} for i in range(2001)
@@ -82,7 +82,7 @@ def test_real_parquet_counts_enforce_user_limit(tmp_path):
 
 
 def test_learning_event_limit_is_checked_before_reconstructing_interactions(tmp_path):
-    from music_recsys.listening_data import load_listening_dataset
+    from src.listening_data import load_listening_dataset
 
     bundle = write_bundle(
         tmp_path / "bundle",
@@ -94,8 +94,8 @@ def test_learning_event_limit_is_checked_before_reconstructing_interactions(tmp_
 
 
 def test_positive_short_window_requires_observations_in_every_longer_window(tmp_path):
-    from music_recsys.listening_data import load_listening_dataset
-    from music_recsys.listening_types import ListeningConfig
+    from src.listening_data import load_listening_dataset
+    from src.listening_types import ListeningConfig
 
     bundle = write_bundle(tmp_path / "bundle")
     path = bundle / "manifest.json"
@@ -108,7 +108,7 @@ def test_positive_short_window_requires_observations_in_every_longer_window(tmp_
 
 @pytest.mark.parametrize("weight", [-1, True, float("nan"), float("inf")])
 def test_nonfinite_or_invalid_gain_configuration_is_rejected(weight):
-    from music_recsys.listening_types import ListeningConfig
+    from src.listening_types import ListeningConfig
 
     with pytest.raises(ValueError):
         ListeningConfig(day_weights=(weight,))

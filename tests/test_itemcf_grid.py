@@ -3,12 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from music_recsys.configuration import load_settings
+from src.configuration import load_settings
 
 
 def test_grid_expands_conditions_and_reuses_completed_outputs(tmp_path, monkeypatch):
-    import music_recsys.grid as grid
-    from music_recsys.experiment_search import load_study_config
+    import src.grid as grid
+    from src.experiment_search import load_study_config
 
     raw = load_settings(Path("configs/itemcf.json"))
     raw["experiment"].update(
@@ -51,7 +51,7 @@ def test_grid_expands_conditions_and_reuses_completed_outputs(tmp_path, monkeypa
 def test_itemcf_report_failure_reuse_and_artifact_guard(tmp_path, monkeypatch):
     import runpy
 
-    from music_recsys import grid, itemcf_report
+    from src import grid, itemcf_report
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")

@@ -1,8 +1,8 @@
 import pytest
 
-from music_recsys.data import Interaction
-from music_recsys.recommenders import create_recommender
-from music_recsys.types import RecommendationRequest
+from src.data import Interaction
+from src.recommenders import create_recommender
+from src.types import RecommendationRequest
 
 
 @pytest.mark.parametrize("model", ["popularity", "itemcf"])
@@ -16,7 +16,7 @@ def test_repeat_candidates_keep_only_history(model):
 
 
 def test_candidate_policy_preserves_order_and_empty_set():
-    from music_recsys.candidates import eligible_candidates
+    from src.candidates import eligible_candidates
 
     request = RecommendationRequest("r", "u", ("a", "c"), ("c", "b", "a"), 20, task="repeat")
     assert eligible_candidates(request) == ("c", "a")

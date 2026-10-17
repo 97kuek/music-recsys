@@ -17,8 +17,8 @@
 
 ## 実装
 
-- Python 3.12、uv.lock、srcレイアウトを維持する
-- 再利用する処理は `src/music_recsys/` に置き、Notebookには操作・分析・可視化を置く
+- Python 3.12とuv.lockを維持し、src自体をPythonパッケージとしてコードを直下へ配置する
+- 再利用する処理は `src/` に置き、Notebookには操作・分析・可視化を置く
 - 推薦モデルにValidation/Testの正解・未来の観測を渡さない
 - 同じ実験JSONをCLIとNotebookで共有する
 - 共通条件は`configs/common.json`へ集約し、GPU・比較・一括実行のためだけに設定や出力先を増やさない

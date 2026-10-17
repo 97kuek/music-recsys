@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from music_recsys import experiment_analysis as analysis
-from music_recsys.evaluation.benchmark import run_experiment
-from music_recsys.evaluation.tracking import TrackingConfig
+from src import experiment_analysis as analysis
+from src.evaluation.benchmark import run_experiment
+from src.evaluation.tracking import TrackingConfig
 
 ROOT = Path(__file__).resolve().parents[1]
 

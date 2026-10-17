@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from music_recsys.recommenders.als import als_solve
+from src.recommenders.als import als_solve
 
 
 def test_log_confidence_matches_dense_objective():
@@ -21,9 +21,9 @@ def test_sparse_als_matches_event_model_and_is_order_independent(tmp_path, trans
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from music_recsys.data import Interaction
-    from music_recsys.recommenders.als import ALSRecommender
-    from music_recsys.recommenders.full_als import FullALS
+    from src.data import Interaction
+    from src.recommenders.als import ALSRecommender
+    from src.recommenders.full_als import FullALS
 
     records = [
         dict(user_id=u, item_id=i, play_count=n)
@@ -64,7 +64,7 @@ def test_gpu_als_matches_small_dense_solution(tmp_path):
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from music_recsys.recommenders.full_als import FullALS
+    from src.recommenders.full_als import FullALS
 
     path = tmp_path / "learning.parquet"
     pq.write_table(
@@ -90,7 +90,7 @@ def test_gpu_als_matches_small_dense_solution(tmp_path):
 
 @pytest.mark.parametrize("task", ["new", "repeat"])
 def test_partial_ranking_matches_full_sort_including_ties(task):
-    from music_recsys.recommenders.full_als import FullALS
+    from src.recommenders.full_als import FullALS
 
     rng = np.random.default_rng(19)
     model = FullALS.__new__(FullALS)

@@ -22,7 +22,7 @@ def test_new_models_and_diagnostic_views_run_in_fresh_kernels(
     import nbformat
     from nbclient import NotebookClient
 
-    from music_recsys.experiment_search import run_search, select_best, smoke
+    from src.experiment_search import run_search, select_best, smoke
 
     config = model_config(listening_study(metric="graded_ndcg" if select else None), model)
     # Persist the programmatic test config so the fresh kernel uses exactly the same values.
@@ -48,7 +48,7 @@ def test_new_models_and_diagnostic_views_run_in_fresh_kernels(
             + "\n[search]",
         )
     path.write_text(body)
-    from music_recsys.experiment_search import load_study_config
+    from src.experiment_search import load_study_config
 
     config = load_study_config(path)
     smoke(config)

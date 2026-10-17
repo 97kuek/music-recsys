@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from music_recsys.catalog import (
+from src.catalog import (
     CatalogTrack,
     PlaybackAvailability,
     PlaybackContext,
@@ -12,12 +12,12 @@ from music_recsys.catalog import (
     TrackRef,
     TrackSource,
 )
-from music_recsys.data import Interaction
-from music_recsys.events import InteractionEvent, SessionLog, StudySession
-from music_recsys.ingestion.types import TrackRecord
-from music_recsys.recommenders import create_recommender
-from music_recsys.serving import FixedStrategy, ModelSpec, RecommendationService
-from music_recsys.types import RecommendationRequest, RecommendationResponse
+from src.data import Interaction
+from src.events import InteractionEvent, SessionLog, StudySession
+from src.ingestion.types import TrackRecord
+from src.recommenders import create_recommender
+from src.serving import FixedStrategy, ModelSpec, RecommendationService
+from src.types import RecommendationRequest, RecommendationResponse
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 

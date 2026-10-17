@@ -5,11 +5,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from music_recsys.events import InteractionEvent
-from music_recsys.listening_data import file_sha256
-from music_recsys.webapp.media import prepare
-from music_recsys.webapp.prepare import demo
-from music_recsys.webapp.server import create_app
+from src.events import InteractionEvent
+from src.listening_data import file_sha256
+from src.webapp.media import prepare
+from src.webapp.prepare import demo
+from src.webapp.server import create_app
 
 
 @pytest.fixture(scope="module")
@@ -139,7 +139,7 @@ def test_v3_managed_export_and_deletion_survive_restart(bundle, tmp_path):
     restarted = create_app(bundle, database, model_version="demo-itemcf")
     with TestClient(restarted, headers={"X-Music-App": "1"}) as client:
         client.cookies.set("music_session", token)
-        assert client.get("/api/session/state").status_code == 401
+        assert client.get("/api/session/state").status_code == 200
         client.delete("/api/session").raise_for_status()
         assert not exported.exists()
         assert restarted.state.runtime.store.summaries(datetime.now(UTC)) == []

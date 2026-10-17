@@ -11,7 +11,7 @@ import pytest
 def test_temporal_roundtrip_spills_with_long_ids(tmp_path, monkeypatch):
     import duckdb
 
-    from music_recsys.temporal import TemporalConfig, prepare_temporal
+    from src.temporal import TemporalConfig, prepare_temporal
 
     source = tmp_path / "events.parquet"
     connect = duckdb.connect
@@ -35,6 +35,6 @@ def test_temporal_roundtrip_spills_with_long_ids(tmp_path, monkeypatch):
     assert result.summary["leakage_checks"]["passed"] is True
     from dataclasses import asdict
 
-    from music_recsys.ingestion.split_validation import validate_saved_partitions
+    from src.ingestion.split_validation import validate_saved_partitions
 
     validate_saved_partitions(result.files, asdict(TemporalConfig()), result.summary)

@@ -4,8 +4,8 @@ import re
 
 import pandas as pd
 
-from music_recsys.evaluation_views import accuracy_groups, diversity_table, efficiency_table
-from music_recsys.notebook_display import table_html
+from src.evaluation_views import accuracy_groups, diversity_table, efficiency_table
+from src.notebook_display import table_html
 
 
 def test_csv_retains_every_row_precision_and_column_order():
@@ -24,7 +24,7 @@ def test_csv_retains_every_row_precision_and_column_order():
 def test_fixed_metrics_do_not_depend_on_selection_objective(listening_study):
     from test_listening_workflow import prepared
 
-    from music_recsys.search_analysis import selected_curves
+    from src.search_analysis import selected_curves
 
     config, _ = prepared(listening_study)
     frame = selected_curves(config, resamples=100)

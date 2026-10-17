@@ -13,10 +13,10 @@ def test_listening_generation_is_bounded_before_model_loading(tmp_path, monkeypa
     import duckdb
     import pyarrow.parquet as pq
 
-    from music_recsys.listening_data import load_listening_dataset
-    from music_recsys.listening_export import export_listening_phase
-    from music_recsys.listening_types import ListeningConfig
-    from music_recsys.temporal import TemporalConfig
+    from src.listening_data import load_listening_dataset
+    from src.listening_export import export_listening_phase
+    from src.listening_types import ListeningConfig
+    from src.temporal import TemporalConfig
 
     files = {role: tmp_path / f"{role}.parquet" for role in ("train", "validation", "test")}
     connect = duckdb.connect

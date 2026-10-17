@@ -53,9 +53,9 @@ def test_notebook_structure_and_no_implicit_legacy_inputs(name):
 
 
 def test_analysis_setup_loads_settings_without_evaluating(listening_study, monkeypatch):
-    import music_recsys.evaluation.benchmark as benchmark
-    import music_recsys.experiment_search as search
-    import music_recsys.search_analysis as analysis
+    import src.evaluation.benchmark as benchmark
+    import src.experiment_search as search
+    import src.search_analysis as analysis
 
     config = listening_study()
     monkeypatch.setenv("MUSIC_RECSYS_EXPERIMENT_CONFIG", str(config.path))
@@ -120,7 +120,7 @@ def test_unexecuted_analysis_runs_without_loading_test(listening_study, monkeypa
     nb.cells.insert(
         0,
         nbformat.v4.new_code_cell(
-            "import music_recsys.evaluation.benchmark as benchmark\n"
+            "import src.evaluation.benchmark as benchmark\n"
             "def forbidden(*args, **kwargs):\n    raise AssertionError('read only')\n"
             "benchmark.run_benchmark = forbidden"
         ),

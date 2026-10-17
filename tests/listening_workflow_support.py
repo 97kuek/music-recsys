@@ -7,8 +7,8 @@ from listening_support import write_partitions
 
 
 def make_study(root):
-    from music_recsys.listening_export import export_listening_phase
-    from music_recsys.temporal import TemporalConfig
+    from src.listening_export import export_listening_phase
+    from src.temporal import TemporalConfig
 
     files = write_partitions(root / "source")
     validation = pq.read_table(files["validation"])
@@ -44,7 +44,7 @@ def make_study(root):
         )
 
     def config(*, metric="graded_ndcg", task="repeat", day_weight=1.0, window=90):
-        from music_recsys.experiment_search import load_study_config
+        from src.experiment_search import load_study_config
 
         path = root / "study.toml"
         path.write_text(
@@ -59,7 +59,7 @@ def make_study(root):
 
 
 def update_manifest_file(bundle, role):
-    from music_recsys.listening_data import file_sha256
+    from src.listening_data import file_sha256
 
     target = bundle / "manifest.json"
     raw = json.loads(target.read_text())

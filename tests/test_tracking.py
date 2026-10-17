@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 @pytest.fixture
 def tracking(tmp_path, monkeypatch):
     pytest.importorskip("mlflow")
-    from music_recsys.evaluation.tracking import TrackingConfig
+    from src.evaluation.tracking import TrackingConfig
 
     monkeypatch.chdir(tmp_path)
     return TrackingConfig(
@@ -24,7 +24,7 @@ def tracking(tmp_path, monkeypatch):
 def test_runner_records_conditions_metrics_and_aggregate_artifacts(tracking, tmp_path):
     from mlflow import MlflowClient
 
-    from music_recsys.evaluation.benchmark import run_experiment, save_report
+    from src.evaluation.benchmark import run_experiment, save_report
 
     report = run_experiment(ROOT / "tests/fixtures/configs/toy.toml", tracking=tracking)
     run = MlflowClient(tracking_uri=tracking.tracking_uri).get_run(report.tracking.run_id)
@@ -59,8 +59,8 @@ def test_runner_records_conditions_metrics_and_aggregate_artifacts(tracking, tmp
 def test_failed_recommendations_mark_mlflow_run_failed(tracking):
     from mlflow import MlflowClient
 
-    from music_recsys.data import load_dataset
-    from music_recsys.evaluation.benchmark import run_benchmark
+    from src.data import load_dataset
+    from src.evaluation.benchmark import run_benchmark
 
     def recommend(request):
         raise RuntimeError("private message")
@@ -81,7 +81,7 @@ def test_failed_recommendations_mark_mlflow_run_failed(tracking):
 def test_common_run_records_cost_and_exception_status(tracking):
     from mlflow import MlflowClient
 
-    from music_recsys.evaluation.tracking import ExperimentRun
+    from src.evaluation.tracking import ExperimentRun
 
     with pytest.raises(RuntimeError, match="private"):
         with ExperimentRun(tracking, params={"model_name": "future-agent"}) as run:
@@ -97,8 +97,8 @@ def test_common_run_records_cost_and_exception_status(tracking):
 def test_tracking_failure_is_explicit_and_redacts_exception(monkeypatch, tracking):
     from mlflow import MlflowClient
 
-    from music_recsys.evaluation.benchmark import run_experiment
-    from music_recsys.evaluation.tracking import TrackingError
+    from src.evaluation.benchmark import run_experiment
+    from src.evaluation.tracking import TrackingError
 
     def fail(*args, **kwargs):
         raise RuntimeError("password=private")
@@ -115,7 +115,7 @@ def test_tracking_failure_is_explicit_and_redacts_exception(monkeypatch, trackin
 
 
 def test_config_supports_env_overrides_without_modifying_experiment(monkeypatch, tmp_path):
-    from music_recsys.evaluation.benchmark import load_config
+    from src.evaluation.benchmark import load_config
 
     config_path = tmp_path / "config.toml"
     config_path.write_text(
@@ -131,7 +131,7 @@ def test_config_supports_env_overrides_without_modifying_experiment(monkeypatch,
 
 
 def test_disabled_tracking_preserves_runner_without_mlflow(monkeypatch):
-    from music_recsys.evaluation.benchmark import run_experiment
+    from src.evaluation.benchmark import run_experiment
 
     monkeypatch.delenv("MUSIC_RECSYS_TRACKING", raising=False)
     assert run_experiment(ROOT / "tests/fixtures/configs/toy.toml").tracking is None
@@ -139,7 +139,7 @@ def test_disabled_tracking_preserves_runner_without_mlflow(monkeypatch):
 
 @pytest.mark.parametrize("setting", ["bad", "1"])
 def test_invalid_tracking_toggle_is_rejected(monkeypatch, setting):
-    from music_recsys.evaluation.benchmark import load_config
+    from src.evaluation.benchmark import load_config
 
     monkeypatch.setenv("MUSIC_RECSYS_TRACKING", setting)
     with pytest.raises(ValueError):
@@ -147,7 +147,7 @@ def test_invalid_tracking_toggle_is_rejected(monkeypatch, setting):
 
 
 def test_server_refuses_domain_database(monkeypatch):
-    from music_recsys.evaluation.tracking_server import ServerConfig
+    from src.evaluation.tracking_server import ServerConfig
 
     monkeypatch.setenv("POSTGRES_DB", "music_recsys")
     monkeypatch.setenv("POSTGRES_USER", "music_recsys")
@@ -159,7 +159,7 @@ def test_server_refuses_domain_database(monkeypatch):
 
 def test_server_password_is_not_in_process_arguments_or_config_repr(monkeypatch, tmp_path):
     pytest.importorskip("sqlalchemy")
-    from music_recsys.evaluation.tracking_server import ServerConfig
+    from src.evaluation.tracking_server import ServerConfig
 
     monkeypatch.setenv("POSTGRES_DB", "music_recsys")
     monkeypatch.setenv("POSTGRES_USER", "music_recsys")
@@ -178,10 +178,10 @@ def test_undefined_ranking_metrics_are_not_logged_as_zero(tracking):
 
     from mlflow import MlflowClient
 
-    from music_recsys.data import load_dataset
-    from music_recsys.evaluation.benchmark import run_benchmark
-    from music_recsys.recommenders.popularity import PopularityRecommender
-    from music_recsys.types import GroundTruth
+    from src.data import load_dataset
+    from src.evaluation.benchmark import run_benchmark
+    from src.recommenders.popularity import PopularityRecommender
+    from src.types import GroundTruth
 
     dataset = load_dataset(ROOT / "tests/fixtures/examples/toy/dataset.json", top_k=2)
     dataset = replace(
@@ -204,7 +204,7 @@ def test_undefined_ranking_metrics_are_not_logged_as_zero(tracking):
 def test_metrics_reject_non_finite_values_and_fail_run(tracking):
     from mlflow import MlflowClient
 
-    from music_recsys.evaluation.tracking import ExperimentRun
+    from src.evaluation.tracking import ExperimentRun
 
     with pytest.raises(ValueError, match="finite"):
         with ExperimentRun(tracking) as run:
@@ -218,7 +218,7 @@ def test_metrics_reject_non_finite_values_and_fail_run(tracking):
     "uri", ["http://name:secret@localhost:5000", "http://localhost?token=secret"]
 )
 def test_config_rejects_credentials_in_tracking_uri(uri):
-    from music_recsys.evaluation.tracking import TrackingConfig
+    from src.evaluation.tracking import TrackingConfig
 
     with pytest.raises(ValueError) as failure:
         TrackingConfig(enabled=True, tracking_uri=uri)
@@ -226,7 +226,7 @@ def test_config_rejects_credentials_in_tracking_uri(uri):
 
 
 def test_invalid_metric_input_does_not_expose_value(tracking):
-    from music_recsys.evaluation.tracking import ExperimentRun
+    from src.evaluation.tracking import ExperimentRun
 
     with pytest.raises(ValueError) as failure:
         with ExperimentRun(tracking) as run:
@@ -237,8 +237,8 @@ def test_invalid_metric_input_does_not_expose_value(tracking):
 def test_saved_details_are_linked_by_manifest_without_uploading_histories(tracking, tmp_path):
     from mlflow import MlflowClient
 
-    from music_recsys.evaluation.benchmark import run_experiment, save_report
-    from music_recsys.experiment_analysis import read_mlflow_report
+    from src.evaluation.benchmark import run_experiment, save_report
+    from src.experiment_analysis import read_mlflow_report
 
     report = run_experiment(ROOT / "tests/fixtures/configs/toy.toml", tracking=tracking)
     root = tmp_path / "results"

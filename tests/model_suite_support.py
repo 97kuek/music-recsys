@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from music_recsys.features import write_features
+from src.features import write_features
 
 MODELS = ("popularity", "itemcf", "usercf", "als", "bpr", "content", "hybrid")
 
@@ -8,7 +8,7 @@ MODELS = ("popularity", "itemcf", "usercf", "als", "bpr", "content", "hybrid")
 def model_config(config, model):
     feature = config.path.parent / "features.json"
     if not feature.exists():
-        from music_recsys.experiment_search import context
+        from src.experiment_search import context
 
         data, _ = context(config)
         write_features(

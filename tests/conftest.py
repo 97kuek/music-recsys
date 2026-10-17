@@ -14,7 +14,7 @@ import pytest
 def music4all_factory(tmp_path):
     pytest.importorskip("pyarrow", reason="install the data dependency group")
     pytest.importorskip("duckdb", reason="install the data dependency group")
-    from music_recsys.music4all import convert_events
+    from src.music4all import convert_events
 
     def create(name="source", tag_rows=None, events_data=None):
         root = tmp_path / name
@@ -114,7 +114,7 @@ def study(tmp_path):
             f"max_trials={budget}\n[search.grid]\n{grid}\n"
             + ('[selection]\nmetric="ndcg"\nk=10\ndirection="maximize"\n' if objective else "")
         )
-        from music_recsys.experiment_search import load_study_config
+        from src.experiment_search import load_study_config
 
         return load_study_config(config)
 

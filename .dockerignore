@@ -6,7 +6,7 @@
 !src/**
 src/**/__pycache__/
 src/**/*.pyc
-src/music_recsys/webapp/static/
+src/webapp/static/
 !frontend/
 !frontend/package.json
 !frontend/package-lock.json

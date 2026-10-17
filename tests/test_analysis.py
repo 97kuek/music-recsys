@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from music_recsys import analysis
-from music_recsys.data import load_dataset
-from music_recsys.evaluation.benchmark import run_experiment, save_report
-from music_recsys.evaluation.tracking import TrackingConfig
-from music_recsys.ingestion.types import Catalog, TrackRecord, UserRecord
+from src import analysis
+from src.data import load_dataset
+from src.evaluation.benchmark import run_experiment, save_report
+from src.evaluation.tracking import TrackingConfig
+from src.ingestion.types import Catalog, TrackRecord, UserRecord
 
 ROOT = Path(__file__).resolve().parents[1]
 

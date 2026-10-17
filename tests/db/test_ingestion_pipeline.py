@@ -11,7 +11,7 @@ LOCK = Path(__file__).resolve().parents[2] / "uv.lock"
 
 
 def adapter(files):
-    from music_recsys.adapters.music4all import Music4AllAdapter
+    from src.adapters.music4all import Music4AllAdapter
 
     return Music4AllAdapter(
         record_path=files["record"],
@@ -25,7 +25,7 @@ def adapter(files):
 
 
 def run(db, root, a):
-    from music_recsys.ingestion.pipeline import import_dataset
+    from src.ingestion.pipeline import import_dataset
 
     return import_dataset(a, db, root, LOCK)
 
@@ -48,7 +48,7 @@ def counts(db):
 def test_pipeline_publishes_verified_catalog_and_reuses_it_on_retry(
     db, music4all_factory, tmp_path
 ):
-    from music_recsys.ingestion.pipeline import load_snapshot
+    from src.ingestion.pipeline import load_snapshot
 
     a = adapter(music4all_factory())
     root = tmp_path / "store"
@@ -95,7 +95,7 @@ def test_new_release_reuses_identity_and_unchanged_metadata(db, music4all_factor
 
 
 def test_adapter_failure_is_recorded_without_a_partial_snapshot(db, music4all_factory, tmp_path):
-    from music_recsys.ingestion.pipeline import ImportFailed
+    from src.ingestion.pipeline import ImportFailed
 
     a = adapter(music4all_factory(tag_rows=[("02", "{'rock': 80}"), ("02", "{'rock': 90}")]))
     with pytest.raises(ImportFailed) as error:
@@ -112,8 +112,8 @@ def test_adapter_failure_is_recorded_without_a_partial_snapshot(db, music4all_fa
 def test_output_file_failure_is_recorded_before_publication(
     db, music4all_factory, tmp_path, monkeypatch
 ):
-    from music_recsys.ingestion.artifacts import ArtifactStore
-    from music_recsys.ingestion.pipeline import ImportFailed
+    from src.ingestion.artifacts import ArtifactStore
+    from src.ingestion.pipeline import ImportFailed
 
     original = ArtifactStore.write_catalog
 
@@ -133,8 +133,8 @@ def test_output_file_failure_is_recorded_before_publication(
 def test_same_input_with_changed_output_fails_and_preserves_existing_snapshot(
     db, music4all_factory, tmp_path
 ):
-    from music_recsys.ingestion.pipeline import ImportFailed, load_snapshot
-    from music_recsys.ingestion.types import Catalog, TrackRecord
+    from src.ingestion.pipeline import ImportFailed, load_snapshot
+    from src.ingestion.types import Catalog, TrackRecord
 
     root = tmp_path / "store"
     a = adapter(music4all_factory())
@@ -158,8 +158,8 @@ def test_same_input_with_changed_output_fails_and_preserves_existing_snapshot(
 
 
 def test_reader_rejects_corrupted_published_parquet(db, music4all_factory, tmp_path):
-    from music_recsys.ingestion.pipeline import load_snapshot
-    from music_recsys.ingestion.types import ValidationError
+    from src.ingestion.pipeline import load_snapshot
+    from src.ingestion.types import ValidationError
 
     root = tmp_path / "store"
     result = run(db, root, adapter(music4all_factory()))
@@ -188,7 +188,7 @@ def test_pipeline_serializes_same_input_publishers(db, music4all_factory, tmp_pa
 
 
 def test_python_fingerprints_match_database_for_decimal_and_unicode_values(db):
-    from music_recsys.ingestion.types import canonical_json, fingerprint
+    from src.ingestion.types import canonical_json, fingerprint
 
     value = {"音楽": [1.0, -0.0, 1e-7, 1e20, True, None], "a": 'escaped\n"'}
     with db.connect() as c:

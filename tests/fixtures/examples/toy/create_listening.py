@@ -9,8 +9,8 @@ def create_example(output):
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from music_recsys.listening_export import export_listening_phase
-    from music_recsys.temporal import TemporalConfig
+    from src.listening_export import export_listening_phase
+    from src.temporal import TemporalConfig
 
     output = Path(output)
     output.mkdir(parents=True)  # 既存のイベント・bundleへの上書きを拒否する。
@@ -72,7 +72,7 @@ def create_example(output):
                 "split_id": "synthetic-temporal-v1",
             },
         )
-    from music_recsys.features import write_features
+    from src.features import write_features
 
     write_features(
         output / "features.json",

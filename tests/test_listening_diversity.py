@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from music_recsys.data import Interaction
-from music_recsys.listening_types import ListeningDataset
-from music_recsys.types import RecommendationRequest, RecommendationResponse
+from src.data import Interaction
+from src.listening_types import ListeningDataset
+from src.types import RecommendationRequest, RecommendationResponse
 
 
 def fixture(items=("invalid", "a", "a", "b"), *, repeat=False, failed=False):
@@ -36,7 +36,7 @@ def fixture(items=("invalid", "a", "a", "b"), *, repeat=False, failed=False):
 
 
 def test_top_k_holes_are_preserved_and_popularity_uses_only_learning_users():
-    from music_recsys.evaluation.listening_diversity import listening_diversity
+    from src.evaluation.listening_diversity import listening_diversity
 
     data, runs, features = fixture()
     result = listening_diversity(data, runs, ks=(1, 2, 3, 4), features=features)
@@ -57,7 +57,7 @@ def test_top_k_holes_are_preserved_and_popularity_uses_only_learning_users():
     [None, {"a": {"rock": 1}}, {"a": {"rock": 1}, "b": {}}, {"a": {"rock": 1}, "b": {"rock": 0}}],
 )
 def test_missing_or_zero_features_do_not_become_zero_distance(features):
-    from music_recsys.evaluation.listening_diversity import listening_diversity
+    from src.evaluation.listening_diversity import listening_diversity
 
     data, runs, _ = fixture(("a", "b"))
     row = listening_diversity(data, runs, ks=(2,), features=features)["metrics"][0]
@@ -67,7 +67,7 @@ def test_missing_or_zero_features_do_not_become_zero_distance(features):
 
 
 def test_repeat_candidates_and_empty_or_failed_outputs_have_explicit_denominators():
-    from music_recsys.evaluation.listening_diversity import listening_diversity
+    from src.evaluation.listening_diversity import listening_diversity
 
     data, runs, _ = fixture(("s", "a"), repeat=True)
     row = listening_diversity(data, runs, ks=(2,))["metrics"][0]
@@ -88,12 +88,12 @@ def test_runner_stores_diversity_once_for_many_windows_and_gains(tmp_path):
 
     from listening_support import write_bundle
 
-    from music_recsys.evaluation.listening_benchmark import (
+    from src.evaluation.listening_benchmark import (
         run_listening_benchmark,
         save_listening_report,
     )
-    from music_recsys.listening_data import load_listening_dataset
-    from music_recsys.listening_types import ListeningConfig
+    from src.listening_data import load_listening_dataset
+    from src.listening_types import ListeningConfig
 
     config = ListeningConfig(window_days=(90,), day_weights=(0.0, 1.0, 2.0))
     data = load_listening_dataset(write_bundle(tmp_path / "bundle"), config)
@@ -119,7 +119,7 @@ def test_runner_stores_diversity_once_for_many_windows_and_gains(tmp_path):
 
 
 def test_large_finite_identical_vectors_have_zero_distance():
-    from music_recsys.evaluation.listening_diversity import listening_diversity
+    from src.evaluation.listening_diversity import listening_diversity
 
     data, runs, _ = fixture(("a", "b"))
     features = {

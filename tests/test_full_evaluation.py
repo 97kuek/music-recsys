@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from music_recsys.configuration import load_settings
+from src.configuration import load_settings
 
 
 @pytest.mark.parametrize(
@@ -13,13 +13,13 @@ from music_recsys.configuration import load_settings
     [("popularity", "play_count"), ("popularity", "user_count"), ("itemcf", None), ("als", None)],
 )
 def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, model, basis):
-    from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
-    from music_recsys.evaluation.tracking import TrackingConfig
-    from music_recsys.experiment_search import load_study_config
-    from music_recsys.features import load_features
-    from music_recsys.full_evaluation import run
-    from music_recsys.listening_data import load_listening_dataset
-    from music_recsys.recommenders import create_recommender
+    from src.evaluation.listening_benchmark import run_listening_benchmark
+    from src.evaluation.tracking import TrackingConfig
+    from src.experiment_search import load_study_config
+    from src.features import load_features
+    from src.full_evaluation import run
+    from src.listening_data import load_listening_dataset
+    from src.recommenders import create_recommender
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
@@ -56,7 +56,7 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, mo
     )
     export_path = tmp_path / "deployed"
     output = run(path, export_path=export_path, model_version="integration-v1")
-    from music_recsys.model_artifacts import load_model
+    from src.model_artifacts import load_model
 
     spec, deployed = load_model(export_path)
     assert spec.version_id == "integration-v1"
@@ -89,7 +89,7 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, mo
         (r["request"]["user_id"], r["request"]["task"], list(r["response"]["item_ids"]))
         for r in report.runs
     ]
-    from music_recsys.types import RecommendationRequest
+    from src.types import RecommendationRequest
 
     for run_record in report.runs:
         request = RecommendationRequest(
@@ -107,10 +107,10 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, mo
 
 
 def test_vector_scores_match_reference_random_histories():
-    from music_recsys.evaluation.listening_metrics import PreparedListeningResponse
-    from music_recsys.listening_types import ListeningConfig, PlaybackObservation
-    from music_recsys.streaming_metrics import accuracy_vectors
-    from music_recsys.types import RecommendationRequest, RecommendationResponse
+    from src.evaluation.listening_metrics import PreparedListeningResponse
+    from src.listening_types import ListeningConfig, PlaybackObservation
+    from src.streaming_metrics import accuracy_vectors
+    from src.types import RecommendationRequest, RecommendationResponse
 
     config = ListeningConfig(day_weights=(0.0, 0.5, 1.0, 2.0))
     rng = np.random.default_rng(18)
@@ -150,9 +150,9 @@ def test_vector_scores_match_reference_random_histories():
 
 
 def test_unique_users_reverse_play_count_ranking():
-    from music_recsys.data import Interaction
-    from music_recsys.recommenders.popularity import PopularityRecommender
-    from music_recsys.types import RecommendationRequest
+    from src.data import Interaction
+    from src.recommenders.popularity import PopularityRecommender
+    from src.types import RecommendationRequest
 
     events = [Interaction("u1", "a")] * 10 + [Interaction("u1", "b"), Interaction("u2", "b")]
     request = RecommendationRequest("r", "new-user", (), ("a", "b"), 2)

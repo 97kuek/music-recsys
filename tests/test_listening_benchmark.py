@@ -4,19 +4,19 @@ import json
 import pytest
 from listening_support import write_bundle
 
-from music_recsys.types import RecommendationResponse
+from src.types import RecommendationResponse
 
 
 def inputs(tmp_path):
-    from music_recsys.listening_data import load_listening_dataset
-    from music_recsys.listening_types import ListeningConfig
+    from src.listening_data import load_listening_dataset
+    from src.listening_types import ListeningConfig
 
     config = ListeningConfig(window_days=(90,), day_weights=(0.0, 0.5, 1.0, 2.0))
     return load_listening_dataset(write_bundle(tmp_path / "bundle"), config), config
 
 
 def test_runner_generates_only_two_rankings_per_user_for_all_conditions(tmp_path):
-    from music_recsys.evaluation.listening_benchmark import (
+    from src.evaluation.listening_benchmark import (
         run_listening_benchmark,
         save_listening_report,
     )
@@ -52,9 +52,9 @@ def test_runner_generates_only_two_rankings_per_user_for_all_conditions(tmp_path
 
 
 def test_empty_candidates_skip_generation_but_keep_users(tmp_path):
-    from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
-    from music_recsys.listening_data import load_listening_dataset
-    from music_recsys.listening_types import ListeningConfig
+    from src.evaluation.listening_benchmark import run_listening_benchmark
+    from src.listening_data import load_listening_dataset
+    from src.listening_types import ListeningConfig
 
     learning = [
         {"user_id": user, "item_id": "a", "play_count": 1, "active_days": 1} for user in ("u", "v")
@@ -79,7 +79,7 @@ def test_empty_candidates_skip_generation_but_keep_users(tmp_path):
 def test_model_failures_are_zero_when_truth_exists_and_do_not_persist_exception_text(tmp_path):
     from dataclasses import asdict
 
-    from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
+    from src.evaluation.listening_benchmark import run_listening_benchmark
 
     data, config = inputs(tmp_path)
 
@@ -93,7 +93,7 @@ def test_model_failures_are_zero_when_truth_exists_and_do_not_persist_exception_
 
 
 def test_cli_configuration_explicitly_selects_v2_and_preserves_model_parameters(tmp_path):
-    from music_recsys.evaluation.benchmark import run_experiment
+    from src.evaluation.benchmark import run_experiment
 
     bundle = write_bundle(tmp_path / "bundle")
     config = tmp_path / "benchmark.toml"
@@ -107,7 +107,7 @@ def test_cli_configuration_explicitly_selects_v2_and_preserves_model_parameters(
 
 
 def test_legacy_reader_rejects_listening_report_explicitly():
-    from music_recsys.experiment_analysis import load_reports
+    from src.experiment_analysis import load_reports
 
     with pytest.raises(ValueError, match="listening-v2"):
         load_reports(
@@ -116,7 +116,7 @@ def test_legacy_reader_rejects_listening_report_explicitly():
 
 
 def test_runner_saves_invalid_position_diagnostics(tmp_path):
-    from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
+    from src.evaluation.listening_benchmark import run_listening_benchmark
 
     data, config = inputs(tmp_path)
 
@@ -133,7 +133,7 @@ def test_runner_saves_invalid_position_diagnostics(tmp_path):
 
 
 def test_results_record_window_end_dates_without_requiring_source_bundle(tmp_path):
-    from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
+    from src.evaluation.listening_benchmark import run_listening_benchmark
 
     data, config = inputs(tmp_path)
     report = run_listening_benchmark(
@@ -148,9 +148,9 @@ def test_results_record_window_end_dates_without_requiring_source_bundle(tmp_pat
 def test_evaluator_prepares_candidates_once_per_request_not_for_every_k_or_gain(
     tmp_path, monkeypatch
 ):
-    import music_recsys.evaluation.listening_metrics as metrics
-    from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
-    from music_recsys.listening_types import ListeningConfig
+    import src.evaluation.listening_metrics as metrics
+    from src.evaluation.listening_benchmark import run_listening_benchmark
+    from src.listening_types import ListeningConfig
 
     data, _ = inputs(tmp_path)
     calls = []

@@ -3,14 +3,14 @@
 - [English](README.en.md)
 - 従来型推薦・LLM/Agentによる戦略選択を比較する音楽推薦の研究用リポジトリ
 - Python 3.12・uv・Parquetによるオフライン評価、React＋TypeScript＋FastAPIの試聴MVP
-- LLM/Agentは未実装、Music4All実音源は提供・試聴条件の回答待ち、公開画面は合成デモ
+- LLM/Agentは未実装、Music4Allはデータ提供の連絡を受領、ファイル受領・ID接続・Web試聴条件の確認はこれから
 
 ## 始める
 
 ```bash
 uv sync --locked --group data --group models --group notebook --group tracking
-.venv/bin/python -m music_recsys.lab_data
-.venv/bin/python -m music_recsys.full_evaluation --config configs/popularity-plays.json
+.venv/bin/python -m src.lab_data
+.venv/bin/python -m src.full_evaluation --config configs/popularity-plays.json
 .venv/bin/jupyter lab --no-browser --ip=127.0.0.1 --port=8888
 ```
 
@@ -25,7 +25,8 @@ uv sync --locked --group data --group models --group notebook --group tracking
 | --- | --- |
 | 推薦器・共通API・将来のLLM/Agent | [推薦システムのアーキテクチャ](docs/architecture.md) |
 | コード構成・Notebook/CLI・保存先・開発 | [コード構成・実行フロー](docs/experiment-workflow.md) |
-| UI/API・楽曲/モデル配置・Mac Docker・公開デモ | [アプリ全体のアーキテクチャ](docs/app-architecture.md) |
+| 取得元・checksum・提供状況 | [データ出典](docs/data-sources.md) |
+| UI/API・データ配置/容量・Mac Docker・Tunnel/Access | [アプリ全体のアーキテクチャ](docs/app-architecture.md) |
 | 取得ログ・同意・保存/管理・削除・被験者比較 | [オンライン評価](docs/online-study.md) |
 | 正解/候補・Recall/NDCG・多様性・効率・欠測 | [オフライン評価指標](docs/listening-evaluation.md) |
 | 11月末の中間報告・1月末頃の最終報告 | [研究計画](docs/research-plan.md) |
@@ -42,10 +43,11 @@ uv sync --locked --group data --group models --group notebook --group tracking
 
 ## アプリ・データ保護
 
-- [公開合成デモ](https://musicrecsys.pages.dev) / 実モデル・実曲の試聴環境とは別
-- Mac版はZIPを展開して`bash deploy/mac.sh start`、Docker Desktopが必要
-- 参加者ログは任意同意時だけMacの`~/music-recsys/state/sessions.sqlite`へ開発用24時間保存
-- 研究室の外部公開・ポート開放は禁止、遠隔参加は個人Macの認証付き運用を別途設定する
+- 研究室は学習・オフライン評価、MacのDocker 1コンテナでReact＋FastAPIを配信、Pages/Workersは不要
+- Mac版はZIPを展開して`bash deploy/mac.sh start`でローカル確認、遠隔用は`start-remote`＋MacホストのCloudflare Tunnel/Access
+- 学習データ/評価結果は研究室、元データ・配信モデル・必要曲の情報/MP3・被験者評価/操作ログはMacへ配置する方針、実転送は未実施
+- 参加者ログの保存・保持期間・再開は[オンライン評価](docs/online-study.md#保存権限削除)、容量と転送手順は[アプリ構成](docs/app-architecture.md)
+- 研究室の外部公開・ポート開放は禁止、遠隔接続の実地検証はMacで行う
 - 生データ・音源・モデル・個別結果・ログ・認証情報はGit管理外、[作業ルール](AGENTS.md)に従う
 
 ## ライセンス

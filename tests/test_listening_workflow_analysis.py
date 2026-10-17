@@ -5,7 +5,7 @@ from test_listening_workflow import prepared
 
 
 def test_v2_curves_keep_task_window_gain_and_user_uncertainty(listening_study):
-    from music_recsys.search_analysis import (
+    from src.search_analysis import (
         history_performance,
         plot_performance,
         plot_search,
@@ -32,7 +32,7 @@ def test_v2_curves_keep_task_window_gain_and_user_uncertainty(listening_study):
 
 
 def test_v2_final_comparison_does_not_mix_protocol_or_gain(listening_study):
-    from music_recsys.experiment_search import (
+    from src.experiment_search import (
         freeze_selection,
         review_selection,
         run_final_test,
@@ -40,7 +40,7 @@ def test_v2_final_comparison_does_not_mix_protocol_or_gain(listening_study):
         select_best,
         smoke,
     )
-    from music_recsys.search_analysis import final_comparison, plot_final
+    from src.search_analysis import final_comparison, plot_final
 
     config, _ = prepared(listening_study)
     review_selection(config, accepted=True)
@@ -75,8 +75,8 @@ def test_v2_final_comparison_does_not_mix_protocol_or_gain(listening_study):
 
 
 def test_repeat_inspection_counts_eligible_history_and_explains_seen_candidates(listening_study):
-    from music_recsys.experiment_search import inspect_selected
-    from music_recsys.recommendation_inspection import inspect_recommendation, request_options
+    from src.experiment_search import inspect_selected
+    from src.recommendation_inspection import inspect_recommendation, request_options
 
     config, _ = prepared(listening_study)
     context = inspect_selected(config)
@@ -92,7 +92,7 @@ def test_repeat_inspection_counts_eligible_history_and_explains_seen_candidates(
 
 
 def test_secondary_sensitivity_can_skip_bootstrap_without_imputing_a_ci():
-    from music_recsys.experiment_analysis import BootstrapConfig, cluster_statistics
+    from src.experiment_analysis import BootstrapConfig, cluster_statistics
 
     statistics = cluster_statistics(
         [("u", 0.0), ("v", 1.0)], BootstrapConfig(resamples=100), compute_ci=False
@@ -106,7 +106,7 @@ def test_seven_model_plot_separates_metrics_and_keeps_legend_off_curves():
     import matplotlib.pyplot as plt
     import pandas as pd
 
-    from music_recsys.search_analysis import plot_final
+    from src.search_analysis import plot_final
 
     metrics = [
         ("discovery", "binary_ndcg"),

@@ -1,11 +1,11 @@
 import pytest
 
-from music_recsys.types import RecommendationResponse
+from src.types import RecommendationResponse
 
 
 def test_usage_totals_are_measured_and_partial_fields_remain_unknown():
-    from music_recsys.types import RecommendationUsage
-    from music_recsys.usage import summarize_usage
+    from src.types import RecommendationUsage
+    from src.usage import summarize_usage
 
     first = RecommendationResponse(
         "a",
@@ -40,7 +40,7 @@ def test_usage_totals_are_measured_and_partial_fields_remain_unknown():
     ],
 )
 def test_invalid_usage_facts_are_rejected(kwargs):
-    from music_recsys.types import RecommendationUsage
+    from src.types import RecommendationUsage
 
     with pytest.raises(ValueError):
         RecommendationUsage(**kwargs)
@@ -51,11 +51,11 @@ def test_real_runner_search_metrics_and_mlflow_aggregate_usage(tmp_path):
 
     from mlflow import MlflowClient
 
-    from music_recsys.data import load_dataset
-    from music_recsys.evaluation.benchmark import run_benchmark
-    from music_recsys.evaluation.tracking import TrackingConfig
-    from music_recsys.search_metrics import ranking_metrics
-    from music_recsys.types import RecommendationUsage
+    from src.data import load_dataset
+    from src.evaluation.benchmark import run_benchmark
+    from src.evaluation.tracking import TrackingConfig
+    from src.search_metrics import ranking_metrics
+    from src.types import RecommendationUsage
 
     dataset = load_dataset(
         Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json", top_k=20
@@ -94,10 +94,10 @@ def test_real_runner_search_metrics_and_mlflow_aggregate_usage(tmp_path):
 def test_listening_runner_measures_generation_once_across_scoring_conditions(tmp_path):
     from listening_support import write_bundle
 
-    from music_recsys.evaluation.listening_benchmark import run_listening_benchmark
-    from music_recsys.listening_data import load_listening_dataset
-    from music_recsys.listening_types import ListeningConfig
-    from music_recsys.types import RecommendationUsage
+    from src.evaluation.listening_benchmark import run_listening_benchmark
+    from src.listening_data import load_listening_dataset
+    from src.listening_types import ListeningConfig
+    from src.types import RecommendationUsage
 
     config = ListeningConfig(window_days=(90,), day_weights=(0.0, 1.0, 2.0))
     data = load_listening_dataset(write_bundle(tmp_path / "bundle"), config)

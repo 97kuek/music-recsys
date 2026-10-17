@@ -1,10 +1,10 @@
 from datetime import UTC, datetime
 
-from music_recsys.catalog import CatalogTrack, PlaybackContext, TrackRef, TrackSource, normalize
-from music_recsys.catalog_poc import MetadataCatalogAdapter
-from music_recsys.recommenders.tag_seed import TagSeedRecommender
-from music_recsys.serving import FixedStrategy, ModelSpec, RecommendationService
-from music_recsys.types import RecommendationRequest
+from src.catalog import CatalogTrack, PlaybackContext, TrackRef, TrackSource, normalize
+from src.catalog_poc import MetadataCatalogAdapter
+from src.recommenders.tag_seed import TagSeedRecommender
+from src.serving import FixedStrategy, ModelSpec, RecommendationService
+from src.types import RecommendationRequest
 
 
 def test_metadata_is_not_playback_evidence():

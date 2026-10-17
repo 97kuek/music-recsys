@@ -10,8 +10,8 @@ def test_failed_trial_also_creates_failed_mlflow_run(study, tmp_path):
     pytest.importorskip("mlflow")
     from mlflow import MlflowClient
 
-    from music_recsys.evaluation.tracking import TrackingConfig
-    from music_recsys.experiment_search import run_search, smoke
+    from src.evaluation.tracking import TrackingConfig
+    from src.experiment_search import run_search, smoke
 
     tracking = TrackingConfig(
         enabled=True,
@@ -39,8 +39,8 @@ def test_failed_trial_also_creates_failed_mlflow_run(study, tmp_path):
 def test_storage_failure_marks_mlflow_trial_failed(study, tmp_path, monkeypatch):
     from mlflow import MlflowClient
 
-    import music_recsys.experiment_search as search
-    from music_recsys.evaluation.tracking import TrackingConfig
+    import src.experiment_search as search
+    from src.evaluation.tracking import TrackingConfig
 
     tracking = TrackingConfig(
         enabled=True,

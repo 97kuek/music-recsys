@@ -4,9 +4,9 @@ import math
 
 import pytest
 
-from music_recsys.data import Interaction
-from music_recsys.recommenders import create_recommender
-from music_recsys.types import RecommendationRequest
+from src.data import Interaction
+from src.recommenders import create_recommender
+from src.types import RecommendationRequest
 
 
 def interactions():
@@ -82,7 +82,7 @@ def test_training_order_and_seed_do_not_change_tied_rankings():
 def test_existing_benchmark_cli_accepts_itemcf_parameters(tmp_path):
     from pathlib import Path
 
-    from music_recsys.evaluation.benchmark import run_experiment
+    from src.evaluation.benchmark import run_experiment
 
     dataset = Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json"
     config = tmp_path / "benchmark.toml"
@@ -98,8 +98,8 @@ def test_existing_benchmark_cli_accepts_itemcf_parameters(tmp_path):
 def test_inspection_exposes_itemcf_scores_and_history_evidence():
     from pathlib import Path
 
-    from music_recsys.data import load_dataset
-    from music_recsys.recommendation_inspection import inspect_recommendation
+    from src.data import load_dataset
+    from src.recommendation_inspection import inspect_recommendation
 
     dataset = load_dataset(
         Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json", top_k=20
@@ -115,7 +115,7 @@ def test_inspection_exposes_itemcf_scores_and_history_evidence():
 def test_real_itemcf_grid_selects_and_retrains_locked_parameters(study):
     from dataclasses import replace
 
-    from music_recsys.experiment_search import (
+    from src.experiment_search import (
         freeze_selection,
         inspect_selected,
         review_selection,
@@ -124,7 +124,7 @@ def test_real_itemcf_grid_selects_and_retrains_locked_parameters(study):
         select_best,
         smoke,
     )
-    from music_recsys.recommendation_inspection import inspect_recommendation
+    from src.recommendation_inspection import inspect_recommendation
 
     config = replace(
         study(),
