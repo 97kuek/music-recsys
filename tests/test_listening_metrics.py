@@ -2,12 +2,12 @@ import math
 
 import pytest
 
-from src.types import RecommendationRequest, RecommendationResponse
+from src.domain.recommendation.contracts import RecommendationRequest, RecommendationResponse
 
 
 def test_idcg_includes_unreturned_high_gain_and_duplicate_positions_do_not_shift():
-    from src.evaluation.listening_metrics import evaluate_listening_response
-    from src.listening_types import PlaybackObservation
+    from src.domain.evaluation.listening import PlaybackObservation
+    from src.domain.evaluation.listening_metrics import evaluate_listening_response
 
     request = RecommendationRequest("r", "u", (), ("a", "b", "c"), 20)
     response = RecommendationResponse("r", ("a", "a", "outside", "b"))
@@ -31,8 +31,8 @@ def test_idcg_includes_unreturned_high_gain_and_duplicate_positions_do_not_shift
 
 
 def test_repeat_days_weight_and_failure_are_distinct_from_empty_truth():
-    from src.evaluation.listening_metrics import evaluate_listening_response
-    from src.listening_types import PlaybackObservation
+    from src.domain.evaluation.listening import PlaybackObservation
+    from src.domain.evaluation.listening_metrics import evaluate_listening_response
 
     request = RecommendationRequest("r", "u", ("a", "b"), ("a", "b"), 20, task="repeat")
     observations = (
@@ -64,8 +64,8 @@ def test_repeat_days_weight_and_failure_are_distinct_from_empty_truth():
 
 
 def test_overflow_does_not_fill_missing_prefix_truth():
-    from src.evaluation.listening_metrics import evaluate_listening_response
-    from src.listening_types import PlaybackObservation
+    from src.domain.evaluation.listening import PlaybackObservation
+    from src.domain.evaluation.listening_metrics import evaluate_listening_response
 
     request = RecommendationRequest("r", "u", (), ("a",), 20)
     score = evaluate_listening_response(

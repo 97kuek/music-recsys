@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from src.recommenders.full_bpr import FullBPR
+from src.infrastructure.recommenders.full_bpr import FullBPR
 
 
 def test_bpr_train_only_reproducible_and_binary(tmp_path):

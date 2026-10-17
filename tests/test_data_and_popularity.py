@@ -9,9 +9,9 @@ TOY_PATH = Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/da
 
 
 def test_popularity_counts_training_events_and_breaks_ties_by_id():
-    from src.data import Interaction
-    from src.recommenders.popularity import PopularityRecommender
-    from src.types import RecommendationRequest
+    from src.domain.evaluation.dataset import Interaction
+    from src.domain.recommendation.contracts import RecommendationRequest
+    from src.infrastructure.recommenders.popularity import PopularityRecommender
 
     model = PopularityRecommender(
         (Interaction("u1", "b"), Interaction("u2", "a"), Interaction("u1", "b"))
@@ -22,9 +22,9 @@ def test_popularity_counts_training_events_and_breaks_ties_by_id():
 
 
 def test_popularity_excludes_history_even_if_it_is_in_candidates():
-    from src.data import Interaction
-    from src.recommenders.popularity import PopularityRecommender
-    from src.types import RecommendationRequest
+    from src.domain.evaluation.dataset import Interaction
+    from src.domain.recommendation.contracts import RecommendationRequest
+    from src.infrastructure.recommenders.popularity import PopularityRecommender
 
     model = PopularityRecommender((Interaction("u", "a"),))
     result = model.recommend(RecommendationRequest("r", "u", ("a",), ("a", "b"), 10))
@@ -32,8 +32,8 @@ def test_popularity_excludes_history_even_if_it_is_in_candidates():
 
 
 def test_toy_dataset_has_separate_training_and_truth():
-    from src.data import load_dataset
-    from src.recommenders.popularity import PopularityRecommender
+    from src.infrastructure.datasets.json_dataset import load_dataset
+    from src.infrastructure.recommenders.popularity import PopularityRecommender
 
     dataset = load_dataset(TOY_PATH, top_k=2)
     assert len(dataset.requests) == 5
@@ -46,8 +46,8 @@ def test_toy_dataset_has_separate_training_and_truth():
 
 
 def test_changing_test_truth_does_not_change_recommendations(tmp_path):
-    from src.data import load_dataset
-    from src.recommenders.popularity import PopularityRecommender
+    from src.infrastructure.datasets.json_dataset import load_dataset
+    from src.infrastructure.recommenders.popularity import PopularityRecommender
 
     raw = json.loads(TOY_PATH.read_text())
     raw["ground_truth"][0]["relevant_item_ids"] = ["track_f"]
@@ -73,7 +73,7 @@ def test_changing_test_truth_does_not_change_recommendations(tmp_path):
     ],
 )
 def test_loader_rejects_inconsistent_dataset(tmp_path, mutation):
-    from src.data import load_dataset
+    from src.infrastructure.datasets.json_dataset import load_dataset
 
     raw = json.loads(TOY_PATH.read_text())
     if mutation == "duplicate_catalog":
@@ -96,14 +96,14 @@ def test_loader_rejects_inconsistent_dataset(tmp_path, mutation):
 
 @pytest.mark.parametrize("k", [0, -1, True])
 def test_request_rejects_invalid_top_k(k):
-    from src.types import RecommendationRequest
+    from src.domain.recommendation.contracts import RecommendationRequest
 
     with pytest.raises(ValueError):
         RecommendationRequest("r", "u", (), ("a",), k)
 
 
 def test_request_rejects_mutable_or_invalid_item_sequences():
-    from src.types import RecommendationRequest
+    from src.domain.recommendation.contracts import RecommendationRequest
 
     for candidate_ids in (["a"], ("a", "a"), ("",), (3,)):
         with pytest.raises(ValueError):

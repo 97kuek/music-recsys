@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.webapp.media import prepare
-from src.webapp.prepare import demo
-from src.webapp.runtime import Runtime
+from src.bootstrap import create_runtime
+from src.interfaces.cli.online_media import prepare
+from src.interfaces.cli.online_prepare import demo
 
 
 @pytest.fixture
@@ -43,7 +43,7 @@ def test_selected_audio_and_catalog_define_same_candidates_for_every_model(media
     before = source.read_bytes()
     selected = ["sample-00", "sample-01"]
     config = prepare(*media, tmp_path / "study", item_ids=selected)
-    runtime = Runtime(config, database=tmp_path / "state.sqlite")
+    runtime = create_runtime(config, database=tmp_path / "state.sqlite")
     assert set(runtime.tracks) == set(selected)
     assert all(set(items) == set(selected) for items in runtime.candidates.values())
     prepared = json.loads(config.read_text())

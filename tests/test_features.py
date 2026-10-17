@@ -4,7 +4,7 @@ import pytest
 
 
 def test_features_are_snapshot_bound_and_legacy_format_still_works(tmp_path):
-    from src.features import load_features
+    from src.infrastructure.datasets.features import load_features
 
     p = tmp_path / "features.json"
     p.write_text(
@@ -30,7 +30,7 @@ def test_features_are_snapshot_bound_and_legacy_format_still_works(tmp_path):
     ],
 )
 def test_feature_values_reject_invalid_data(tmp_path, vector):
-    from src.features import load_features
+    from src.infrastructure.datasets.features import load_features
 
     p = tmp_path / "features.json"
     p.write_text(json.dumps({"dataset_id": "toy", "snapshot_id": "s", "features": {"a": vector}}))
@@ -39,7 +39,7 @@ def test_feature_values_reject_invalid_data(tmp_path, vector):
 
 
 def test_exported_feature_content_checksum_rejects_tampering(tmp_path):
-    from src.features import load_features, write_features
+    from src.infrastructure.datasets.features import load_features, write_features
 
     p = tmp_path / "features.json"
     raw = write_features(
@@ -61,7 +61,7 @@ def test_exported_feature_content_checksum_rejects_tampering(tmp_path):
 
 
 def test_unrepresentable_numeric_features_are_rejected_as_validation_errors(tmp_path):
-    from src.features import load_features
+    from src.infrastructure.datasets.features import load_features
 
     p = tmp_path / "huge.json"
     p.write_text(

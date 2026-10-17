@@ -3,12 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from src.configuration import load_settings
+from src.infrastructure.research.configuration import load_settings
 
 
 def test_grid_expands_conditions_and_reuses_completed_outputs(tmp_path, monkeypatch):
-    import src.grid as grid
-    from src.experiment_search import load_study_config
+    import src.interfaces.cli.grid as grid
+    from src.interfaces.cli.experiment_search import load_study_config
 
     raw = load_settings(Path("configs/itemcf.json"))
     raw["experiment"].update(
@@ -51,7 +51,8 @@ def test_grid_expands_conditions_and_reuses_completed_outputs(tmp_path, monkeypa
 def test_itemcf_report_failure_reuse_and_artifact_guard(tmp_path, monkeypatch):
     import runpy
 
-    from src import grid, itemcf_report
+    from src.interfaces.cli import grid
+    from src.interfaces.notebook import itemcf_report
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")

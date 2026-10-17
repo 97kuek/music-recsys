@@ -12,10 +12,13 @@ pytestmark = pytest.mark.skipif(
 def test_gpu_rank_accuracy_diversity_matches_cpu():
     import cupy as cp
 
-    from src.gpu_evaluation import GPURanker
-    from src.gpu_metrics import GPUAccuracy, GPUDiversity
-    from src.recommenders.full_factors import FullFactorModel
-    from src.streaming_metrics import DiversityAccumulator, accuracy_vectors
+    from src.infrastructure.evaluation.gpu_evaluation import GPURanker
+    from src.infrastructure.evaluation.gpu_metrics import GPUAccuracy, GPUDiversity
+    from src.infrastructure.evaluation.streaming_metrics import (
+        DiversityAccumulator,
+        accuracy_vectors,
+    )
+    from src.infrastructure.recommenders.full_factors import FullFactorModel
 
     model = FullFactorModel()
     model.items = np.array(["a", "b", "c", "d", "e"])
@@ -93,13 +96,13 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
 
     import duckdb
 
-    from src.configuration import load_settings
-    from src.experiment_search import load_study_config
-    from src.features import load_features
-    from src.full_evaluation import run
-    from src.full_scoring import score_cpu
-    from src.listening_data import validate_bundle
-    from src.recommenders import full_als, full_bm25, full_bpr, full_content
+    from src.infrastructure.datasets.features import load_features
+    from src.infrastructure.datasets.listening_data import validate_bundle
+    from src.infrastructure.evaluation.full_scoring import score_cpu
+    from src.infrastructure.recommenders import full_als, full_bm25, full_bpr, full_content
+    from src.infrastructure.research.configuration import load_settings
+    from src.interfaces.cli.experiment_search import load_study_config
+    from src.interfaces.cli.full_evaluation import run
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")

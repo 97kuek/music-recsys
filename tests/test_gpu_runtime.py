@@ -2,7 +2,7 @@ import subprocess
 
 import pytest
 
-from src.recommenders import gpu_runtime
+from src.infrastructure.recommenders import gpu_runtime
 
 
 def test_gpu_preflight_accepts_own_context_but_rejects_other_jobs(monkeypatch):

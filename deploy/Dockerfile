@@ -14,9 +14,9 @@ COPY pyproject.toml uv.lock README.md LICENSE NOTICE ./
 # 推論のみ。implicit/CUDA・Notebook・学習入力は不要。
 RUN uv sync --locked --no-dev --group app --no-install-project
 COPY src/ src/
-COPY --from=ui /build/src/webapp/static/ src/webapp/static/
+COPY --from=ui /build/src/interfaces/http/static/ src/interfaces/http/static/
 RUN uv sync --locked --no-dev --group app && useradd --uid 10001 --create-home music-recsys
 ENV PATH="/app/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 USER music-recsys
-CMD ["python", "-m", "src.webapp.container"]
+CMD ["python", "-m", "src.interfaces.http.container"]

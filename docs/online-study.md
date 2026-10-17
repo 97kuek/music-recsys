@@ -97,8 +97,8 @@ bash deploy/mac.sh export SESSION_ID
 # 保存先: ~/music-recsys/state/exports/SESSION_ID.json
 
 # Pythonでの管理: 所有する既存DBを明示
-.venv/bin/python -m src.webapp.logs --database /private/sessions.sqlite list
-.venv/bin/python -m src.webapp.logs --database /private/sessions.sqlite export SESSION_ID
+.venv/bin/python -m src.interfaces.cli.online_logs --database /private/sessions.sqlite list
+.venv/bin/python -m src.interfaces.cli.online_logs --database /private/sessions.sqlite export SESSION_ID
 ```
 
 - 管理exportは`music-recsys-log-v1`のJSON、export時刻と元payloadを保持し、既存ファイルを上書きしない

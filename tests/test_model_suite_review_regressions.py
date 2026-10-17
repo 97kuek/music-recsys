@@ -6,9 +6,9 @@ import pytest
 from model_suite_support import model_config
 from test_listening_diversity import fixture
 
-from src.data import Interaction
-from src.recommenders import create_recommender
-from src.types import RecommendationRequest
+from src.domain.evaluation.dataset import Interaction
+from src.domain.recommendation.contracts import RecommendationRequest
+from src.infrastructure.recommenders import create_recommender
 
 
 def test_bpr_items_never_updated_are_explicit_fallbacks():
@@ -24,10 +24,10 @@ def test_bpr_items_never_updated_are_explicit_fallbacks():
 
 @pytest.mark.parametrize("tracked", [False, True])
 def test_standalone_binary_feature_changes_cannot_be_compared_as_same_conditions(study, tracked):
-    from src.evaluation.benchmark import run_experiment
-    from src.evaluation.tracking import TrackingConfig
-    from src.experiment_analysis import load_reports
-    from src.features import write_features
+    from src.infrastructure.datasets.features import write_features
+    from src.infrastructure.evaluation.benchmark import run_experiment
+    from src.infrastructure.evaluation.tracking import TrackingConfig
+    from src.interfaces.notebook.experiment_analysis import load_reports
 
     config = model_config(study(), "content")
     benchmark = config.path.parent / "benchmark.toml"
@@ -80,7 +80,7 @@ def test_standalone_binary_feature_changes_cannot_be_compared_as_same_conditions
 
 @pytest.mark.parametrize("marker", ["source", "transformation"])
 def test_new_feature_export_cannot_silently_fall_back_to_unchecked_legacy(tmp_path, marker):
-    from src.features import load_features, write_features
+    from src.infrastructure.datasets.features import load_features, write_features
 
     path = tmp_path / "features.json"
     raw = write_features(
@@ -97,9 +97,9 @@ def test_new_feature_export_cannot_silently_fall_back_to_unchecked_legacy(tmp_pa
 def test_binary_search_report_itself_retains_feature_identity(study):
     from dataclasses import replace
 
-    from src.experiment_analysis import load_reports
-    from src.experiment_search import load_study, run_search, smoke
-    from src.features import write_features
+    from src.infrastructure.datasets.features import write_features
+    from src.interfaces.cli.experiment_search import load_study, run_search, smoke
+    from src.interfaces.notebook.experiment_analysis import load_reports
 
     first = model_config(study(), "content")
     raw = json.loads(first.features.read_text())
@@ -146,8 +146,11 @@ def test_hybrid_endpoints_keep_base_order_when_rrf_denominators_round_equal(weig
     "missing,expected", [(True, "features_missing"), (False, "features_zero_norm")]
 )
 def test_diversity_preserves_feature_exclusion_causes_in_saved_report(tmp_path, missing, expected):
-    from src.evaluation.listening_benchmark import ListeningReport, save_listening_report
-    from src.evaluation.listening_diversity import listening_diversity
+    from src.domain.evaluation.listening_diversity import listening_diversity
+    from src.infrastructure.evaluation.listening_benchmark import (
+        ListeningReport,
+        save_listening_report,
+    )
 
     data, runs, features = fixture(("a", "b"))
     if missing:

@@ -38,7 +38,7 @@ flowchart LR
 | 配信用bundle | config・catalog・モデル・音源・transfer.json、Macで`/bundle`へread-only mount |
 | 楽曲情報 | TrackCatalog/CatalogTrack/TrackRef、catalog.json等のhash固定ファイル、常駐DBは不要 |
 | 音源 | 実験の固定楽曲集合に必要な許諾済みMP3等だけをbundleへ配置、source領域をHTTP公開しない |
-| React | `frontend/src`、通常buildは`src/webapp/static`へ生成 |
+| React | `frontend/src`、通常buildは`src/interfaces/http/static`へ生成 |
 | ログ | Macの`~/music-recsys/state/sessions.sqlite`、Dockerでは`/state/sessions.sqlite` |
 | 管理export | 同stateの`exports/SESSION_ID.json`、[権限・期限・削除](online-study.md#保存権限削除) |
 
@@ -64,10 +64,10 @@ flowchart LR
 
 ```bash
 # media処理後のconfigを指定、Macへのコピー前にも容量確認
-.venv/bin/python -m src.webapp.bundle \
+.venv/bin/python -m src.interfaces.cli.online_bundle \
   --config /private/listening/config.json --dry-run
 # 容量予算をbytesで明示し、新規出力へ梱包
-.venv/bin/python -m src.webapp.bundle \
+.venv/bin/python -m src.interfaces.cli.online_bundle \
   --config /private/listening/config.json --output /private/bundle-v1 --max-bytes 1073741824
 ```
 
@@ -92,9 +92,9 @@ bash deploy/mac.sh stop
 - `logs`はプロセス診断、参加者ログの管理は`sessions` / `export SESSION_ID`を使う
 
 ```bash
-.venv/bin/python -m src.webapp.bundle \
+.venv/bin/python -m src.interfaces.cli.online_bundle \
   --config data/app/demo/config.json --study deploy/demo-study.json --output data/app/mac-demo-new
-.venv/bin/python -m src.webapp.distribution \
+.venv/bin/python -m src.interfaces.cli.online_distribution \
   --root . --bundle data/app/mac-demo-new --version 0.4.0 \
   --output data/app/music-recsys-mac-0.4.0.zip
 ```
@@ -108,8 +108,8 @@ bash deploy/mac.sh stop
 uv sync --locked --group app --group data --group models
 (cd frontend && npm ci && npm run build)
 # 未作成の場合だけ、合成デモを新規作成
-.venv/bin/python -m src.webapp.prepare --demo --output data/app/demo
-.venv/bin/python -m src.webapp.server \
+.venv/bin/python -m src.interfaces.cli.online_prepare --demo --output data/app/demo
+.venv/bin/python -m src.interfaces.http.server \
   --config data/app/demo/config.json --model-version demo-itemcf --port 8765
 ```
 
@@ -153,9 +153,9 @@ uv sync --locked --group app --group data --group models
 - Playback Adapterはavailable/unavailable/unknown/expiredを区別、URL取得をブラウザ再生成功としない
 
 ```bash
-.venv/bin/python -m src.webapp.audit --config data/app/music4all/config.json \
+.venv/bin/python -m src.interfaces.cli.online_audit --config data/app/music4all/config.json \
   --audio-root /許可された音源保存先 --output data/app/music4all/audio-audit-new.json
-.venv/bin/python -m src.webapp.media --config data/app/music4all/config.json \
+.venv/bin/python -m src.interfaces.cli.online_media --config data/app/music4all/config.json \
   --metadata /private/tracks.csv --audio-root /private/clips \
   --permission /private/permission.json --items /private/study-items.json \
   --output data/app/music4all-listening

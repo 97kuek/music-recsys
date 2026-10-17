@@ -3,9 +3,9 @@ import math
 import numpy as np
 import pytest
 
-from src.data import Interaction
-from src.recommenders import create_recommender
-from src.types import RecommendationRequest
+from src.domain.evaluation.dataset import Interaction
+from src.domain.recommendation.contracts import RecommendationRequest
+from src.infrastructure.recommenders import create_recommender
 
 
 def events():
@@ -15,7 +15,7 @@ def events():
 
 
 def test_als_normal_equation_includes_unobserved_preference_zero():
-    from src.recommenders.als import als_solve
+    from src.infrastructure.recommenders.als import als_solve
 
     other = np.array([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
     confidence = np.diag([5.0, 1.0, 3.0])
@@ -28,7 +28,7 @@ def test_als_normal_equation_includes_unobserved_preference_zero():
 
 
 def test_bpr_step_increases_positive_negative_margin():
-    from src.recommenders.bpr import bpr_step
+    from src.infrastructure.recommenders.bpr import bpr_step
 
     u, p, n = np.array([0.2, 0.4]), np.array([0.3, 0.2]), np.array([-0.1, 0.1])
     before = float(u @ (p - n))
@@ -38,7 +38,7 @@ def test_bpr_step_increases_positive_negative_margin():
 
 
 def test_dense_negative_sampling_terminates_and_is_uniform_over_unseen_positions():
-    from src.recommenders.bpr import unseen_at_rank
+    from src.infrastructure.recommenders.bpr import unseen_at_rank
 
     assert unseen_at_rank(tuple(range(99999)), 100000, 0) == 99999
     assert [unseen_at_rank((0, 2, 4), 6, k) for k in range(3)] == [1, 3, 5]

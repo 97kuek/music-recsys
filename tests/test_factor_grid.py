@@ -4,15 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from src.configuration import load_settings
+from src.infrastructure.research.configuration import load_settings
 
 
 @pytest.mark.parametrize("model_name", ["als", "bpr"])
 def test_factor_grid_end_to_end_and_comparison_guards(tmp_path, model_name):
-    from src.experiment_search import load_study_config
-    from src.full_analysis import curves
-    from src.full_evaluation import run
-    from src.grid import run_grid
+    from src.interfaces.cli.experiment_search import load_study_config
+    from src.interfaces.cli.full_evaluation import run
+    from src.interfaces.cli.grid import run_grid
+    from src.interfaces.notebook.full_analysis import curves
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")

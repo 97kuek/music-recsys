@@ -91,10 +91,10 @@ else:
   stop) "${compose[@]}" down ;;
   status) "${compose[@]}" ps ;;
   logs) "${compose[@]}" logs --tail 50 app ;;
-  sessions) "${compose[@]}" exec -T app python -m src.webapp.logs --database /state/sessions.sqlite list ;;
+  sessions) "${compose[@]}" exec -T app python -m src.interfaces.cli.online_logs --database /state/sessions.sqlite list ;;
   export)
     if [ "$#" -ne 2 ]; then echo 'Usage: bash deploy/mac.sh export SESSION_ID' >&2; exit 2; fi
-    "${compose[@]}" exec -T app python -m src.webapp.logs --database /state/sessions.sqlite export "$2"
+    "${compose[@]}" exec -T app python -m src.interfaces.cli.online_logs --database /state/sessions.sqlite export "$2"
     echo "保存先: $MUSIC_RECSYS_STATE/exports/"
     ;;
 esac

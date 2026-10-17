@@ -4,9 +4,11 @@
 
 - 対象は推薦の学習・候補制約・戦略選択・順位付け・評価
 - UI・音源配信・配置は[アプリ全体](app-architecture.md)、コードと保存先は[実行フロー](experiment-workflow.md)
-- アイコン付き全体図・DDD/Cleanの将来案は[設計図HTMLのソース](https://github.com/97kuek/music-recsys/blob/main/docs/architecture.html)をブラウザで開く
+- アイコン付き全体図は[READMEのSVG](../README.md#アーキテクチャ図)、補足説明は[設計図HTML](architecture.html)を参照
 - モジュラーモノリスを維持し、推薦器と推薦戦略を分離する
-- Music4Allの既存item_id・実験結果・学習index・Pythonパッケージ名を維持する
+- Domainは推薦・評価・比較計画・参加者状態、Applicationはユースケースと必要なportを持つ
+- モデル・SQLite・音源・ファイル・HTTPの具象処理は外側へ置き、`src/bootstrap.py`で接続する
+- Music4Allの既存item_id・実験結果・学習indexを維持し、コードは[実行フロー](experiment-workflow.md#パッケージ構成)の層へ分ける
 
 ```mermaid
 flowchart LR
@@ -81,7 +83,7 @@ flowchart LR
 
 ## 保存済みモデルとCold-start
 
-- `model_artifacts.export_model/load_model`を使用し、manifest＋NPYで保存、pickleは使わない
+- `src.infrastructure.models.model_artifacts`の`export_model/load_model`を使用し、manifest＋NPYで保存、pickleは使わない
 - manifestにModelSpec・学習hash・Git revision・ソース/lock hash・配列hash/shape/dtype・実行環境を保持
 - item順序hash、ファイル集合、有限値、index範囲・重複、manifest hashをロード時に検証する
 - NPYをread-only mmapで開き、推論要求ごとに重みを読み直さない

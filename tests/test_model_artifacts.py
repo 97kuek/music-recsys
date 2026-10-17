@@ -7,7 +7,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from src.catalog import (
+from src.application.recommendation import RecommendationService
+from src.domain.catalog import (
     CatalogTrack,
     PlaybackAvailability,
     PlaybackContext,
@@ -16,16 +17,16 @@ from src.catalog import (
     TrackRef,
     TrackSource,
 )
-from src.events import SessionLog, StudySession
-from src.model_artifacts import export_model, load_model
-from src.profiles import InitialProfile
-from src.recommenders.als import als_solve
-from src.recommenders.full_als import FullALS
-from src.recommenders.full_bpr import FullBPR
-from src.recommenders.full_itemcf import FullItemCF
-from src.recommenders.full_popularity import FullPopularity
-from src.serving import FixedStrategy, RecommendationService
-from src.types import RecommendationRequest
+from src.domain.recommendation.contracts import RecommendationRequest
+from src.domain.recommendation.models import FixedStrategy
+from src.domain.recommendation.profiles import InitialProfile
+from src.domain.study.events import SessionLog, StudySession
+from src.infrastructure.models.model_artifacts import export_model, load_model
+from src.infrastructure.recommenders.als import als_solve
+from src.infrastructure.recommenders.full_als import FullALS
+from src.infrastructure.recommenders.full_bpr import FullBPR
+from src.infrastructure.recommenders.full_itemcf import FullItemCF
+from src.infrastructure.recommenders.full_popularity import FullPopularity
 
 
 @pytest.fixture
@@ -115,7 +116,7 @@ def test_full_model_roundtrip_matches_benchmark_rank_without_training(
     "tamper", ["array", "manifest", "missing", "dimensions", "catalog", "path"]
 )
 def test_load_rejects_corruption(tamper, learning, tmp_path):
-    from src.listening_data import file_sha256
+    from src.infrastructure.datasets.listening_data import file_sha256
 
     directory = tmp_path / "model"
     checksum = export_model(trained("als", learning), directory, version_id="v1")

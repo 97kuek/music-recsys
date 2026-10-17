@@ -3,8 +3,8 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from src.webapp.prepare import demo
-from src.webapp.server import create_app
+from src.interfaces.cli.online_prepare import demo
+from src.interfaces.http.server import create_app
 
 
 @pytest.fixture(scope="module")

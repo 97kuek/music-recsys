@@ -5,8 +5,8 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from src.webapp.prepare import demo
-from src.webapp.server import create_app
+from src.interfaces.cli.online_prepare import demo
+from src.interfaces.http.server import create_app
 
 
 @pytest.fixture(scope="module")
@@ -48,7 +48,9 @@ def test_saved_models_and_profile(client, version, monkeypatch):
     def forbidden(*args, **kwargs):
         raise AssertionError("request must not train")
 
-    monkeypatch.setattr("src.recommenders.full_itemcf.FullItemCF.__init__", forbidden)
+    monkeypatch.setattr(
+        "src.infrastructure.recommenders.full_itemcf.FullItemCF.__init__", forbidden
+    )
     start(client)
     assert client.put("/api/profile", json={"items": ["sample-00"]}).status_code == 200
     result = recommend(client, version)

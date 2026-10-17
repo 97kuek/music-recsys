@@ -5,12 +5,14 @@
 - Python 3.12, uv, and Parquet for offline evaluation; React, TypeScript, and FastAPI for the listening MVP
 - LLM/Agent selection is not implemented; Music4All has offered to provide data; file receipt, ID mapping, and web preview scope remain to be checked
 
+- Backend and UI separate domain rules, use cases, adapters and presentation; tests enforce dependency direction
+
 ## Start
 
 ```bash
 uv sync --locked --group data --group models --group notebook --group tracking
-.venv/bin/python -m src.lab_data
-.venv/bin/python -m src.full_evaluation --config configs/popularity-plays.json
+.venv/bin/python -m src.interfaces.cli.lab_data
+.venv/bin/python -m src.interfaces.cli.full_evaluation --config configs/popularity-plays.json
 .venv/bin/jupyter lab --no-browser --ip=127.0.0.1 --port=8888
 ```
 
@@ -50,6 +52,27 @@ uv sync --locked --group data --group models --group notebook --group tracking
 - See [online evaluation](docs/online-study.md) for consent, retention, and resuming; see [application architecture](docs/app-architecture.md) for storage budgets and transfer
 - Do not expose lab servers or open public ports; verify authenticated remote access on the Mac
 - Raw data, audio, models, individual results, logs, and credentials stay outside Git; follow [AGENTS.md](AGENTS.md)
+
+## Architecture diagrams
+
+- Standalone SVG diagrams distinguish current behavior from future proposals; open an image to zoom
+- The diagrams are labeled in Japanese; see the [interactive HTML](docs/architecture.html) for node details and [documentation](#documentation) for specifications
+
+### UI, API, database, and deployment
+
+![Participants connect through Cloudflare Access and Tunnel to React, FastAPI, recommenders, and SQLite on the Mac](docs/diagrams/app.svg)
+
+### Research batches and Notebooks
+
+![lab_data produces Parquet; the CLI trains models and evaluates Validation; Notebooks inspect saved results](docs/diagrams/batch.svg)
+
+### Future LLM and Agent orchestration
+
+![Fixed selection, one-shot LLM selection, and iterative Agents with LangChain, LangGraph, OpenAI Decisions API, Responses API, and LangSmith](docs/diagrams/agent.svg)
+
+### Future multi-stage recommendation
+
+![Shared candidate constraints, retrieval, RRF fusion, reranking, playback permissions, presentation, and consented feedback](docs/diagrams/ranking.svg)
 
 ## License
 

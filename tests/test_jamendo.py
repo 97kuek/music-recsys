@@ -6,10 +6,10 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from src.jamendo import JamendoClient, JamendoError, match_record, public_url
-from src.listening_data import file_sha256
-from src.serving import ModelSpec
-from src.webapp.server import create_app
+from src.domain.recommendation.models import ModelSpec
+from src.infrastructure.datasets.listening_data import file_sha256
+from src.infrastructure.media.jamendo import JamendoClient, JamendoError, match_record, public_url
+from src.interfaces.http.server import create_app
 
 
 def transport(rows, status="success", code=0):

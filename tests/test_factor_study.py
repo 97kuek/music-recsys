@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from src.configuration import load_settings
-from src.experiment_search import load_study_config
-from src.factor_study import conditions, run_study
+from src.infrastructure.research.configuration import load_settings
+from src.interfaces.cli.experiment_search import load_study_config
+from src.interfaces.cli.factor_study import conditions, run_study
 
 
 def small_study(tmp_path, model="bpr"):
@@ -58,7 +58,7 @@ def test_study_executes_exports_and_resumes_without_retraining(tmp_path, model):
         pytest.skip("CLI study has a 5 GiB free-space guard")
     path = small_study(tmp_path, model)
     subprocess.run(
-        [sys.executable, "-m", "src.factor_study", "--config", str(path)],
+        [sys.executable, "-m", "src.interfaces.cli.factor_study", "--config", str(path)],
         check=True,
         capture_output=True,
         text=True,

@@ -2,9 +2,9 @@ import math
 
 import pytest
 
-from src.data import Interaction
-from src.recommenders import create_recommender
-from src.types import RecommendationRequest
+from src.domain.evaluation.dataset import Interaction
+from src.domain.recommendation.contracts import RecommendationRequest
+from src.infrastructure.recommenders import create_recommender
 
 
 def fixture():

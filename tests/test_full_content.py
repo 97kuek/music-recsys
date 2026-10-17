@@ -8,10 +8,10 @@ def test_sparse_content_matches_reference(tmp_path, use_idf, aggregation):
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from src.data import Interaction
-    from src.recommenders.content import ContentRecommender
-    from src.recommenders.full_content import FullContent
-    from src.types import RecommendationRequest
+    from src.domain.evaluation.dataset import Interaction
+    from src.domain.recommendation.contracts import RecommendationRequest
+    from src.infrastructure.recommenders.content import ContentRecommender
+    from src.infrastructure.recommenders.full_content import FullContent
 
     records = [
         ("u", "a", 3),
@@ -62,7 +62,7 @@ def test_content_empty_tags_are_popularity_fallback(tmp_path):
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from src.recommenders.full_content import FullContent
+    from src.infrastructure.recommenders.full_content import FullContent
 
     path = tmp_path / "learning.parquet"
     pq.write_table(pa.table(dict(user_id=["u", "v"], item_id=["a", "b"], play_count=[1, 3])), path)

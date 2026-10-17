@@ -4,7 +4,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.catalog import (
+from src.application.recommendation import RecommendationService
+from src.domain.catalog import (
     CatalogTrack,
     PlaybackAvailability,
     PlaybackContext,
@@ -12,12 +13,12 @@ from src.catalog import (
     TrackRef,
     TrackSource,
 )
-from src.data import Interaction
-from src.events import InteractionEvent, SessionLog, StudySession
-from src.ingestion.types import TrackRecord
-from src.recommenders import create_recommender
-from src.serving import FixedStrategy, ModelSpec, RecommendationService
-from src.types import RecommendationRequest, RecommendationResponse
+from src.domain.datasets import TrackRecord
+from src.domain.evaluation.dataset import Interaction
+from src.domain.recommendation.contracts import RecommendationRequest, RecommendationResponse
+from src.domain.recommendation.models import FixedStrategy, ModelSpec
+from src.domain.study.events import InteractionEvent, SessionLog, StudySession
+from src.infrastructure.recommenders import create_recommender
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 

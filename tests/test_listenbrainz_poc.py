@@ -1,4 +1,4 @@
-from src.listenbrainz_poc import audit, jamendo_id
+from src.interfaces.cli.listenbrainz_poc import audit, jamendo_id
 
 
 def test_urls_and_versions_are_not_merged():

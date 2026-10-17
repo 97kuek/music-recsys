@@ -5,25 +5,28 @@
 - Python 3.12・uv.lockを維持し、コードを`src/`直下と役割別のサブパッケージへ配置する
 - `src/`自体をPythonパッケージにし、`from src...`と`python -m src...`を共通で使う
 - `pyproject.toml`のwheel対象・CLI・Notebook・Docker・配布物も同じ構成にする
-- `src/`自体をPYTHONPATHへ追加せず、プロジェクトをuvでインストールして使う
 
 | 場所 | 責務 |
 | --- | --- |
-| `src/lab_data.py` / `music4all.py` | 取得・checksum照合・全量Parquet変換・学習ユーザー抽出 |
-| `temporal.py` / `listening_export.py` / `listening_data.py` | 時系列分割・窓別観測の生成・hash検証 |
-| `features.py` | タグ特徴の変換・checksum |
-| `configuration.py` / `notebook_config.py` | 共通JSON継承・パス解決・Notebookの明示読込み |
-| `recommenders/` | [推薦器](architecture.md)の学習・rank・説明、CPU/GPU実装 |
-| `full_evaluation.py` / `grid.py` | 全件Validation・条件展開・保存済み成功結果の再利用 |
-| `full_scoring.py` / `gpu_evaluation.py` / `gpu_metrics.py` | 順位付け・全指標・bootstrap |
-| `streaming_metrics.py` / `evaluation/` | [評価定義](listening-evaluation.md)と集計・追跡 |
-| `comparison.py` / `factor_report.py` / `itemcf_report.py` | 比較出典の検証・単独PNG・CSV |
-| `experiment_search.py` / `search_protocols.py` | 小規模探索・選択・確認・固定・最終Test |
-| `full_analysis.py` / `search_analysis.py` / `listening_analysis.py` | 保存済み結果・観測分布の分析 |
-| `serving.py` / `profiles.py` / `model_artifacts.py` | 共通推薦契約・初期選択・学習なしのモデルload |
-| `catalog.py` / `webapp/` | [アプリ全体](app-architecture.md)・[オンライン評価](online-study.md) |
-| `notebooks/` | 操作・分析・可視化、再利用処理はsrcへ置く |
-| `tests/` / `tests/fixtures/` | 互換性試験・明示した合成fixture、実データの暗黙代替は禁止 |
+| `src/domain/recommendation/` | 推薦契約・候補制約・初期選択・特徴・モデル識別 |
+| `src/domain/evaluation/` | 履歴と正解を分離した入力・精度・多様性の指標定義 |
+| `src/domain/study/` / `catalog.py` / `datasets.py` | 比較計画・割付・セッション・参加コード・カタログ契約 |
+| `src/application/` | 推薦実行・参加者開始/再開・プロフィール・条件遷移・終了 |
+| `src/application/ports/` | 推論・保存・音源・取得Adapterが満たす契約 |
+| `src/infrastructure/` | CPU/GPU推薦器・モデル保存・Parquet・SQLite・音源・認証・追跡 |
+| `src/interfaces/cli/` | 入力準備・条件展開・評価・保存・比較・配布のコマンド |
+| `src/interfaces/notebook/` | 保存済み結果の分析・表・PNG・Notebookの明示読込み |
+| `src/interfaces/http/` / `src/bootstrap.py` | HTTP入出力・cookie・配信 / 具象Adapterの起動時組立 |
+| `frontend/src/domain/` / `application/` | UI共有契約・選択制約 / 通信port・操作の実行順序 |
+| `frontend/src/infrastructure/` / `app/` | HTTP・ブラウザ保存・デモ / 接続先の組立 |
+| `frontend/src/presentation/` | React表示・画面状態・音声DOM・StudyProviderによる注入 |
+| `notebooks/` / `tests/` | 操作・分析・可視化 / 単体・結合・依存方向の試験 |
+
+- Domainは標準ライブラリとDomainにのみ、ApplicationはDomainとApplicationにのみ依存する
+- InfrastructureからHTTP/CLI/Notebookを呼ばず、外側で具体実装を組み立てる
+- フロントエンドのDomain/ApplicationにはReact・fetch・環境変数・ブラウザ保存を持ち込まない
+- HTTP契約・モデルmanifest・評価JSON・参加者再開形式は維持し、旧モジュールの互換shimは置かない
+- 比較計画のJSON符号化とhashを維持し、参加者の順序割付と再開条件を変えない
 
 ## 標準経路
 
@@ -42,8 +45,8 @@ flowchart TD
 
 ```bash
 uv sync --locked --group data --group models --group notebook --group tracking
-.venv/bin/python -m src.lab_data
-.venv/bin/python -m src.full_evaluation --config configs/popularity-plays.json
+.venv/bin/python -m src.interfaces.cli.lab_data
+.venv/bin/python -m src.interfaces.cli.full_evaluation --config configs/popularity-plays.json
 .venv/bin/jupyter lab --no-browser --ip=127.0.0.1 --port=8888
 ```
 
@@ -70,17 +73,17 @@ uv sync --locked --group data --group models --group notebook --group tracking
 | `bm25/{50,100}.json` | full_evaluation | `bm25-{50,100}/` |
 
 ```bash
-.venv/bin/python -m src.grid --config configs/itemcf.json
-.venv/bin/python -m src.grid --config configs/als.json --compare configs/itemcf.json
+.venv/bin/python -m src.interfaces.cli.grid --config configs/itemcf.json
+.venv/bin/python -m src.interfaces.cli.grid --config configs/als.json --compare configs/itemcf.json
 CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  .venv/bin/python -m src.factor_study --config configs/bpr-100epoch.json
+  .venv/bin/python -m src.interfaces.cli.factor_study --config configs/bpr-100epoch.json
 ```
 
 - `--compare`は保存済み比較元を指定、入力・特徴・母集団・評価条件・成果物hashを検査する
 - `configs/itemcf/`・`configs/bpr-30epoch/seed0/`・ALS 32/64/128はgridが展開、親JSONを編集する
 - 展開済みJSONは結果からの参照があるため保持、GPUや一括実行だけの設定を増やさない
 - コード/lock/条件変更で再利用できない結果は保持し、再実験だけ新しい出力先へ保存する
-- ItemCF比較の再描画は`python -m src.itemcf_report --config configs/itemcf.json`
+- ItemCF比較の再描画は`python -m src.interfaces.notebook.itemcf_report --config configs/itemcf.json`
 
 ## 保存物
 
@@ -124,12 +127,12 @@ CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 ## 明示的な選択・固定
 
 ```bash
-.venv/bin/python -m src.experiment_search --config <設定JSON> smoke
-.venv/bin/python -m src.experiment_search --config <設定JSON> search
-.venv/bin/python -m src.experiment_search --config <設定JSON> select
-.venv/bin/python -m src.experiment_search --config <設定JSON> review --accept --note '<確認内容>'
-.venv/bin/python -m src.experiment_search --config <設定JSON> freeze
-.venv/bin/python -m src.experiment_search --config <設定JSON> test
+.venv/bin/python -m src.interfaces.cli.experiment_search --config <設定JSON> smoke
+.venv/bin/python -m src.interfaces.cli.experiment_search --config <設定JSON> search
+.venv/bin/python -m src.interfaces.cli.experiment_search --config <設定JSON> select
+.venv/bin/python -m src.interfaces.cli.experiment_search --config <設定JSON> review --accept --note '<確認内容>'
+.venv/bin/python -m src.interfaces.cli.experiment_search --config <設定JSON> freeze
+.venv/bin/python -m src.interfaces.cli.experiment_search --config <設定JSON> test
 ```
 
 - この共通Loaderは2,000ユーザー・500万イベントまで、全件採点の代わりに人数を暗黙制限しない
@@ -140,7 +143,7 @@ CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 ## 学習と配信export
 
 ```bash
-.venv/bin/python -m src.full_evaluation --config <未使用出力先の設定JSON> \
+.venv/bin/python -m src.interfaces.cli.full_evaluation --config <未使用出力先の設定JSON> \
   --export-model data/models/model-v1 --model-version model-v1
 ```
 
@@ -152,9 +155,9 @@ CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 
 ```bash
 CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  .venv/bin/python -m src.factor_study --config configs/bpr-200epoch.json --minimum-free-gb 6
+  .venv/bin/python -m src.interfaces.cli.factor_study --config configs/bpr-200epoch.json --minimum-free-gb 6
 CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  .venv/bin/python -m src.factor_study --config configs/als-sensitivity.json --minimum-free-gb 6
+  .venv/bin/python -m src.interfaces.cli.factor_study --config configs/als-sensitivity.json --minimum-free-gb 6
 ```
 
 - BPRは30/100/200/500 epoch別に32/64/128/256因子×seed42/43/44の各12条件、epoch設定は継承で差分指定する
@@ -180,14 +183,18 @@ tmux attach -t music-recsys
 .venv/bin/ruff check src tests notebooks migrations
 .venv/bin/ruff format --check src tests notebooks migrations
 uv build
+cd frontend
+npm test
+npm run build
 ```
 
 - GPUのVRAM・使用率・プロセスをホスト側で確認、競合時は待機、勝手にCPUへ切り替えない
 - CUDA配置に応じてCUDA_PATHを指定、必要時は`uv sync --locked --group gpu`も追加する
 - 実行中の入力・設定・コードを書き換えず、進捗はrun.log、成功はresult.jsonで確認する
+- 並行してコードを変更するときは、実験を固定commitのworktreeで起動し、元JSONの絶対パスと同じlockを使う
 - SSHでNotebookへ接続する例: `ssh -L 8888:127.0.0.1:8888 <研究室サーバー>`、外部公開は禁止
 - DB/大規模試験は専用環境で`MUSIC_RECSYS_TEST_DB=1` / `MUSIC_RECSYS_TEST_SCALE=1`を明示する
-- 任意のPostgreSQL経路は`compose.yaml`＋Alembic、`src.ingestion.cli` / `temporal_cli` / `features --help`を参照
+- 任意のPostgreSQL経路は`compose.yaml`＋Alembic、`src.interfaces.cli.ingest` / `temporal_cli`と`src.infrastructure.datasets.features --help`を参照
 - DBの公開済みsnapshotは不変、ファイル経路の内容由来IDをDB用UUIDとして渡さない
 - コード・lock・設定をGit管理、生成物・履歴・音源・モデル・.env・ログ・認証情報は管理外
 - 作業ブランチを使用し、依頼時だけ`種別: 日本語の変更内容`でコミット・pushする

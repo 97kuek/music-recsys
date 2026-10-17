@@ -5,12 +5,14 @@
 - Python 3.12・uv・Parquetによるオフライン評価、React＋TypeScript＋FastAPIの試聴MVP
 - LLM/Agentは未実装、Music4Allはデータ提供の連絡を受領、ファイル受領・ID接続・Web試聴条件の確認はこれから
 
+- バックエンドとUIはドメイン・ユースケース・技術依存・表示へ分離、依存方向をテストで検証する
+
 ## 始める
 
 ```bash
 uv sync --locked --group data --group models --group notebook --group tracking
-.venv/bin/python -m src.lab_data
-.venv/bin/python -m src.full_evaluation --config configs/popularity-plays.json
+.venv/bin/python -m src.interfaces.cli.lab_data
+.venv/bin/python -m src.interfaces.cli.full_evaluation --config configs/popularity-plays.json
 .venv/bin/jupyter lab --no-browser --ip=127.0.0.1 --port=8888
 ```
 
@@ -49,6 +51,27 @@ uv sync --locked --group data --group models --group notebook --group tracking
 - 参加者ログの保存・保持期間・再開は[オンライン評価](docs/online-study.md#保存権限削除)、容量と転送手順は[アプリ構成](docs/app-architecture.md)
 - 研究室の外部公開・ポート開放は禁止、遠隔接続の実地検証はMacで行う
 - 生データ・音源・モデル・個別結果・ログ・認証情報はGit管理外、[作業ルール](AGENTS.md)に従う
+
+## アーキテクチャ図
+
+- 現行と将来案を分けたSVG図 / 画像を開くと拡大可能
+- ノードの説明は[対話型HTML](docs/architecture.html)、仕様と制約は[文書一覧](#文書)を参照
+
+### UI・API・DBと配置
+
+![被験者ブラウザからCloudflare AccessとTunnelを経由してMacのReact・FastAPI・推薦サービス・SQLiteへ接続する構成](docs/diagrams/app.svg)
+
+### 研究バッチ・Notebook
+
+![lab_dataからParquetを作りCLIで学習とValidation評価を実行しNotebookで保存結果を読むフロー](docs/diagrams/batch.svg)
+
+### 将来のLLM・Agent
+
+![固定選択・LLM単発選択・Agent反復とLangChain・LangGraph・OpenAI Decisions API・Responses API・LangSmithの役割](docs/diagrams/agent.svg)
+
+### 将来の多段階推薦
+
+![同一候補制約で候補生成・RRF融合・再ランキング・音源権限検証・提示・同意済みフィードバックを行う将来案](docs/diagrams/ranking.svg)
 
 ## ライセンス
 

@@ -30,8 +30,8 @@ node_modules/
 .wrangler/
 .dev.vars*
 !.dev.vars.example
-/src/webapp/static/assets/
-/src/webapp/static/index.html
+/src/interfaces/http/static/assets/
+/src/interfaces/http/static/index.html
 
 # Notebook・OSの生成物
 .ipynb_checkpoints/
@@ -47,11 +47,11 @@ node_modules/
 
 # ローカル確認用の合成デモ生成物
 /frontend/public/demo/
-/src/webapp/static/demo/
+/src/interfaces/http/static/demo/
 
 /frontend/public/license.txt
 /frontend/public/notice.txt
 /frontend/public/third-party-licenses.txt
-/src/webapp/static/license.txt
-/src/webapp/static/notice.txt
-/src/webapp/static/third-party-licenses.txt
+/src/interfaces/http/static/license.txt
+/src/interfaces/http/static/notice.txt
+/src/interfaces/http/static/third-party-licenses.txt

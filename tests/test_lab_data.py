@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from src.lab_data import prepare_files, verify_prepared
+from src.interfaces.cli.lab_data import prepare_files, verify_prepared
 
 
 def test_file_preparation_train_only_selection_reuse_and_tamper(tmp_path):
@@ -46,8 +46,8 @@ def test_file_preparation_train_only_selection_reuse_and_tamper(tmp_path):
     assert ready["tags_empty"] == 1
     assert ready["evaluation_executed"] is False
     # 共通Runnerで読めることと、TestのTrain+Validation出典の一致を確認する。
-    from src.experiment_search import load_study_config
-    from src.search_protocols import load_data, validate_test_training
+    from src.infrastructure.research.search_protocols import load_data, validate_test_training
+    from src.interfaces.cli.experiment_search import load_study_config
 
     config = replace(
         load_study_config(Path(__file__).parents[1] / "configs/popularity-plays.json"),

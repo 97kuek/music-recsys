@@ -6,7 +6,7 @@ pytestmark = pytest.mark.db
 
 
 def test_snapshot_feature_export_preserves_payload_and_database(db, music4all_factory, tmp_path):
-    from src.features import export_snapshot_features, load_features
+    from src.infrastructure.datasets.features import export_snapshot_features, load_features
 
     root, snapshot_id = saved_snapshot(db, music4all_factory, tmp_path)
     with db.connect() as c:

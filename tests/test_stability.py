@@ -4,9 +4,9 @@ from pathlib import Path
 def test_deterministic_model_repeated_seeds(tmp_path):
     from dataclasses import replace
 
-    from src.data import load_dataset
-    from src.evaluation.tracking import TrackingConfig
-    from src.validation_study import repeat_validation
+    from src.infrastructure.datasets.json_dataset import load_dataset
+    from src.infrastructure.evaluation.tracking import TrackingConfig
+    from src.interfaces.cli.validation_study import repeat_validation
 
     data = load_dataset(Path("tests/fixtures/examples/toy/dataset.json"), top_k=2)
     data = replace(data, provenance={"phase": "validation"})
@@ -23,9 +23,9 @@ def test_stability_never_uses_test(tmp_path):
 
     import pytest
 
-    from src.data import load_dataset
-    from src.evaluation.tracking import TrackingConfig
-    from src.validation_study import repeat_validation
+    from src.infrastructure.datasets.json_dataset import load_dataset
+    from src.infrastructure.evaluation.tracking import TrackingConfig
+    from src.interfaces.cli.validation_study import repeat_validation
 
     data = replace(
         load_dataset(Path("tests/fixtures/examples/toy/dataset.json"), top_k=2),
@@ -38,10 +38,10 @@ def test_stability_never_uses_test(tmp_path):
 def test_repeated_identical_failures_are_not_a_success(tmp_path, monkeypatch):
     from dataclasses import replace
 
-    from src.data import load_dataset
-    from src.evaluation.tracking import TrackingConfig
-    from src.recommenders.popularity import PopularityRecommender
-    from src.validation_study import repeat_validation
+    from src.infrastructure.datasets.json_dataset import load_dataset
+    from src.infrastructure.evaluation.tracking import TrackingConfig
+    from src.infrastructure.recommenders.popularity import PopularityRecommender
+    from src.interfaces.cli.validation_study import repeat_validation
 
     def fail(self, request):
         raise RuntimeError("unavailable")

@@ -9,7 +9,7 @@ from model_suite_support import MODELS, model_config
 def test_all_models_complete_common_search_selection_and_final_test(
     study, listening_study, model, protocol
 ):
-    from src.experiment_search import (
+    from src.interfaces.cli.experiment_search import (
         freeze_selection,
         inspect_selected,
         review_selection,
@@ -18,7 +18,7 @@ def test_all_models_complete_common_search_selection_and_final_test(
         select_best,
         smoke,
     )
-    from src.recommendation_inspection import inspect_recommendation
+    from src.interfaces.notebook.recommendation_inspection import inspect_recommendation
 
     config = model_config(listening_study() if protocol == "listening-v2" else study(), model)
     assert smoke(config)["status"] == "succeeded"
@@ -45,14 +45,14 @@ def test_all_models_complete_common_search_selection_and_final_test(
 
 
 def test_diagnostic_results_are_readable_without_selecting_a_best_setting(listening_study):
-    from src.experiment_search import (
+    from src.interfaces.cli.experiment_search import (
         run_final_test,
         run_search,
         select_best,
         smoke,
         trial_rows,
     )
-    from src.search_analysis import trial_curves
+    from src.interfaces.notebook.search_analysis import trial_curves
 
     config = model_config(listening_study(metric=None), "content")
     smoke(config)
@@ -72,7 +72,7 @@ def test_changed_or_wrong_source_features_cannot_reuse_a_successful_search(
 ):
     import json
 
-    from src.experiment_search import load_study, run_search, smoke
+    from src.interfaces.cli.experiment_search import load_study, run_search, smoke
 
     config = model_config(listening_study(), "content")
     smoke(config)
@@ -89,8 +89,8 @@ def test_changed_or_wrong_source_features_cannot_reuse_a_successful_search(
 def test_standalone_benchmark_loads_content_features_and_rejects_wrong_source(
     study, listening_study, protocol
 ):
-    from src.evaluation.benchmark import run_experiment
-    from src.features import write_features
+    from src.infrastructure.datasets.features import write_features
+    from src.infrastructure.evaluation.benchmark import run_experiment
 
     config = model_config(listening_study() if protocol == "listening-v2" else study(), "content")
     path = config.path.parent / "benchmark.toml"
@@ -113,8 +113,8 @@ def test_standalone_benchmark_loads_content_features_and_rejects_wrong_source(
 
 
 def test_recall_objective_keeps_its_label_in_tradeoff_analysis(study):
-    from src.experiment_search import run_search, smoke
-    from src.search_analysis import tradeoff_points
+    from src.interfaces.cli.experiment_search import run_search, smoke
+    from src.interfaces.notebook.search_analysis import tradeoff_points
 
     config = replace(model_config(study(), "usercf"), metric="recall")
     smoke(config)
@@ -125,8 +125,8 @@ def test_recall_objective_keeps_its_label_in_tradeoff_analysis(study):
 
 
 def test_legacy_v2_without_beyond_accuracy_remains_unmeasured(listening_study):
-    from src.experiment_search import run_search, smoke, trial_rows
-    from src.search_analysis import _curve_frame, _trial_bundles
+    from src.interfaces.cli.experiment_search import run_search, smoke, trial_rows
+    from src.interfaces.notebook.search_analysis import _curve_frame, _trial_bundles
 
     config = model_config(listening_study(), "usercf")
     smoke(config)

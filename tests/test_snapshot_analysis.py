@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 pytest.importorskip("pandas", reason="install the data dependency group")
-from src import snapshot_analysis as analysis
+from src.interfaces.notebook import snapshot_analysis as analysis
 
 FIXTURE = Path(__file__).resolve().parents[1] / "tests/fixtures/examples/catalog/snapshot.json"
 

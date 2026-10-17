@@ -13,11 +13,11 @@ requires-python = ">=3.12,<3.13"
 dependencies = []
 
 [project.scripts]
-music-recsys-benchmark = "src.evaluation.benchmark:main"
-music-recsys-profile = "src.music4all:main"
-music-recsys-import = "src.ingestion.cli:main"
-music-recsys-mlflow = "src.evaluation.tracking_server:main"
-music-recsys-search = "src.experiment_search:main"
+music-recsys-benchmark = "src.infrastructure.evaluation.benchmark:main"
+music-recsys-profile = "src.infrastructure.datasets.music4all:main"
+music-recsys-import = "src.interfaces.cli.ingest:main"
+music-recsys-mlflow = "src.interfaces.cli.tracking_server:main"
+music-recsys-search = "src.interfaces.cli.experiment_search:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

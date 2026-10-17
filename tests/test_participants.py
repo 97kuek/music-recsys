@@ -6,9 +6,9 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from src.webapp.prepare import demo
-from src.webapp.runtime import token_key
-from src.webapp.server import create_app
+from src.application.study.runtime import token_key
+from src.interfaces.cli.online_prepare import demo
+from src.interfaces.http.server import create_app
 
 
 @pytest.fixture(scope="module")
@@ -97,8 +97,8 @@ def test_restart_and_code_recover_original_session_and_events(bundle, tmp_path, 
         assert cookie not in json.dumps(payload(app, cookie))
     # Restart more than 24 hours later using the same persisted database.
     future = datetime.now(UTC) + timedelta(days=2)
-    monkeypatch.setattr("src.webapp.runtime.now", lambda: future)
-    monkeypatch.setattr("src.webapp.server.now", lambda: future)
+    monkeypatch.setattr("src.application.study.runtime.now", lambda: future)
+    monkeypatch.setattr("src.interfaces.http.server.now", lambda: future)
     app = app_for(bundle, database, monkeypatch)
     with TestClient(app, headers={"X-Music-App": "1"}) as c:
         c.cookies.set("music_session", cookie)
@@ -168,8 +168,8 @@ def test_expiry_purges_identity_profile_and_logs(bundle, tmp_path, monkeypatch):
         first = start(c).json()
         managed = app.state.runtime.store.export_session(first["session_id"], datetime.now(UTC))
         future = datetime.now(UTC) + timedelta(days=91)
-        monkeypatch.setattr("src.webapp.runtime.now", lambda: future)
-        monkeypatch.setattr("src.webapp.server.now", lambda: future)
+        monkeypatch.setattr("src.application.study.runtime.now", lambda: future)
+        monkeypatch.setattr("src.interfaces.http.server.now", lambda: future)
         assert c.get("/api/session/state").status_code == 401
         assert not managed.exists()
         assert (

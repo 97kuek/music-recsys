@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from src.notebook_config import ExperimentConfigPicker
+from src.interfaces.notebook.notebook_config import ExperimentConfigPicker
 
 
 def test_picker_requires_explicit_click_and_invalidates_changes(listening_study, monkeypatch):

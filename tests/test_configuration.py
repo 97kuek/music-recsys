@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from src.configuration import load_settings
+from src.infrastructure.research.configuration import load_settings
 
 
 def test_inheritance_paths_overrides_and_cycles(tmp_path):
@@ -40,7 +40,7 @@ def test_inheritance_paths_overrides_and_cycles(tmp_path):
 
 
 def test_picker_invalidates_shared_settings_and_hides_template(tmp_path):
-    from src.notebook_config import ExperimentConfigPicker
+    from src.interfaces.notebook.notebook_config import ExperimentConfigPicker
 
     base = tmp_path / "common.json"
     base.write_text(

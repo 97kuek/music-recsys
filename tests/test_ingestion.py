@@ -10,7 +10,7 @@ import pytest
 
 
 def test_tag_literal_preserves_empty_dictionary():
-    from src.adapters.music4all import parse_tags
+    from src.infrastructure.datasets.music4all_adapter import parse_tags
 
     assert parse_tags("{}") == {"tags": {}}
     assert parse_tags("{'音楽': 100, 'rock': 1}") == {"tags": {"rock": 1, "音楽": 100}}
@@ -31,15 +31,15 @@ def test_tag_literal_preserves_empty_dictionary():
     ],
 )
 def test_invalid_tag_literals_are_rejected(literal):
-    from src.adapters.music4all import parse_tags
-    from src.ingestion.types import ValidationError
+    from src.domain.datasets import ValidationError
+    from src.infrastructure.datasets.music4all_adapter import parse_tags
 
     with pytest.raises(ValidationError):
         parse_tags(literal)
 
 
 def test_common_catalog_preserves_ids_and_missing_metadata():
-    from src.ingestion.types import Catalog, TrackRecord, UserRecord, validate_catalog
+    from src.domain.datasets import Catalog, TrackRecord, UserRecord, validate_catalog
 
     result = validate_catalog(
         Catalog(
@@ -54,21 +54,21 @@ def test_common_catalog_preserves_ids_and_missing_metadata():
 
 @pytest.mark.parametrize("source_id", ["", " ", "\t\n", "\u00a0", "bad\x00id"])
 def test_common_catalog_rejects_invalid_ids(source_id):
-    from src.ingestion.types import Catalog, TrackRecord, ValidationError, validate_catalog
+    from src.domain.datasets import Catalog, TrackRecord, ValidationError, validate_catalog
 
     with pytest.raises(ValidationError):
         validate_catalog(Catalog((TrackRecord(source_id, None),), (), {}))
 
 
 def test_common_catalog_rejects_duplicate_identity():
-    from src.ingestion.types import Catalog, TrackRecord, ValidationError, validate_catalog
+    from src.domain.datasets import Catalog, TrackRecord, ValidationError, validate_catalog
 
     with pytest.raises(ValidationError):
         validate_catalog(Catalog((TrackRecord("x", None), TrackRecord("x", None)), (), {}))
 
 
 def test_json_normalization_matches_database_numeric_rules():
-    from src.ingestion.types import canonical_json
+    from src.domain.datasets import canonical_json
 
     assert canonical_json({"z": [True, None, 1.00, 1e-3, -0.0], "a": "音楽"}) == (
         '{"a":"音楽","z":[true,null,1,0.001,0]}'
@@ -76,7 +76,7 @@ def test_json_normalization_matches_database_numeric_rules():
 
 
 def adapter_for(files, **options):
-    from src.adapters.music4all import Music4AllAdapter
+    from src.infrastructure.datasets.music4all_adapter import Music4AllAdapter
 
     return Music4AllAdapter(
         record_path=files["record"],
@@ -89,7 +89,7 @@ def adapter_for(files, **options):
 
 
 def prepared_adapter(files, root, **options):
-    from src.ingestion.artifacts import ArtifactStore
+    from src.infrastructure.ingestion.artifacts import ArtifactStore
 
     adapter = adapter_for(files, **options)
     store = ArtifactStore(root, adapter.release.key)
@@ -120,7 +120,7 @@ def test_adapter_uses_lexicographic_ids_and_preserves_metadata_availability(
 
 
 def test_adapter_rejects_conflicting_duplicate_tag_rows(music4all_factory, tmp_path):
-    from src.ingestion.types import ValidationError
+    from src.domain.datasets import ValidationError
 
     files = music4all_factory(tag_rows=[("02", "{'rock': 80}"), ("02", "{'rock': 90}")])
     adapter, inputs = prepared_adapter(files, tmp_path / "store")
@@ -130,7 +130,7 @@ def test_adapter_rejects_conflicting_duplicate_tag_rows(music4all_factory, tmp_p
 
 @pytest.mark.parametrize("checksum", [None, "", "x" * 64, "A" * 64, 12])
 def test_adapter_requires_valid_cache_manifest_checksum(music4all_factory, tmp_path, checksum):
-    from src.ingestion.types import ValidationError
+    from src.domain.datasets import ValidationError
 
     files = music4all_factory()
     manifest_path = files["cache"].with_suffix(".manifest.json")
@@ -146,7 +146,7 @@ def test_adapter_requires_valid_cache_manifest_checksum(music4all_factory, tmp_p
 def test_adapter_rejects_invalid_event_ids_outside_subset(
     music4all_factory, tmp_path, invalid_id, column
 ):
-    from src.ingestion.types import ValidationError
+    from src.domain.datasets import ValidationError
 
     user, track = (invalid_id, "zz") if column == "user" else ("zz", invalid_id)
     events = (
@@ -162,8 +162,8 @@ def test_adapter_rejects_invalid_event_ids_outside_subset(
 
 
 def test_source_checksum_failure_does_not_save_an_artifact(tmp_path):
-    from src.ingestion.artifacts import ArtifactStore
-    from src.ingestion.types import ValidationError
+    from src.domain.datasets import ValidationError
+    from src.infrastructure.ingestion.artifacts import ArtifactStore
 
     source = tmp_path / "raw"
     source.write_bytes(b"source")
@@ -174,8 +174,8 @@ def test_source_checksum_failure_does_not_save_an_artifact(tmp_path):
 
 
 def test_existing_artifact_is_reused_and_corruption_is_rejected(tmp_path):
-    from src.ingestion.artifacts import ArtifactStore
-    from src.ingestion.types import ValidationError
+    from src.domain.datasets import ValidationError
+    from src.infrastructure.ingestion.artifacts import ArtifactStore
 
     source = tmp_path / "raw"
     source.write_bytes(b"source")
@@ -191,8 +191,8 @@ def test_existing_artifact_is_reused_and_corruption_is_rejected(tmp_path):
 
 def test_parquet_output_is_deterministic_and_reads_back_exact_catalog(tmp_path):
     pytest.importorskip("pyarrow", reason="install the data dependency group")
-    from src.ingestion.artifacts import ArtifactStore
-    from src.ingestion.types import Catalog, TrackRecord, UserRecord, validate_catalog
+    from src.domain.datasets import Catalog, TrackRecord, UserRecord, validate_catalog
+    from src.infrastructure.ingestion.artifacts import ArtifactStore
 
     catalog = validate_catalog(
         Catalog(
@@ -210,7 +210,7 @@ def test_parquet_output_is_deterministic_and_reads_back_exact_catalog(tmp_path):
 
 def test_import_cli_help_does_not_require_database_credentials():
     result = subprocess.run(
-        [sys.executable, "-m", "src.ingestion.cli", "--help"],
+        [sys.executable, "-m", "src.interfaces.cli.ingest", "--help"],
         capture_output=True,
         text=True,
     )
@@ -224,7 +224,7 @@ def test_import_cli_does_not_echo_exception_body_or_private_paths(tmp_path):
         [
             sys.executable,
             "-m",
-            "src.ingestion.cli",
+            "src.interfaces.cli.ingest",
             "--record",
             str(missing),
             "--tags",
@@ -251,7 +251,7 @@ def test_import_cli_reports_missing_optional_dependencies_without_a_traceback():
             sys.executable,
             "-S",
             "-m",
-            "src.ingestion.cli",
+            "src.interfaces.cli.ingest",
             "--record",
             "missing",
             "--tags",
@@ -384,14 +384,14 @@ def test_history_seed_and_amount_are_reproducible_under_event_reordering(
     ],
 )
 def test_adapter_rejects_invalid_history_selection(music4all_factory, options):
-    from src.ingestion.types import ValidationError
+    from src.domain.datasets import ValidationError
 
     with pytest.raises(ValidationError):
         adapter_for(music4all_factory(), **options)
 
 
 def test_history_requires_requested_number_of_train_users(music4all_factory, tmp_path):
-    from src.ingestion.types import ValidationError
+    from src.domain.datasets import ValidationError
 
     with pytest.raises(ValidationError, match="fewer"):
         prepared_adapter(

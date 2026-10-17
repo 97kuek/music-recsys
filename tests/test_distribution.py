@@ -6,13 +6,20 @@ from pathlib import Path
 
 import pytest
 
-from src.listening_data import file_sha256
-from src.webapp.distribution import ROOT_FILES, archive
+from src.infrastructure.datasets.listening_data import file_sha256
+from src.interfaces.cli.online_distribution import ROOT_FILES, archive
 
 
 def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path):
     root, bundle = tmp_path / "source", tmp_path / "bundle"
-    for name in (*ROOT_FILES, "src/new.py", "frontend/src/App.tsx"):
+    for name in (
+        *ROOT_FILES,
+        "src/new.py",
+        "frontend/src/app/App.tsx",
+        "docs/diagrams/app.svg",
+        "docs/architecture.html",
+        "frontend/tests/study.test.mjs",
+    ):
         file = root / name
         file.parent.mkdir(parents=True, exist_ok=True)
         file.write_text("uncommitted content")
@@ -40,6 +47,9 @@ def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path):
     with zipfile.ZipFile(output) as package:
         names = package.namelist()
         assert "music-recsys-mac-0.2.0/src/new.py" in names
+        assert "music-recsys-mac-0.2.0/docs/diagrams/app.svg" in names
+        assert "music-recsys-mac-0.2.0/docs/architecture.html" in names
+        assert "music-recsys-mac-0.2.0/frontend/tests/study.test.mjs" in names
         assert "music-recsys-mac-0.2.0/bundle/config.json" in names
         assert not any(name.endswith((".env", ".key", ".sqlite", ".parquet")) for name in names)
         assert package.read("music-recsys-mac-0.2.0/VERSION") == b"0.2.0\n"

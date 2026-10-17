@@ -8,10 +8,10 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
-from src.webapp.access import AccessVerifier
-from src.webapp.bundle import inventory, package, verify
-from src.webapp.prepare import demo
-from src.webapp.server import create_app
+from src.infrastructure.auth.access import AccessVerifier
+from src.interfaces.cli.online_bundle import inventory, package, verify
+from src.interfaces.cli.online_prepare import demo
+from src.interfaces.http.server import create_app
 
 
 @pytest.fixture(scope="module")

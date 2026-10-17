@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from src.features import write_features
+from src.infrastructure.datasets.features import write_features
 
 MODELS = ("popularity", "itemcf", "usercf", "als", "bpr", "content", "hybrid")
 
@@ -8,7 +8,7 @@ MODELS = ("popularity", "itemcf", "usercf", "als", "bpr", "content", "hybrid")
 def model_config(config, model):
     feature = config.path.parent / "features.json"
     if not feature.exists():
-        from src.experiment_search import context
+        from src.interfaces.cli.experiment_search import context
 
         data, _ = context(config)
         write_features(

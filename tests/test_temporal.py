@@ -25,8 +25,8 @@ def events_file(tmp_path, rows):
 
 
 def test_temporal_boundaries_refit_and_truth(tmp_path):
-    from src.data import load_dataset
-    from src.temporal import TemporalConfig, prepare_temporal
+    from src.infrastructure.datasets.json_dataset import load_dataset
+    from src.infrastructure.datasets.temporal import TemporalConfig, prepare_temporal
 
     path = events_file(
         tmp_path,
@@ -88,7 +88,7 @@ def test_temporal_boundaries_refit_and_truth(tmp_path):
 
 
 def test_invalid_timestamp_and_boundary_rejected(tmp_path):
-    from src.temporal import TemporalConfig, prepare_temporal
+    from src.infrastructure.datasets.temporal import TemporalConfig, prepare_temporal
 
     with pytest.raises(ValueError):
         TemporalConfig(train_end="2020-01-01", validation_end="2019-01-01")
@@ -108,11 +108,11 @@ def test_invalid_timestamp_and_boundary_rejected(tmp_path):
 
 
 def test_future_changes_do_not_change_training_or_candidates(tmp_path):
-    from src.data import load_dataset
-    from src.evaluation.benchmark import run_benchmark
-    from src.evaluation.tracking import TrackingConfig
-    from src.recommenders import create_recommender
-    from src.temporal import TemporalConfig, prepare_temporal
+    from src.infrastructure.datasets.json_dataset import load_dataset
+    from src.infrastructure.datasets.temporal import TemporalConfig, prepare_temporal
+    from src.infrastructure.evaluation.benchmark import run_benchmark
+    from src.infrastructure.evaluation.tracking import TrackingConfig
+    from src.infrastructure.recommenders import create_recommender
 
     rows = [("a", "x", "2016-01-01"), ("b", "y", "2016-01-01"), ("a", "y", "2018-01-01")]
     original = prepare_temporal(
@@ -150,8 +150,8 @@ def test_future_changes_do_not_change_training_or_candidates(tmp_path):
 
 
 def test_export_saved_partition_uses_refit_history(tmp_path):
-    from src.data import load_dataset
-    from src.temporal import TemporalConfig, export_phase, prepare_temporal
+    from src.infrastructure.datasets.json_dataset import load_dataset
+    from src.infrastructure.datasets.temporal import TemporalConfig, export_phase, prepare_temporal
 
     events = events_file(
         tmp_path,

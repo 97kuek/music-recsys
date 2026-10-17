@@ -8,10 +8,10 @@ def test_full_itemcf_matches_reference(tmp_path, similarity, neighbors):
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from src.data import Interaction
-    from src.recommenders.full_itemcf import FullItemCF
-    from src.recommenders.itemcf import ItemCFRecommender
-    from src.types import RecommendationRequest
+    from src.domain.evaluation.dataset import Interaction
+    from src.domain.recommendation.contracts import RecommendationRequest
+    from src.infrastructure.recommenders.full_itemcf import FullItemCF
+    from src.infrastructure.recommenders.itemcf import ItemCFRecommender
 
     rng = np.random.default_rng(7)
     items = tuple(f"i{i:02}" for i in range(20))
@@ -44,7 +44,7 @@ def test_itemcf_cache_uses_requested_neighbor_prefix(tmp_path):
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from src.recommenders.full_itemcf import FullItemCF
+    from src.infrastructure.recommenders.full_itemcf import FullItemCF
 
     path = tmp_path / "learning.parquet"
     pq.write_table(

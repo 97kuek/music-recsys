@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from src import recommendation_inspection as inspection
-from src.data import load_dataset
-from src.types import GroundTruth
+from src.domain.recommendation.contracts import GroundTruth
+from src.infrastructure.datasets.json_dataset import load_dataset
+from src.interfaces.notebook import recommendation_inspection as inspection
 
 DATA = Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json"
 

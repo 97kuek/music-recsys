@@ -1,10 +1,11 @@
 from datetime import UTC, datetime
 
-from src.catalog import CatalogTrack, PlaybackContext, TrackRef, TrackSource, normalize
-from src.catalog_poc import MetadataCatalogAdapter
-from src.recommenders.tag_seed import TagSeedRecommender
-from src.serving import FixedStrategy, ModelSpec, RecommendationService
-from src.types import RecommendationRequest
+from src.application.recommendation import RecommendationService
+from src.domain.catalog import CatalogTrack, PlaybackContext, TrackRef, TrackSource, normalize
+from src.domain.recommendation.contracts import RecommendationRequest
+from src.domain.recommendation.models import FixedStrategy, ModelSpec
+from src.infrastructure.recommenders.tag_seed import TagSeedRecommender
+from src.interfaces.cli.catalog_poc import MetadataCatalogAdapter
 
 
 def test_metadata_is_not_playback_evidence():
