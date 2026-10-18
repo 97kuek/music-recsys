@@ -1,6 +1,7 @@
 # music-recsys
 
 - [日本語](README.md)
+- [Preview the UI on a Mac](docs/mac-preview.md). No public URL is configured; set up Tunnel and Access on the Mac before publishing
 - A research repository for comparing music recommenders and future LLM/Agent strategy selection
 - Python 3.12, uv, and Parquet for offline evaluation; React, TypeScript, and FastAPI for the listening MVP
 - A research-only LLM/Agent rehearsal foundation is available; participant UI and live API calls remain disconnected. Music4All ID mapping and web preview permissions require verification

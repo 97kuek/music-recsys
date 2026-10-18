@@ -2,7 +2,7 @@
 
 - ZIPをMacへコピーして展開し、Docker Desktopでアプリを起動する
 - ブラウザはMac内のアプリへ接続する。研究室サーバーの起動・ポート転送・外部公開は不要
-- `-demo`配布は独自合成音源による操作確認用。実曲の研究結果や採用モデルを表すものではない
+- 現在の配布は独自合成音源による操作確認用。実曲の研究結果や採用モデルを表すものではない
 - 初回はDocker image・依存パッケージの取得にネット接続が必要。MacへPython/Nodeを直接入れる必要はない
 
 ## 起動
@@ -10,13 +10,10 @@
 1. 旧アプリが動いている場合は旧フォルダで`bash deploy/mac.sh stop`を実行する
 2. Docker Desktopを起動する
 3. ZIPを新しいフォルダへ展開する。旧コードへ上書きしない
-4. ターミナルで展開フォルダへ移動し、以下を実行する
+4. `MusicRecsys.command`を開くか、ターミナルで以下を実行する
 
 ```bash
-cd "$HOME/Downloads/music-recsys-mac-0.4.2-demo"
-# デモ操作ログを既存の参加者データとは別の場所に保存する
-export MUSIC_RECSYS_STATE="$HOME/music-recsys/demo-online-state"
-export MUSIC_RECSYS_RETENTION_DAYS=1
+cd "$HOME/Downloads/music-recsys-mac-0.4.3"
 bash deploy/mac.sh start
 bash deploy/mac.sh researcher
 ```
@@ -26,7 +23,9 @@ bash deploy/mac.sh researcher
 - ホスト名を分けることで、同じブラウザでも参加者/研究者のセッションcookieを混ぜない
 - 研究者画面はMacのloopbackだけで待受け、遠隔用認証設定があるターミナルからの起動を拒否する
 - 通常の`start`は参加者サービスだけを起動する。研究者画面は`researcher`を明示した場合だけ起動する
-- 上記の保持1日・保存先はデモ確認用の明示設定。本実験の保持規程を決定するものではない
+- 合成デモZIPは保持1日・専用保存先を自動設定する。`MUSIC_RECSYS_RETENTION_DAYS`/`MUSIC_RECSYS_STATE`の明示値を優先する
+- `DEMO`マーカーは梱包時に合成bundleだけへ付与する。実曲bundleへの差替え・遠隔起動では保存期間を別途明示する
+- 本実験の保持規程を決定するものではない。初回ボタンが無効なら起動時の保存期間設定と`/api/status`の`retention_days`を確認する
 - 旧ログの検出で停止した場合は自動移行/削除せず、[既存の移行手順](app-architecture.md#macで起動更新)を確認する
 
 ## 画面の確認
@@ -65,6 +64,6 @@ bash deploy/mac.sh stop
 
 ## 配布物と遠隔公開
 
-- ZIPとchecksumは`data/app/music-recsys-mac-0.4.2-demo.zip`と同じ階層に置く。配布物用の入れ子フォルダは作らない
+- ZIPとchecksumは`data/app/music-recsys-mac-0.4.3.zip`と同じ階層に置く。旧ZIPは新版の検証後に整理する
 - 遠隔公開は[MacのTunnel/Access設定](app-architecture.md#cloudflare-tunnel--accessでの遠隔接続)を使う。Pages/Workersへデプロイしない
 - 公開ホスト名はMac側のTunnel設定で確定する。Access認証・本人削除・保持期限を確認後、READMEとGitHub Aboutへ掲載する

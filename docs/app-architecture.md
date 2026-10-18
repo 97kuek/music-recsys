@@ -98,8 +98,8 @@ bash deploy/mac.sh stop
 .venv/bin/python -m src.interfaces.cli.online_bundle \
   --config data/app/demo/config.json --study deploy/demo-study.json --output data/app/mac-demo-new
 .venv/bin/python -m src.interfaces.cli.online_distribution \
-  --root . --bundle data/app/mac-demo-new --version 0.4.2-demo \
-  --output data/app/music-recsys-mac-0.4.2-demo.zip
+  --root . --bundle data/app/mac-demo-new --version 0.4.3 \
+  --output data/app/music-recsys-mac-0.4.3.zip
 ```
 
 - 作成先は新規だけ、既存ZIP/bundleを上書きしない、元履歴・評価JSON・ログ・認証情報を配布へ混ぜない

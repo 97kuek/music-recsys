@@ -24,17 +24,27 @@ def test_list_feedback_playback_and_saved_preferences(live_app, width, height):
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto("/")
-        expect(page.get_by_label("参加コード", exact=True)).to_be_visible()
+        code_input = page.get_by_label("参加コード", exact=True)
+        expect(code_input).to_be_visible()
+        assert code_input.evaluate(
+            "el => { const s=getComputedStyle(el); return s.borderTopStyle==='solid' && s.borderTopWidth==='1px' && s.boxShadow==='none' && s.appearance==='none'; }"
+        )
         assert context.request.get("/api/session/state").status == 401
         page.get_by_role("button", name="このアプリについて", exact=True).click()
         help_dialog = page.get_by_role("dialog", name="このアプリについて")
         expect(help_dialog.get_by_text("1. このアプリでできること", exact=True)).to_be_visible()
         expect(help_dialog.get_by_text("2. データの保存と取り扱い", exact=True)).to_be_visible()
         expect(help_dialog.locator('input[type="checkbox"]')).to_have_count(0)
+        assert help_dialog.evaluate(
+            "el => { const s=getComputedStyle(el.querySelector('.consent-copy p')), b=getComputedStyle(document.body); return s.fontFamily===b.fontFamily && s.fontSize===b.fontSize && s.letterSpacing===b.letterSpacing; }"
+        )
         page.get_by_role("button", name="説明を閉じる", exact=True).click()
         page.get_by_role("button", name="初めて利用する", exact=True).click()
         registration = page.get_by_role("dialog", name="参加コードを控えてください")
         expect(registration).to_be_visible()
+        assert registration.evaluate(
+            "el => getComputedStyle(el, '::backdrop').backdropFilter==='none'"
+        )
         code_output = registration.get_by_label("発行された参加コード")
         participant_code = code_output.inner_text()
         assert len(participant_code) >= 16

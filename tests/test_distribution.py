@@ -10,7 +10,8 @@ from src.infrastructure.datasets.listening_data import file_sha256
 from src.interfaces.cli.online_distribution import ROOT_FILES, archive
 
 
-def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path):
+@pytest.mark.parametrize("mode", ["demo", "music4all"])
+def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path, mode):
     root, bundle = tmp_path / "source", tmp_path / "bundle"
     for name in (
         *ROOT_FILES,
@@ -34,7 +35,7 @@ def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path):
         file.parent.mkdir(parents=True, exist_ok=True)
         file.write_text("not distributed")
     bundle.mkdir()
-    (bundle / "config.json").write_text("{}")
+    (bundle / "config.json").write_text(json.dumps({"mode": mode}))
     (bundle / "transfer.json").write_text(
         json.dumps(
             {
@@ -53,16 +54,21 @@ def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path):
         assert "music-recsys-mac-0.2.0/bundle/config.json" in names
         assert not any(name.endswith((".env", ".key", ".sqlite", ".parquet")) for name in names)
         assert package.read("music-recsys-mac-0.2.0/VERSION") == b"0.2.0\n"
+        assert ("music-recsys-mac-0.2.0/DEMO" in names) == (mode == "demo")
         assert (
             package.getinfo("music-recsys-mac-0.2.0/MusicRecsys.command").external_attr >> 16
             == 0o100755
         )
     with pytest.raises(FileExistsError):
         archive(root, bundle, output, version="0.2.0")
+    if mode != "demo":
+        with pytest.raises(ValueError, match="synthetic demo"):
+            archive(root, bundle, tmp_path / "invalid.zip", version="0.4.3-demo")
 
 
 @pytest.mark.parametrize("action", ["start", "researcher", "start-remote"])
-def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, action):
+@pytest.mark.parametrize("demo_zip,configured_days", [(False, None), (True, None), (True, "7")])
+def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, action, demo_zip, configured_days):
     remote = action == "start-remote"
     root = tmp_path / "music-recsys mac"
     (root / "deploy").mkdir(parents=True)
@@ -70,12 +76,14 @@ def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, action):
     (root / "deploy/mac.sh").write_text(script)
     (root / "bundle").mkdir()
     (root / "bundle/transfer.json").write_text("{}")
+    if demo_zip:
+        (root / "DEMO").write_text("Synthetic audio preview only\n")
     binaries = tmp_path / "bin"
     binaries.mkdir()
     (binaries / "uname").write_text("#!/bin/sh\necho Darwin\n")
     # Docker操作は模擬。実Mac・Dockerでの成功と区別する
     (binaries / "docker").write_text(
-        '#!/bin/sh\nprintf "%s\\n" "$MUSIC_RECSYS_BUNDLE" "$MUSIC_RECSYS_STATE" "$*" >> "$TEST_LOG"\nexit 0\n'
+        '#!/bin/sh\nprintf "%s\\n" "$MUSIC_RECSYS_BUNDLE" "$MUSIC_RECSYS_STATE" "retention=$MUSIC_RECSYS_RETENTION_DAYS" "$*" >> "$TEST_LOG"\nexit 0\n'
     )
     for path in binaries.iterdir():
         path.chmod(0o755)
@@ -85,6 +93,8 @@ def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, action):
         PATH=f"{binaries}:/usr/bin:/bin",
         TEST_LOG=str(tmp_path / "commands"),
     )
+    if configured_days:
+        env["MUSIC_RECSYS_RETENTION_DAYS"] = configured_days
     if remote:
         env.update(
             MUSIC_RECSYS_ACCESS_TEAM="study-test",
@@ -103,7 +113,8 @@ def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, action):
         else "http://127.0.0.1:8765"
     )
     assert ("未認証401" if remote else expected_url) in response.stdout
-    assert (tmp_path / "home/music-recsys/state").is_dir()
+    state_name = "demo-online-state" if demo_zip and not remote else "state"
+    assert (tmp_path / f"home/music-recsys/{state_name}").is_dir()
     calls = (tmp_path / "commands").read_text()
     assert str(root / "bundle") in calls
     assert "up --build -d" in calls
@@ -112,8 +123,18 @@ def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, action):
     assert f"exec -T {service} python" in calls
     assert "--profile researcher" in calls
     assert "--project-directory" not in calls
+    expected_days = "7" if remote else (configured_days or ("1" if demo_zip else ""))
+    assert f"retention={expected_days}\n" in calls
+    if not remote and demo_zip:
+        assert f"新規参加の保存日数: {expected_days} 日" in response.stdout
     if remote:
         assert "assert e.code == 401" in calls
+        del env["MUSIC_RECSYS_RETENTION_DAYS"]
+        missing_days = subprocess.run(
+            ["bash", str(root / "deploy/mac.sh"), action], env=env, capture_output=True, text=True
+        )
+        assert missing_days.returncode == 1
+        assert "MUSIC_RECSYS_RETENTION_DAYS" in missing_days.stderr
         del env["MUSIC_RECSYS_ACCESS_AUD"]
         response = subprocess.run(
             ["bash", str(root / "deploy/mac.sh"), action],

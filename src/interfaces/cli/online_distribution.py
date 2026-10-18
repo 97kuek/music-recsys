@@ -1,6 +1,7 @@
 """現作業ツリーの配信コードと検証済みbundleを明示リストで梱包する。"""
 
 import argparse
+import json
 import re
 import zipfile
 from pathlib import Path
@@ -37,6 +38,9 @@ def archive(root, bundle, output, *, version):
     if output.suffix != ".zip":
         raise ValueError("distribution must be a ZIP")
     verify(bundle)
+    demo_mode = json.loads((bundle / "config.json").read_text()).get("mode") == "demo"
+    if version.endswith("-demo") and not demo_mode:
+        raise ValueError("a -demo distribution requires a synthetic demo bundle")
     files = [(root / name, name) for name in ROOT_FILES]
     for directory, suffixes in (
         ("src", {".py"}),
@@ -76,6 +80,8 @@ def archive(root, bundle, output, *, version):
                     info.compress_type = zipfile.ZIP_DEFLATED
                     package.writestr(info, source.read_bytes())
                 package.writestr(prefix + "VERSION", version + "\n")
+                if demo_mode:
+                    package.writestr(prefix + "DEMO", "Synthetic audio preview only\n")
         except BaseException:
             output.unlink(missing_ok=True)
             raise

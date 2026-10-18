@@ -21,7 +21,14 @@ for name in BUNDLE STATE MODEL_VERSION API_TOKEN ACCESS_TEAM ACCESS_AUD ALLOWED_
   fi
 done
 export MUSIC_RECSYS_BUNDLE="${MUSIC_RECSYS_BUNDLE:-$root/bundle}"
-export MUSIC_RECSYS_STATE="${MUSIC_RECSYS_STATE:-$HOME/music-recsys/state}"
+default_state="$HOME/music-recsys/state"
+# 合成デモZIPだけは説明済みの保存1日・専用保存先で起動する。
+# 実曲bundleへの差替えと遠隔起動では保持日数を暗黙に決めない。
+if [ "$action" != start-remote ] && [ "$MUSIC_RECSYS_BUNDLE" = "$root/bundle" ] && [ -f "$root/DEMO" ]; then
+  export MUSIC_RECSYS_RETENTION_DAYS="${MUSIC_RECSYS_RETENTION_DAYS:-1}"
+  default_state="$HOME/music-recsys/demo-online-state"
+fi
+export MUSIC_RECSYS_STATE="${MUSIC_RECSYS_STATE:-$default_state}"
 compose=(docker compose -f "$root/deploy/compose.yaml" --profile researcher)
 legacy_state=""
 if [ -f "$root/state/sessions.sqlite" ]; then legacy_state="$root/state"
@@ -87,6 +94,11 @@ else:
           echo 'Access認証付きアプリ起動・未認証401を確認しました。MacでTunnelを開始し、公開URLで認証・試聴を確認してください。'
         else
           echo "music-recsys起動完了: $url"
+          if [ -z "${MUSIC_RECSYS_RETENTION_DAYS:-}" ]; then
+            echo '新規参加には保存日数の設定が必要です。MUSIC_RECSYS_RETENTION_DAYSを設定して再起動してください。'
+          else
+            echo "新規参加の保存日数: $MUSIC_RECSYS_RETENTION_DAYS 日"
+          fi
         fi
         echo "ログ保存先: $MUSIC_RECSYS_STATE/sessions.sqlite"
         exit 0
