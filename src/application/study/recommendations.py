@@ -1,5 +1,6 @@
 """比較条件と初期入力から推薦要求を作り、実行結果をセッションへ記録する。"""
 
+from copy import deepcopy
 from dataclasses import asdict, replace
 from uuid import uuid4
 
@@ -31,6 +32,12 @@ class RecommendationActions:
         }
         self.study_candidates = None
         if self.study:
+            if self.study.design == "exploratory_strategy" or any(
+                c.controller in {"llm_single", "reactive_agent"} for c in self.study.conditions
+            ):
+                raise ValueError(
+                    "LLM/Agent execution is not implemented; protocol is analysis-only"
+                )
             versions = [condition.version for condition in self.study.conditions]
             if any(version not in self.models for version in versions):
                 raise ValueError("study model artifacts are not ready")
@@ -62,6 +69,7 @@ class RecommendationActions:
         candidates = self.candidates[version]
         if self.study:
             candidates = self.study_candidates
+            self.sessions.freeze_comparison_input(session)
         request_id = str(uuid4())
         if goal == "familiar" and session.heard and not self.study:
             request = RecommendationRequest(
@@ -89,7 +97,14 @@ class RecommendationActions:
                 raise ValueError("割り当てられた実験条件とモデルが一致しません")
             if condition.required_route and execution.inference_route != condition.required_route:
                 raise ValueError("実験条件に必要な入力が不足しています。実施者に確認してください")
-        session.log.record(execution, now=self.clock(), request_text=text or None)
+        session.log.record(
+            execution,
+            now=self.clock(),
+            request_text=text or None,
+            condition_id=self.study.conditions[session.order[session.period]].condition_id
+            if self.study
+            else "normal",
+        )
         session.recommendations[request_id] = execution.response.item_ids
         session.goals[request_id] = {
             "goal": goal,
@@ -100,6 +115,11 @@ class RecommendationActions:
             "heard_item_ids": sorted(session.heard),
             "top_k": top_k,
             "period": session.period + 1,
+            "list_number": 1,
+            "adjustment_index": 0,
+            "parent_request_id": None,
+            "profile_snapshot": deepcopy(session.profile_snapshot),
+            "session_context": deepcopy(session.context),
             "condition": self.study.conditions[session.order[session.period]].model_dump()
             if self.study
             else None,

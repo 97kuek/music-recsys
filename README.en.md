@@ -27,12 +27,17 @@ uv sync --locked --group data --group models --group notebook --group tracking
 | Topic | Document, currently in Japanese |
 | --- | --- |
 | Recommenders, shared API, and future LLM/Agent orchestration | [Recommendation architecture](docs/architecture.md) |
+| Phase 2–4 responsibilities, contract reuse, and missing components | [Recommendation extension design](docs/recommendation-design.md) |
+| Five-person exploratory assignment, researcher analysis, CSV/JSON exports | [Online comparison protocol](docs/online-comparison.md) |
 | Modules, Notebook/CLI execution, outputs, and development | [Code and execution workflow](docs/experiment-workflow.md) |
 | Data sources, checksums, and delivery status | [Data sources](docs/data-sources.md) |
 | UI/API, storage capacity, Mac Docker, and Tunnel/Access | [Application architecture](docs/app-architecture.md) |
 | Events, consent, storage, administration, deletion, and participant comparisons | [Online evaluation](docs/online-study.md) |
+| Online formulas, numerators/denominators, missing data, and analysis CLI | [Online metrics](docs/online-metrics.md) |
+| Listening, optional list evaluation, and future Reactive Agent screens | [Online UI/UX](docs/online-ux.md) |
+| Returning participants, preference consent, review, edits, and deletion | [Persistent preferences](docs/participant-profile.md) |
 | Candidates, ground truth, Recall/NDCG, diversity, efficiency, and missing values | [Offline evaluation metrics](docs/listening-evaluation.md) |
-| Late-November interim and late-January final reports | [Research plan](docs/research-plan.md) |
+| Four phases: standalone, multi-stage, LLM selection, Reactive Agent; open decisions | [Research plan](docs/research-plan.md) |
 | Existing observations and hypotheses | [Discussion](docs/discussion.md) |
 
 ## Notebooks
@@ -56,7 +61,7 @@ uv sync --locked --group data --group models --group notebook --group tracking
 ## Architecture diagrams
 
 - Standalone SVG diagrams distinguish current behavior from future proposals; open an image to zoom
-- The diagrams are labeled in Japanese; see the [interactive HTML](docs/architecture.html) for node details and [documentation](#documentation) for specifications
+- The diagrams are labeled in Japanese; see the [interactive HTML](docs/architecture.html) for node details and [documentation](#documentation) for Mermaid diagrams and specifications; frameworks and fusion methods shown are not adopted decisions
 
 ### UI, API, database, and deployment
 
@@ -68,11 +73,11 @@ uv sync --locked --group data --group models --group notebook --group tracking
 
 ### Future LLM and Agent orchestration
 
-![Fixed selection, one-shot LLM selection, and iterative Agents with LangChain, LangGraph, OpenAI Decisions API, Responses API, and LangSmith](docs/diagrams/agent.svg)
+![Fixed selection, one-shot Decisions selection, and a Reactive Agent triggered by an explicit user request; execution frameworks remain undecided](docs/diagrams/agent.svg)
 
 ### Future multi-stage recommendation
 
-![Shared candidate constraints, retrieval, RRF fusion, reranking, playback permissions, presentation, and consented feedback](docs/diagrams/ranking.svg)
+![Proposed shared candidate constraints, retrieval, fusion, reranking, permissions, and presentation; methods and composition remain undecided](docs/diagrams/ranking.svg)
 
 ## License
 

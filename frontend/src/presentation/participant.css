@@ -167,3 +167,11 @@ body:has(.app-shell) { overflow:hidden; background:#fafbf8; color-scheme:light; 
 .returning-participant { display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:none; }
 .returning-participant input { min-width:0;width:min(100%,320px);background:#fff;border:1px solid var(--line);color:var(--ink); }
 @media(max-width:600px) { .mini-player { flex-wrap:wrap;justify-content:center;gap:4px; } .mini-identity { flex-basis:100%; } .mini-player .transport { flex-basis:100%;min-width:0; } }
+
+.list-evaluation { width:100%;max-width:600px;text-align:left; }
+.list-evaluation fieldset,.saved-preferences fieldset { border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0; }
+.list-evaluation label,.saved-preferences label { display:block;padding:8px 0;overflow-wrap:anywhere; }
+.list-evaluation input,.saved-preferences input { width:auto;margin-right:8px;accent-color:#365c3f; }
+.saved-preferences small { display:block;color:var(--muted);overflow-wrap:anywhere; }
+.saved-preferences details { font-size:12px; }
+.participant .completion:has(.list-evaluation) { align-items:stretch; }

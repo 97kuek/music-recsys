@@ -2,15 +2,16 @@ import { useStudy } from '../StudyProvider';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { MediaIcon } from '../shared/MediaIcon';
 import { Artwork } from '../shared/Artwork';
-import { canPreview, type EventInput, type Track } from '../../domain/contracts';
+import { listeningDelta } from '../../domain/listening';
+import { canPreview, type EventInput, type Movement, type Track } from '../../domain/contracts';
 
-export type PlayerHandle = { stop: () => Promise<void>; checkpoint: () => EventInput | undefined; play: (track: Track, request?: string) => Promise<void> };
+export type PlayerHandle = { stop: () => Promise<void>; checkpoint: () => EventInput | undefined; play: (track: Track, request?: string, movement?: Movement) => Promise<void> };
 type Binding = { track: Track; request?: string; playback?: string };
 const time = (n: number) => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
 export const Player = forwardRef<PlayerHandle, {
   emit: (event: EventInput) => Promise<void>; onError: (error: unknown) => void;
   onExpandedChange?: (expanded: boolean) => void;
-  onSelect?: () => void; selected?: boolean; onLike?: () => void; liked?: boolean; queue?: Track[]; onChoose: (track: Track) => void;
+  onSelect?: () => void; selected?: boolean; onLike?: () => void; liked?: boolean; queue?: Track[]; onChoose: (track: Track, movement?: Movement) => void;
 }>(function Player({ emit, onError, onExpandedChange, onSelect, selected, onLike, liked, queue = [], onChoose }, ref) {
   const service = useStudy();
   const audio = useRef<HTMLAudioElement>(null);
@@ -36,10 +37,7 @@ export const Player = forwardRef<PlayerHandle, {
     const a = audio.current; if (!a) return;
     const next = {wall: performance.now(), position: a.currentTime};
     const prev = lastTick.current;
-    if (prev && !a.seeking) {
-      const wall = (next.wall - prev.wall) / 1000, media = next.position - prev.position;
-      if (wall >= 0 && media >= 0 && media <= wall + .5) listened.current += Math.min(wall, media);
-    }
+    listened.current += listeningDelta(prev, next, a.seeking);
     lastTick.current = a.paused || a.ended || a.seeking ? null : next;
     setPosition(a.currentTime);
   };
@@ -89,12 +87,20 @@ export const Player = forwardRef<PlayerHandle, {
   };
   const toggle = async () => { const a = audio.current; if (!a?.getAttribute('src')) return; if (a.paused) await a.play(); else a.pause(); };
   useEffect(() => () => { audio.current?.pause(); }, []);
-  useImperativeHandle(ref, () => ({stop, checkpoint, play: async (next, request) => {
+  useImperativeHandle(ref, () => ({stop, checkpoint, play: async (next, request, movement = 'direct') => {
     if (binding.current?.track.item_id === next.item_id && binding.current.request === request && audio.current?.getAttribute('src')) { await toggle(); return; }
     const token = ++generation.current;
     const oldItem = binding.current?.track.item_id;
     setLoading(true);
     try {
+      tick();
+      const old = binding.current;
+      if (old?.request && old.request === request && old.track.item_id !== next.item_id) {
+        await emit({ kind: 'track_switch', request_id: old.request, item_id: old.track.item_id,
+          playback_id: old.playback, target_item_id: next.item_id, movement,
+          was_playing: !!audio.current && !audio.current.paused && !audio.current.ended,
+          position_seconds: audio.current?.currentTime || 0, listened_seconds: listened.current });
+      }
       await releaseAudio();
       const data = await service.playback(next.item_id, request);
       if (token !== generation.current) return;
@@ -122,9 +128,7 @@ export const Player = forwardRef<PlayerHandle, {
     } else target = available[currentIndex + 1];
     if (target) {
       goingBack.current = direction === 'previous';
-      const b = binding.current;
-      if (b?.request) emit({kind:'skip', request_id:b.request, item_id:track.item_id}).then(() => onChoose(target)).catch(onError);
-      else onChoose(target);
+      onChoose(target, direction);
     }
   };
   const controls = () => <div className="transport">

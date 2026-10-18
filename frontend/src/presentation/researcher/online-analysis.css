@@ -1,0 +1,17 @@
+.online-analysis { margin-block: 2rem; padding: 1.3rem; border: 1px solid #ccc; border-radius: 12px; }
+.online-analysis summary { cursor: pointer; font-weight: 600; }
+.online-analysis svg { width: 100%; max-width: 760px; display: block; }
+.online-analysis svg text { font-size: 14px; fill: currentColor; }
+.online-analysis svg rect { fill: #526d82; }
+.online-analysis figure { margin: 1.5rem 0; }
+.online-analysis figcaption { font-weight: 600; }
+.online-analysis .grid { stroke: #ddd; }
+.online-analysis .participant-series { fill: none; stroke: currentColor; stroke-width: 2; }
+.online-analysis .series-0 { color: #286a8d; }
+.online-analysis .series-1 { color: #b84c2b; }
+.online-analysis .series-2 { color: #34745e; }
+.online-analysis .series-3 { color: #895698; }
+.online-analysis .series-4 { color: #80651c; }
+.online-analysis pre { max-height: 32rem; overflow: auto; }
+.online-analysis code, .online-analysis td { overflow-wrap: anywhere; }
+.online-analysis .quiet { display: inline-block; margin: .3rem; }

@@ -26,12 +26,17 @@ uv sync --locked --group data --group models --group notebook --group tracking
 | 読みたい内容 | 文書 |
 | --- | --- |
 | 推薦器・共通API・将来のLLM/Agent | [推薦システムのアーキテクチャ](docs/architecture.md) |
+| Phase 2〜4の責務分離・既存契約の再利用・不足機能 | [推薦拡張設計](docs/recommendation-design.md) |
 | コード構成・Notebook/CLI・保存先・開発 | [コード構成・実行フロー](docs/experiment-workflow.md) |
 | 取得元・checksum・提供状況 | [データ出典](docs/data-sources.md) |
 | UI/API・データ配置/容量・Mac Docker・Tunnel/Access | [アプリ全体のアーキテクチャ](docs/app-architecture.md) |
 | 取得ログ・同意・保存/管理・削除・被験者比較 | [オンライン評価](docs/online-study.md) |
+| オンライン指標の式・分母/分子・欠測と集計CLI | [オンライン指標](docs/online-metrics.md) |
+| 5人・通常3条件/戦略2条件の割当・研究者分析・CSV/JSON | [オンライン比較実験](docs/online-comparison.md) |
+| 試聴・任意評価・将来のReactive Agentの画面と公平性 | [オンラインUI/UX](docs/online-ux.md) |
+| 再訪・長期嗜好の追加同意・確認/修正/削除 | [長期嗜好管理](docs/participant-profile.md) |
 | 正解/候補・Recall/NDCG・多様性・効率・欠測 | [オフライン評価指標](docs/listening-evaluation.md) |
-| 11月末の中間報告・1月末頃の最終報告 | [研究計画](docs/research-plan.md) |
+| 単独→多段階→LLM選択→Reactive Agentの4フェーズ・未決事項 | [研究計画](docs/research-plan.md) |
 | 既存実験の観測・仮説 | [考察](docs/discussion.md) |
 
 ## Notebook
@@ -55,7 +60,7 @@ uv sync --locked --group data --group models --group notebook --group tracking
 ## アーキテクチャ図
 
 - 現行と将来案を分けたSVG図 / 画像を開くと拡大可能
-- ノードの説明は[対話型HTML](docs/architecture.html)、仕様と制約は[文書一覧](#文書)を参照
+- ノードの説明は[対話型HTML](docs/architecture.html)、現行/将来のMermaidと仕様は[文書一覧](#文書)を参照。図の実行基盤・融合方式は採用済みではない
 
 ### UI・API・DBと配置
 
@@ -67,11 +72,11 @@ uv sync --locked --group data --group models --group notebook --group tracking
 
 ### 将来のLLM・Agent
 
-![固定選択・LLM単発選択・Agent反復とLangChain・LangGraph・OpenAI Decisions API・Responses API・LangSmithの役割](docs/diagrams/agent.svg)
+![固定選択・Decisions単発選択・ユーザー明示要求で起動するReactive Agentと未採用の実行基盤候補](docs/diagrams/agent.svg)
 
 ### 将来の多段階推薦
 
-![同一候補制約で候補生成・RRF融合・再ランキング・音源権限検証・提示・同意済みフィードバックを行う将来案](docs/diagrams/ranking.svg)
+![同一候補制約で候補生成・融合・再ランキング・権限検証・提示を行う将来案、方式と構成は未確定](docs/diagrams/ranking.svg)
 
 ## ライセンス
 

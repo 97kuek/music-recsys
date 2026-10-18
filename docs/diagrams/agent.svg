@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <svg viewBox="0 0 1400 770" aria-labelledby="orchestration-title orchestration-desc" xmlns="http://www.w3.org/2000/svg" width="1400" height="770" lang="ja" role="img">
   <title id="orchestration-title">03 LLM・Agentと既存推薦器</title>
-  <desc id="orchestration-desc">固定、LLM単発選択、Agent反復を区別し、将来はLangChainとLangGraphで既存RecommendationServiceの上を構成する。LangSmithは任意の追跡と評価。</desc>
+  <desc id="orchestration-desc">固定・LLM単発・明示要求で起動するReactive Agentを区別する将来案。実行基盤は未確定、LangChain/LangGraphは候補例。</desc>
   <defs>
     <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
       <path d="M1 1 7 4 1 7" fill="none" stroke="#8292a7" stroke-width="1.2" />
@@ -120,24 +120,24 @@
     <text x="124" y="129" class="node-title">固定 / ルール</text>
     <text x="124" y="150" class="node-desc">FixedStrategy / ルールは将来</text>
   </g>
-  <g class="node purple" aria-label="LLM 単発選択: 1回の意思決定で登録済み推薦器を選ぶ。結果を見た再判断は含めない。OpenAI Decisions APIのchoice等も将来候補として、固定選択と同じ候補・情報・予算で比較する。">
+  <g class="node purple" aria-label="LLM 単発選択: Decisionsを活用する方向で登録済み処理を1回選択する。推薦器/完成パイプラインの粒度は未確定。固定/ルールと比較し、結果を見た再判断は含めない。">
     <rect x="555" y="93" width="270" height="90" rx="14" class="node-box" />
     <rect x="569" y="113" width="42" height="42" rx="12" class="icon-bg" />
     <svg x="578" y="122" width="24" height="24">
       <use href="#i-brain" />
     </svg>
     <text x="624" y="129" class="node-title">LLM 単発選択</text>
-    <text x="624" y="150" class="node-desc">モデル・設定を1回判断</text>
+    <text x="624" y="150" class="node-desc">登録処理を1回選択 / 粒度未定</text>
     <text x="812" y="109" text-anchor="end" class="node-badge">将来</text>
   </g>
-  <g class="node purple" aria-label="Agent 反復: 判断→tool実行→結果確認→再判断。複数回推薦を固定1回と同じ条件扱いにせず、最大step・推薦回数・LLM/tool call・時間/料金上限を比較計画へ記録する。">
+  <g class="node purple" aria-label="Reactive Agent: ユーザーが「おすすめを調整する」と明示したときだけ起動するReactive Agent。試聴/feedbackから再判断し、追加情報・試聴機会・反復予算の差を明示する。許可行動・停止/回数は未確定、Proactive型は対象外。">
     <rect x="1055" y="93" width="270" height="90" rx="14" class="node-box" />
     <rect x="1069" y="113" width="42" height="42" rx="12" class="icon-bg" />
     <svg x="1078" y="122" width="24" height="24">
       <use href="#i-network" />
     </svg>
-    <text x="1124" y="129" class="node-title">Agent 反復</text>
-    <text x="1124" y="150" class="node-desc">実行結果から次の行動を判断</text>
+    <text x="1124" y="129" class="node-title">Reactive Agent</text>
+    <text x="1124" y="150" class="node-desc">ユーザーの明示要求で起動</text>
     <text x="1312" y="109" text-anchor="end" class="node-badge">将来</text>
   </g>
   <g class="zone purple">
@@ -163,7 +163,7 @@
     <text x="854" y="374" class="node-title">LangGraph</text>
     <text x="854" y="395" class="node-desc">状態・分岐・反復・停止制御</text>
   </g>
-  <g class="node purple" aria-label="OpenAI Decisions API: 将来候補のOpenAI Decisions API。POST /v1/decisionsでpredicateの確率・固定選択肢choice・順序付きscoreを返す。登録済み推薦器や方針の判断に使う案。API自体がtoolを実行するものではなく、実行制御はアプリ/LangGraphが担う。採用と利用可能性・品質・latencyは未評価。">
+  <g class="node purple" aria-label="OpenAI Decisions API: Decisionsを戦略選択に活用する方向。predicate/choice/scoreの判断結果をアプリが検査・解釈し、登録済み処理を実行する。Agentの起動・反復・停止はアプリ側。モデル/実行基盤は未確定、品質・latencyは未評価。">
     <rect x="405" y="535" width="270" height="90" rx="14" class="node-box" />
     <rect x="419" y="555" width="42" height="42" rx="12" class="icon-bg" />
     <svg x="428" y="564" width="24" height="24">
@@ -214,7 +214,7 @@
   <g class="edge future-edge">
     <polyline points="1190,183 1190,292 918,292 918,338" marker-end="url(#arrow)" />
     <rect x="1107.0" y="260" width="106" height="24" rx="6" />
-    <text x="1160" y="276" text-anchor="middle">状態と予算を開始</text>
+    <text x="1160" y="276" text-anchor="middle">明示要求で開始</text>
   </g>
   <g class="edge future-edge">
     <polyline points="785,369 665,369" marker-end="url(#arrow)" />
@@ -261,5 +261,5 @@
     <text x="1200" y="492" text-anchor="middle">会話・tool要求</text>
   </g>
   <text class="svg-note" x="48" y="716">全戦略: request_id / strategy / model版 / 入力種別 / 推論経路 / step / call / token / 料金 / latencyを揃える</text>
-  <text class="svg-note" x="48" y="742">未計測はnull / 固定・単発選択・反復は別条件 / 主タスク・主指標・採用モデルは未確定</text>
+  <text class="svg-note" x="48" y="742">未計測はnull / Agentは明示要求で起動 / 追加情報・試聴機会を区別 / オフライン主指標・採用モデルは未確定</text>
 </svg>

@@ -36,7 +36,7 @@ class Participants:
         return code
 
     def save_profile(self, participant_id, profile, catalog_key, now):
-        self.get(participant_id, now)
+        previous = self.get(participant_id, now)["profile"]
         self.store.update_participant_profile(
-            participant_id, {"catalog_key": catalog_key, **profile}, now
+            participant_id, {**previous, "catalog_key": catalog_key, **profile}, now
         )

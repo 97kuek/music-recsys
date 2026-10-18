@@ -21,6 +21,12 @@ class LocalStore:
             db.execute(
                 "CREATE TABLE IF NOT EXISTS participants (participant_id TEXT PRIMARY KEY, code_hash TEXT UNIQUE NOT NULL, expires TEXT NOT NULL, profile TEXT NOT NULL)"
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS experiments (protocol_id TEXT PRIMARY KEY, digest TEXT NOT NULL, context TEXT NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS assignments (protocol_id TEXT NOT NULL, participant_id TEXT NOT NULL, slot INTEGER NOT NULL, expires TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(protocol_id,participant_id), UNIQUE(protocol_id,slot))"
+            )
         os.chmod(self.path, 0o600)
 
     @contextmanager
@@ -35,6 +41,15 @@ class LocalStore:
 
     def put(self, token_hash, payload):
         with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if (
+                payload.get("registered")
+                and not db.execute(
+                    "SELECT 1 FROM participants WHERE participant_id=?",
+                    (payload["session"]["participant_id"],),
+                ).fetchone()
+            ):
+                raise PermissionError("参加データは削除されています")
             db.execute(
                 "INSERT OR REPLACE INTO sessions VALUES (?,?,?)",
                 (
@@ -101,6 +116,7 @@ class LocalStore:
                 )
             db.execute("DELETE FROM sessions WHERE expires<=?", (now.isoformat(),))
             db.execute("DELETE FROM participants WHERE expires<=?", (now.isoformat(),))
+            db.execute("DELETE FROM assignments WHERE expires<=?", (now.isoformat(),))
 
     def delete_participant(self, participant_id):
         """本人のCookieで所有確認した仮名IDの全セッション・管理exportを削除する。"""
@@ -112,6 +128,100 @@ class LocalStore:
                     self._export_path(payload["session"]["session_id"]).unlink(missing_ok=True)
                     db.execute("DELETE FROM sessions WHERE token_hash=?", (key,))
             db.execute("DELETE FROM participants WHERE participant_id=?", (participant_id,))
+            db.execute("DELETE FROM assignments WHERE participant_id=?", (participant_id,))
+
+    def assign(self, plan, participant_id, context, now):
+        """Atomic enrollment; deleted slots may be reused, surviving assignments never move."""
+        context = json.dumps(context, sort_keys=True)
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            participant = db.execute(
+                "SELECT expires FROM participants WHERE participant_id=? AND expires>?",
+                (participant_id, now.isoformat()),
+            ).fetchone()
+            if participant is None:
+                raise PermissionError("比較割り当てには保存同意済みの参加者が必要です")
+            experiment = db.execute(
+                "SELECT digest, context FROM experiments WHERE protocol_id=?", (plan.protocol_id,)
+            ).fetchone()
+            if experiment and experiment != (plan.digest, context):
+                raise ValueError(
+                    "実験IDの計画・カタログを変更できません。別の実験IDを指定してください"
+                )
+            db.execute(
+                "INSERT OR IGNORE INTO experiments VALUES (?,?,?)",
+                (plan.protocol_id, plan.digest, context),
+            )
+            previous = db.execute(
+                "SELECT payload FROM assignments WHERE protocol_id=? AND participant_id=?",
+                (plan.protocol_id, participant_id),
+            ).fetchone()
+            if previous:
+                return json.loads(previous[0])
+            used = {
+                row[0]
+                for row in db.execute(
+                    "SELECT slot FROM assignments WHERE protocol_id=?", (plan.protocol_id,)
+                )
+            }
+            available = set(range(5)) - used
+            if not available:
+                raise ValueError("探索的比較の参加者枠は5人までです")
+            slot = min(available)
+            payload = {
+                "protocol_id": plan.protocol_id,
+                "plan_sha256": plan.digest,
+                "config_sha256": json.loads(context).get("config_sha256"),
+                "participant_id": participant_id,
+                "slot": slot,
+                "order": plan.schedule()[slot],
+                "assigned_at": now.isoformat(),
+                "retain_until": participant[0],
+                "input": None,
+            }
+            db.execute(
+                "INSERT INTO assignments VALUES (?,?,?,?,?)",
+                (plan.protocol_id, participant_id, slot, participant[0], json.dumps(payload)),
+            )
+            return payload
+
+    def freeze_assignment(self, plan, participant_id, inputs, now):
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT payload FROM assignments WHERE protocol_id=? AND participant_id=? AND expires>?",
+                (plan.protocol_id, participant_id, now.isoformat()),
+            ).fetchone()
+            if row is None:
+                raise PermissionError("割り当てが削除または期限切れです")
+            payload = json.loads(row[0])
+            if payload["plan_sha256"] != plan.digest:
+                raise ValueError("saved assignment changed")
+            if payload["input"] is None:
+                payload["input"] = inputs
+                db.execute(
+                    "UPDATE assignments SET payload=? WHERE protocol_id=? AND participant_id=?",
+                    (json.dumps(payload), plan.protocol_id, participant_id),
+                )
+            return payload
+
+    def analysis_snapshot(self, now):
+        """One read transaction, retention filtered; never expose token/code hashes."""
+        with self.connect() as db:
+            db.execute("BEGIN")
+            sessions = [
+                json.loads(raw)
+                for (raw,) in db.execute(
+                    "SELECT payload FROM sessions WHERE expires>?", (now.isoformat(),)
+                )
+            ]
+            assignments = [
+                json.loads(raw)
+                for (raw,) in db.execute(
+                    "SELECT payload FROM assignments WHERE expires>?", (now.isoformat(),)
+                )
+            ]
+        return sessions, assignments
 
     def _export_path(self, session_id):
         return self.path.parent / "exports" / f"{UUID(session_id)}.json"
@@ -223,3 +333,15 @@ class LocalStore:
                 "UPDATE participants SET profile=? WHERE participant_id=? AND expires>?",
                 (json.dumps(profile), participant_id, now.isoformat()),
             )
+
+    def participant_history(self, participant_id, now):
+        with self.connect() as db:
+            rows = db.execute(
+                "SELECT payload FROM sessions WHERE expires>?", (now.isoformat(),)
+            ).fetchall()
+        return [
+            p
+            for (raw,) in rows
+            for p in (json.loads(raw),)
+            if p["session"]["participant_id"] == participant_id and p.get("long_term_consent")
+        ]

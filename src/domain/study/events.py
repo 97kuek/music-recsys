@@ -64,6 +64,10 @@ class InteractionEvent:
         "save",
         "like",
         "rating",
+        "track_switch",
+        "evaluation_shown",
+        "list_evaluation",
+        "observation_gap",
     ]
     occurred_at: datetime
     item_id: str | None = None
@@ -77,8 +81,18 @@ class InteractionEvent:
     listened_seconds: float | None = None
     response_latency_ms: float | None = None
     display_latency_ms: float | None = None
+    event_version: int = 1
+    movement: str | None = None
+    target_item_id: str | None = None
+    was_playing: bool | None = None
+    discovery_status: str | None = None
+    discovery_item_ids: tuple[str, ...] = ()
+    observation_complete: bool | None = None
 
     def __post_init__(self):
+        from src.domain.study.online_events import validate_online_event
+
+        validate_online_event(self)
         for field in ("listened_seconds", "response_latency_ms", "display_latency_ms"):
             value = getattr(self, field)
             if value is not None and (
@@ -107,6 +121,10 @@ class InteractionEvent:
             "save",
             "like",
             "rating",
+            "track_switch",
+            "evaluation_shown",
+            "list_evaluation",
+            "observation_gap",
         ):
             raise ValueError("unknown event kind")
         if self.playback_id is not None:
@@ -119,7 +137,7 @@ class InteractionEvent:
             raise ValueError("position_seconds must be finite nonnegative or None")
         if self.item_id is not None:
             validate_id(self.item_id)
-        if self.kind == "rating":
+        if self.kind == "rating" or (self.kind == "list_evaluation" and self.rating is not None):
             validate_id(self.instrument_id)
             values = (self.rating, self.scale_min, self.scale_max)
             if any(type(v) not in (int, float) or not math.isfinite(v) for v in values):
@@ -130,7 +148,8 @@ class InteractionEvent:
             ):
                 raise ValueError("rating is outside scale")
         else:
-            validate_id(self.item_id)
+            if self.kind not in {"evaluation_shown", "list_evaluation", "observation_gap"}:
+                validate_id(self.item_id)
             if any(
                 v is not None
                 for v in (self.rating, self.instrument_id, self.scale_min, self.scale_max)
@@ -152,7 +171,7 @@ class SessionLog:
         """Restore a local, consented export while retaining original IDs and timestamps."""
         import copy
 
-        if payload.get("schema_version") != 1:
+        if payload.get("schema_version") not in (1, 2):
             raise ValueError("unsupported session log schema")
         fields = dict(payload["session"])
         for key in ("started_at", "retain_until"):
@@ -173,6 +192,7 @@ class SessionLog:
             log._requests[request_id] = copy.deepcopy(row)
         for raw in payload["events"]:
             row = {**raw, "occurred_at": datetime.fromisoformat(raw["occurred_at"])}
+            row["discovery_item_ids"] = tuple(row.get("discovery_item_ids", ()))
             log.append(InteractionEvent(**row), now=now)
         return log
 
@@ -186,7 +206,14 @@ class SessionLog:
             raise ValueError("session is withdrawn, expired, or not yet active")
 
     def record(
-        self, execution: RecommendationExecution, *, now: datetime, request_text: str | None = None
+        self,
+        execution: RecommendationExecution,
+        *,
+        now: datetime,
+        request_text: str | None = None,
+        condition_id: str | None = None,
+        parent_request_id: str | None = None,
+        adjustment_scope: str = "session",
     ) -> None:
         self._check(now)
         request = execution.request
@@ -217,6 +244,40 @@ class SessionLog:
             "inference_seconds": execution.inference_seconds,
             "inference_route": execution.inference_route,
         }
+        parent = self._requests.get(parent_request_id) if parent_request_id else None
+        if parent_request_id and (parent is None or parent.get("condition_id") != condition_id):
+            raise ValueError("parent request must belong to the same session and condition")
+        adjustment = parent.get("adjustment_index", 0) + 1 if parent else 0
+        if adjustment_scope not in {"session", "condition"}:
+            raise ValueError("invalid adjustment scope")
+        if adjustment_scope == "condition" and (
+            condition_id is None
+            or (
+                parent is None
+                and any(r.get("condition_id") == condition_id for r in self._requests.values())
+            )
+        ):
+            raise ValueError("condition scope requires one initial list per condition")
+        if (
+            parent
+            and sum(
+                r.get("parent_request_id") is not None
+                and (adjustment_scope == "session" or r.get("condition_id") == condition_id)
+                for r in self._requests.values()
+            )
+            >= 2
+        ):
+            raise ValueError(f"at most two adjustments per {adjustment_scope}")
+        if parent and any(
+            r.get("parent_request_id") == parent_request_id for r in self._requests.values()
+        ):
+            raise ValueError("adjustments must form a single chain")
+        row.update(
+            condition_id=condition_id,
+            parent_request_id=parent_request_id,
+            adjustment_index=adjustment,
+            list_number=adjustment + 1,
+        )
         del row["model"]["parameters_json"]
         if request_text is not None and self.session.allow_request_text:
             validate_id(request_text)
@@ -234,7 +295,29 @@ class SessionLog:
             raise ValueError("cannot interact with a failed recommendation")
         if event.item_id is not None and event.item_id not in request["response"]["item_ids"]:
             raise ValueError("event item must be a recommended item")
+        if event.event_id not in self._events and any(
+            e["kind"] == "list_evaluation" and e["request_id"] == event.request_id
+            for e in self._events.values()
+        ):
+            raise ValueError("a list can be evaluated only once; it is already closed")
+        if (
+            event.target_item_id is not None
+            and event.target_item_id not in request["response"]["item_ids"]
+        ):
+            raise ValueError("switch target must be a recommended item")
+        if event.kind == "list_evaluation":
+            existing = [e for e in self._events.values() if e["request_id"] == event.request_id]
+            if any(e["kind"] == "rating" and e.get("item_id") is None for e in existing):
+                raise ValueError("list satisfaction was already recorded in the legacy format")
+            if any(
+                e["kind"] == "list_evaluation" and e["event_id"] != event.event_id for e in existing
+            ):
+                raise ValueError("a list can be evaluated only once")
+            liked = {e["item_id"] for e in existing if e["kind"] == "like"}
+            if set(event.discovery_item_ids) - liked:
+                raise ValueError("discovery answers must reference liked tracks")
         row = {**asdict(event), "occurred_at": event.occurred_at.isoformat()}
+        row["discovery_item_ids"] = list(event.discovery_item_ids)
         previous = self._events.get(event.event_id)
         if previous is not None and previous != row:
             raise ValueError("event_id collision")
@@ -254,7 +337,10 @@ class SessionLog:
             session[field] = session[field].isoformat()
         return copy.deepcopy(
             {
-                "schema_version": 1,
+                "schema_version": 2
+                if self.session.consent_version == "local-ui-v5"
+                or any(e.get("event_version") == 2 for e in self._events.values())
+                else 1,
                 "session": session,
                 "requests": list(self._requests.values()),
                 "events": list(self._events.values()),

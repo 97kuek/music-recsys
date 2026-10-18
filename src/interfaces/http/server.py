@@ -28,10 +28,13 @@ class Body(BaseModel):
 
 
 class Start(Body):
-    consent_version: Literal["local-ui-v2", "local-ui-v3", "local-ui-v4"] | None = None
+    consent_version: Literal["local-ui-v2", "local-ui-v3", "local-ui-v4", "local-ui-v5"] | None = (
+        None
+    )
     persist: bool = False
     participant_code: str | None = Field(default=None, min_length=1, max_length=64)
     allow_text: bool = False
+    long_term_consent: bool = False
 
 
 class ParticipantCode(Body):
@@ -64,6 +67,10 @@ class Event(Body):
         "save",
         "like",
         "rating",
+        "track_switch",
+        "evaluation_shown",
+        "list_evaluation",
+        "observation_gap",
     ]
     item_id: str | None = Field(default=None, max_length=200)
     rating: int | None = Field(default=None, ge=1, le=5)
@@ -73,6 +80,13 @@ class Event(Body):
     listened_seconds: float | None = Field(default=None, ge=0, le=86400, allow_inf_nan=False)
     response_latency_ms: float | None = Field(default=None, ge=0, le=3600000, allow_inf_nan=False)
     display_latency_ms: float | None = Field(default=None, ge=0, le=3600000, allow_inf_nan=False)
+    event_version: Literal[1, 2] = 1
+    movement: Literal["next", "previous", "direct"] | None = None
+    target_item_id: str | None = Field(default=None, max_length=200)
+    was_playing: bool | None = None
+    discovery_status: Literal["unanswered", "none", "selected"] | None = None
+    discovery_item_ids: list[str] = Field(default_factory=list, max_length=20)
+    observation_complete: bool | None = None
 
 
 class Preview(Body):
@@ -150,6 +164,17 @@ def create_app(
 
     def session_state(current):
         reply = current.replies.get(current.period)
+        events = current.log.export(now=now())["events"]
+        answers = [e for e in events if reply and e["request_id"] == reply["request_id"]]
+        list_evaluation = next((e for e in answers if e["kind"] == "list_evaluation"), None)
+        legacy = [e for e in answers if e["kind"] == "rating" and e.get("item_id") is None]
+        if list_evaluation is None and legacy:
+            list_evaluation = {
+                "rating": legacy[0]["rating"] if len(legacy) == 1 else None,
+                "discovery_status": "unanswered",
+                "discovery_item_ids": [],
+                "observation_complete": False,
+            }
         return {
             "session_id": current.log.session.session_id,
             "registered": current.registered,
@@ -165,9 +190,13 @@ def create_app(
             "recommendation": public_reply(reply) if reply else None,
             "actions": [
                 f"like:{row['item_id']}"
-                for row in current.log.export(now=now())["events"]
+                for row in events
                 if reply and row["request_id"] == reply["request_id"] and row["kind"] == "like"
             ],
+            "list_evaluation": list_evaluation,
+            "long_term_consent": current.long_term_consent,
+            "profile_requires_selection": current.profile_snapshot.get("requires_selection", False),
+            "profile_locked": current.assignment.get("input") is not None,
         }
 
     @asynccontextmanager
@@ -194,6 +223,9 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.runtime = runtime
+    from src.interfaces.http.online_analysis import register_analysis_routes
+
+    register_analysis_routes(app, runtime, require_researcher)
     app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
 
     @app.middleware("http")
@@ -346,6 +378,7 @@ def create_app(
                 consent_version=body.consent_version,
                 participant_code=body.participant_code,
                 retention_days=retention_days,
+                long_term_consent=body.long_term_consent,
             )
             response = JSONResponse(
                 {
@@ -369,6 +402,10 @@ def create_app(
         with runtime.lock:
             token, current = session(request)
             return runtime.sessions.set_profile(token, body.items, body.artists)
+
+    from src.interfaces.http.profiles import register_profile_routes
+
+    register_profile_routes(app, runtime, session, researcher=researcher)
 
     @app.post("/api/recommendations")
     def recommend(body: Recommend, request: Request):

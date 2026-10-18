@@ -25,3 +25,7 @@ class Session:
     phase: str = "profile"
     funnel: list = field(default_factory=list)
     replies: dict = field(default_factory=dict)
+    long_term_consent: bool = False
+    profile_snapshot: dict = field(default_factory=dict)
+    context: dict = field(default_factory=dict)
+    assignment: dict = field(default_factory=dict)

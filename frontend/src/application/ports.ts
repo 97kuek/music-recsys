@@ -1,4 +1,5 @@
-import type { CatalogPage, Comparison, EventInput, Phase, Playback, Profile, Recommendation, RecommendCommand, Session, StartCommand, Status } from '../domain/contracts';
+import type { CatalogPage, Comparison, EventInput, Phase, Playback, Profile, Preferences, Recommendation, RecommendCommand, Session, StartCommand, Status } from '../domain/contracts';
+import type { OnlineAnalysis } from '../domain/onlineAnalysis';
 
 export interface StudyGateway {
   status(): Promise<Status>;
@@ -6,6 +7,8 @@ export interface StudyGateway {
   catalog(query?: string, offset?: number): Promise<CatalogPage>;
   start(command: StartCommand): Promise<Session>;
   saveProfile(profile: Profile): Promise<unknown>;
+  preferences(): Promise<Preferences>;
+  savePreferences(profile: Profile & {excluded_items: string[]}): Promise<Preferences>;
   recommend(command: RecommendCommand): Promise<Recommendation>;
   event(event: EventInput & { event_id: string }, keepalive?: boolean): Promise<unknown>;
   progress(phase: Phase, kind?: string, keepalive?: boolean): Promise<unknown>;
@@ -18,6 +21,7 @@ export interface StudyGateway {
   playback(item: string, request?: string): Promise<Playback>;
   mediaUrl(path: string): string;
   comparison(): Promise<Comparison[]>;
+  onlineAnalysis(): Promise<OnlineAnalysis>;
   exportSession(): Promise<unknown>;
 }
 

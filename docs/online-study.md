@@ -2,9 +2,13 @@
 
 ## 対象と現在の境界
 
-- 自然な試聴・いいね・スキップと任意の満足度1問を中心に、小規模な被験者内比較を準備する
+- 自然な試聴・Like・曲移動、リスト満足度と新規発見の任意回答を中心に、小規模な被験者内比較を準備する
 - 現在の説明文は開発用、実被験者の収集は保持/削除規程・音源条件・アクセス方針を確定してから開始する
 - 学習ユーザー全員の[オフライン評価](listening-evaluation.md)と、新規参加者の主観評価を分けて管理する
+- オフラインは履歴の予測、オンラインは実際の受け取り方を調べる。オンライン主指標はリスト満足度1〜5、測定定義は[オンライン指標](online-metrics.md)
+- 最大5人・通常3条件/将来の戦略2条件の探索的比較、固定割当・研究者分析・CSV/JSONは[比較実験](online-comparison.md)
+- 従来型/単発LLMの共通UIと将来のReactive Agent、同等feedback機会の比較は[UI/UX](online-ux.md)、研究順序は[4フェーズ](research-plan.md#研究の4フェーズ)
+- 継続利用の追加同意・履歴/嗜好/Session Contextの分離・本人修正/削除は[長期嗜好管理](participant-profile.md)
 - 参加者画面にモデル名・パラメータ・推論経路・Validation表を表示しない
 - 配信はMacのReact＋FastAPI 1コンテナとTunnel/Access、[構成・保存先・容量](app-architecture.md)に従う
 
@@ -15,7 +19,7 @@ flowchart LR
     I --> R[request_id / 割当条件 / モデル版]
     R --> T[推薦曲ID・順位・提示時の再生可否]
     T --> A[playback_id / 表示・再生・停止・スキップ・いいね]
-    A --> Q[任意の満足度1問 / 明示終了]
+    A --> Q[任意のリスト満足度・新規発見 / 明示終了]
     Q --> M[SessionLog]
     M -->|保存同意あり| D[MacのSQLite / 管理export]
     M -->|保存同意なし| V[プロセスメモリのみ]
@@ -35,13 +39,14 @@ flowchart LR
 | 推薦応答 | response.item_idsの順番が順位、状態・使用量・推薦回数・提示時のplayability |
 | 操作 | event_id・session_id・request_id・kind・対象item_id・サーバー受信時刻 |
 | 再生 | playback_id・position_seconds・listened_seconds |
-| 主観評価 | rating・instrument_id・scale_min/max、現在はsatisfaction-v1の1〜5、任意回答 |
+| 主観評価 | list_evaluationのrating・instrument/尺度、discovery_status・discovery_item_ids、任意回答 |
+| 曲移動/観測 | track_switchの方向・再生ID・累積秒・移動元/先・was_playing、evaluation_shown・observation_gap |
 | レイテンシ | selection_seconds・inference_seconds・response_latency_ms・display_latency_ms |
 | 到達/離脱 | funnelのphase・enter/hidden/visible/exit・period・受信時刻、finished・termination_reason |
 
-- 操作種別はimpression/play/pause/playback_progress/ended/error/skip/like/rating、過去互換用のsave契約は保持
+- 旧イベント契約を維持し、新規イベントはevent_version=2。schema_version=1/2を読込み、新説明版/新イベントを含む保存は2を使う
 - 参加者画面に保存ボタンは置かず、いいね/スキップを記録、いいねでモデルをオンライン更新しない
-- 自由文入力は参加者画面に置かない、研究者APIでも保存の別同意がなければ内容・hashとも残さない
+- 現行参加者画面に自由文入力はない、研究者APIでも保存の別同意がなければ内容・hashとも残さない。将来の調整入力・外部送信は別設計で、現行同意から許可を推定しない
 - 初期選択中の試聴は推薦イベント・heardへ加算せず、現在はその試聴ログも保存しない
 - 生cookie・APIキー・Access JWT/メールを研究ログへ入れない、研究者が設定するModelSpecにも秘密情報を入れない
 - 参加コードと本人cookieで仮名参加者を再開する、Accessのメールとの実名対応表は保存しない
@@ -58,6 +63,8 @@ flowchart LR
 | hidden/exit | 非表示・明示終了の観測、通信断やブラウザ強制終了を確実には検出しない |
 | like/skip | 行動の観測、満足/不満足の確定値やオフライン正解の代用品にしない |
 
+- 満足度はリスト全体1〜5・1回・任意。Likeした曲の新規発見を同じ画面で回答し、未回答/該当なしを区別する
+- 新UIの曲移動は次/前/直接選択を区別。旧skipは新しい移動率へ読み替えず、[指標仕様](online-metrics.md#skip-rate-中断曲移動行動)に従う
 - 通信断・未表示・再生不能・未送信は欠測として区別し、0評価で埋めない
 - イベント時刻はWeb APIではサーバー受信時刻、基盤型のoccurred_atは時刻境界を検証する
 - 再生IDはセッション/要求/曲の組へ結び付け、別人・未提示曲への操作を拒否する
@@ -105,9 +112,9 @@ MUSIC_RECSYS_TEST_LIFECYCLE_UI=1 .venv/bin/pytest -q tests/test_event_delivery_b
 | 保持期限 | 新UIはMUSIC_RECSYS_RETENTION_DAYSで明示、参加者登録時に固定、旧セッションは24時間 |
 | 本人の削除 | 起動画面/画面上部からDELETE /api/session、メモリ・DB・管理exportを削除 |
 | 再起動後 | 保存同意あり・期限内・同じconfig/計画/公開範囲なら復元、同じcookieまたは参加コードで再開 |
-| 管理者の取得 | Mac上のCLIだけ、未期限切れ・同意済みセッションを一覧/非上書きexport |
+| 管理者の取得 | 生ログはMac上のCLI。仮名化集計はローカル研究者画面/API・読取り専用CLIで取得 |
 
-- 同意UIの現行説明版はlocal-ui-v4、保持日数未設定時は新規参加を開始できない、旧v2/v3は読込み互換を維持
+- 同意UIはlocal-ui-v5、長期再利用は任意の追加同意。保持日数未設定時は新規参加できず、旧v2/v3/v4は読込み互換を維持
 - 新UIは説明文の末尾までスクロールし、ログ保存へ同意後に開始する、拒否時は開始しない
 - 退室と本人データ削除は区別し、削除は参加コード・関連セッション・プロフィールにも適用する
 - サーバー停止中は削除タイマーが動かない、再起動時に期限切れを削除する
@@ -129,9 +136,9 @@ bash deploy/mac.sh export SESSION_ID
 .venv/bin/python -m src.interfaces.cli.online_logs --database /private/sessions.sqlite export SESSION_ID
 ```
 
-- 管理exportは`music-recsys-log-v1`のJSON、export時刻と元payloadを保持し、既存ファイルを上書きしない
+- 管理exportは`music-recsys-log-v1`のJSON、元payloadのschema版・export時刻を保持し非上書き。新指標は[読取り専用CLI](online-metrics.md#読取り専用の集計cli)で算出する
 - DB削除/期限削除は同じ管理領域のUUID.jsonにも伝播し、削除とexportの競合でデータを復活させない
-- 管理CLIやSQLiteをHTTP公開しない、参加者用export APIは研究者向け詳細を除いた本人ログだけを返す
+- 管理CLIやSQLiteをHTTP公開しない。研究者集計APIはローカル研究者起動だけ、参加者exportは本人の簡略ログだけを返す
 - 保存先変更・旧OtoLabからの移行・遠隔認証は[アプリ構成](app-architecture.md)
 
 ## 比較実験
@@ -141,8 +148,8 @@ bash deploy/mac.sh export SESSION_ID
 | 入力 | 同じ初期プロフィール、後の条件へ途中再生による嗜好変化を持ち越さない |
 | 候補 | 全条件共通の学習曲の部分集合、media --itemsで固定したカタログ・音源、hashを計画と併せて保管 |
 | 提示 | 同じK・プレイヤー・試聴長・質問/尺度、モデル名は秘匿 |
-| 順序 | 仮名IDとseedによる再現可能なランダム順、少人数の均等割付は未実装 |
-| 呼出し | 各条件1要求、再送は同じ推薦を再利用、Agent再推薦は別の明示予算 |
+| 順序 | 新しい探索的designは5枠の均衡順序を保存。旧計画は仮名ID＋seedのランダム順を維持 |
+| 呼出し | 通常比較は各条件1要求、再送は同じ推薦を再利用。戦略比較は各条件最大2調整の記録基盤のみ、推論/UIは未実装 |
 | 経路 | required_routeが不一致なら提示を拒否、BPR補完をBPRとして評価しない |
 
 ```json

@@ -24,6 +24,10 @@ def restore_session(payload, *, context, study, now):
             tuple(profile["selected_artist_ids"]),
         ),
         registered=payload.get("registered", False),
+        long_term_consent=payload.get("long_term_consent", False),
+        profile_snapshot=payload.get("profile_snapshot", {}),
+        context=payload.get("session_context", {}),
+        assignment=payload.get("assignment", {}),
     )
     session.heard = set(saved["heard"])
     session.recommendations = {k: tuple(v) for k, v in saved["recommendations"].items()}
@@ -40,11 +44,14 @@ def restore_session(payload, *, context, study, now):
         0 <= session.period < (len(session.order) or 1)
     ):
         raise ValueError("invalid saved phase or period")
-    if study and (
-        session.order != study.order(log.session.participant_id)
-        or payload["plan_sha256"] != study.digest
-    ):
-        raise ValueError("saved assignment changed")
+    if study:
+        expected = (
+            study.schedule()[session.assignment["slot"]]
+            if study.design
+            else study.order(log.session.participant_id)
+        )
+        if session.order != expected or payload["plan_sha256"] != study.digest:
+            raise ValueError("saved assignment changed")
     return session
 
 
@@ -53,6 +60,10 @@ def session_snapshot(session, *, context, mode, study, now):
     payload.update(
         mode=mode,
         registered=session.registered,
+        long_term_consent=session.long_term_consent,
+        profile_snapshot=session.profile_snapshot,
+        session_context=session.context,
+        assignment=session.assignment,
         initial_profile=asdict(session.profile),
         goals=session.goals,
         recommendation_count=len(session.recommendations),

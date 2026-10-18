@@ -27,7 +27,7 @@ class PlaybackService:
         self.sessions.require_current_request(session, data["request_id"])
         if len(session.playbacks) >= 5000:
             raise ValueError("イベント上限です")
-        if data["kind"] in ("play", "pause", "playback_progress", "ended", "error"):
+        if data["kind"] in ("play", "pause", "playback_progress", "ended", "error", "track_switch"):
             binding = session.playback_bindings.get(data.get("playback_id"))
             if binding != (data["request_id"], data.get("item_id")):
                 raise ValueError("再生IDと推薦曲が一致しません")
@@ -39,14 +39,25 @@ class PlaybackService:
             self.clock(),
             item_id=data.get("item_id"),
             rating=data.get("rating"),
-            instrument_id="satisfaction-v1" if data["kind"] == "rating" else None,
-            scale_min=1 if data["kind"] == "rating" else None,
-            scale_max=5 if data["kind"] == "rating" else None,
+            instrument_id=(
+                "list-satisfaction-v2" if data["kind"] == "list_evaluation" else "satisfaction-v1"
+            )
+            if data.get("rating") is not None
+            else None,
+            scale_min=1 if data.get("rating") is not None else None,
+            scale_max=5 if data.get("rating") is not None else None,
             playback_id=data.get("playback_id"),
             position_seconds=data.get("position_seconds"),
             listened_seconds=data.get("listened_seconds"),
             response_latency_ms=data.get("response_latency_ms"),
             display_latency_ms=data.get("display_latency_ms"),
+            event_version=data.get("event_version", 1),
+            movement=data.get("movement"),
+            target_item_id=data.get("target_item_id"),
+            was_playing=data.get("was_playing"),
+            discovery_status=data.get("discovery_status"),
+            discovery_item_ids=tuple(data.get("discovery_item_ids", ())),
+            observation_complete=data.get("observation_complete"),
         )
         if event.kind == "play":
             context = self.catalog.context(event.item_id, session.profile.user_id)
@@ -57,6 +68,10 @@ class PlaybackService:
         if event.kind == "play":
             session.heard.add(event.item_id)
         self.sessions.save(token, session)
+        if event.kind == "like" and session.long_term_consent:
+            from src.application.study.preferences import PreferenceService
+
+            PreferenceService(self.sessions).for_participant(session.profile.user_id)
 
     def bind_preview(self, token, item_id):
         current = self.sessions.get(token)

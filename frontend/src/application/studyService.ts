@@ -8,7 +8,7 @@ export function createStudyService(gateway: StudyGateway, newId: () => string, s
   return {
     ...gateway,
     forgetLegacyProfile: (catalogKey: string) => storage.forgetLegacyProfile(catalogKey),
-    emit: outbox.emit,
+    emit: (event: Parameters<typeof outbox.emit>[0]) => outbox.emit({ event_version: 2, ...event }),
     flushEvents: outbox.flush,
     async start(command: Parameters<StudyGateway['start']>[0]) {
       const session = await gateway.start(command);
@@ -26,9 +26,10 @@ export function createStudyService(gateway: StudyGateway, newId: () => string, s
       outbox.clear();
       return response;
     },
-    async beginListening(profile: Profile, command: RecommendCommand) {
+    async beginListening(profile: Profile, command: RecommendCommand, beforeRequest?: () => void) {
       await gateway.saveProfile(profile);
       await gateway.progress('listen');
+      beforeRequest?.();
       return gateway.recommend(command);
     },
   };

@@ -2,6 +2,7 @@ import { useStudy } from '../StudyProvider';
 import { useEffect, useRef, useState } from 'react';
 import { canPreview, type EventInput, type Recommendation, type Status, type Track } from '../../domain/contracts';
 import { Comparison } from './Comparison';
+import { OnlineAnalysisPanel } from './OnlineAnalysis';
 import { Player, type PlayerHandle } from '../player/Player';
 
 function Cover({ track, index }: { track: Track; index: number }) {
@@ -112,7 +113,7 @@ export function Researcher() {
   });
   const model = status?.models.find(m => m.version === version);
   return <>
-    <aside className="sidebar"><a className="brand" href="#">◒ <span>music-recsys<small>MUSIC RECSYS / LOCAL LAB</small></span></a><p className="eyebrow">YOUR LISTENING SPACE</p><nav><a href="#profile">01　好みを選ぶ</a><a href="#discover">02　曲を見つける</a><a href="#finish">03　振り返り</a></nav><div className="side-note">● ローカル開発用<br />気になる曲を選んで、<br />次の音に出会いましょう。</div><button className="quiet danger" disabled={busy} onClick={remove}>セッションのデータを削除</button></aside>
+    <aside className="sidebar"><a className="brand" href="#">◒ <span>music-recsys<small>MUSIC RECSYS / LOCAL LAB</small></span></a><p className="eyebrow">YOUR LISTENING SPACE</p><nav><a href="#profile">01　好みを選ぶ</a><a href="#discover">02　曲を見つける</a><a href="#finish">03　振り返り</a><a href="#online-analysis">オンライン比較の分析</a></nav><div className="side-note">● ローカル開発用<br />気になる曲を選んで、<br />次の音に出会いましょう。</div><button className="quiet danger" disabled={busy} onClick={remove}>セッションのデータを削除</button></aside>
     <main><header><span>LISTENING LAB <b> / MVP</b></span><span className="badge">{status?.mode === 'demo' ? 'DEMO / 合成データ' : status ? 'Music4All / 実データ' : '接続を確認中'}</span></header>
       <div className="notice">{status?.mode === 'demo' ? '架空の楽曲・プロフィールと独自合成音源で操作を確認するデモです。Music4Allの実験ではありません。' : 'Music4Allの保存済み実モデルを使用します。曲名・アーティスト・音源は未接続です。'}</div>
       <div role="status" aria-live="polite" id="message">{message}</div>
@@ -134,6 +135,7 @@ export function Researcher() {
         <div className="results">{result?.tracks.map((track, i) => <article className="result" data-item={track.item_id} key={track.item_id}><span className="rank">{String(i + 1).padStart(2, '0')}</span><Cover track={track} index={i} /><div className="identity"><strong>{track.title}</strong><small>{track.artists.join(' / ')} · {track.playback_status === 'available' ? (track.sample ? 'デモ試聴可能' : '試聴可能') : '音源未確認・再生不可'}</small></div><div className="actions"><button disabled={busy || finished || !canPreview(track)} onClick={() => play(track)} aria-label={`${track.title}を試聴`}>▶ 試聴</button>{[['like', '♡ いいね'], ['save', '＋ 保存'], ['skip', '↠ スキップ']].map(([kind, label]) => <button key={kind} disabled={busy || finished || actions.includes(`${kind}:${track.item_id}`)} onClick={() => action(kind, track.item_id)}>{label}</button>)}</div></article>)}</div>
       </section>
       <Comparison />
+      <OnlineAnalysisPanel />
       <section id="finish"><p className="eyebrow">03 / ONE LAST THOUGHT</p><h2>今日のおすすめは、どうでしたか？</h2><p className="muted">回答は任意です。最後にひとつだけ、気が向いたら。</p><div className="ratings" role="group" aria-label="満足度">{[1, 2, 3, 4, 5].map(n => <button key={n} disabled={!result || finished} aria-pressed={rating === n} onClick={() => setRating(rating === n ? undefined : n)}>{n}{n === 1 && <small>合わなかった</small>}{n === 5 && <small>よかった</small>}</button>)}</div>
         <button className="secondary" disabled={!started || finished || busy} onClick={end}>{rating ? '回答して終了' : '回答せずに終了'}</button><button className="quiet" disabled={!started || busy} onClick={() => run(async () => setLog(await service.exportSession()))}>自分のログを確認</button>{log !== undefined && <pre>{JSON.stringify(log, null, 2)}</pre>}
       </section><footer>music-recsys · Local development preview</footer>

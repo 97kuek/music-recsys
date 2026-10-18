@@ -139,17 +139,17 @@
     <text x="1019" y="252" class="node-desc">Popularity · ItemCF · BM25</text>
   </g>
   <text class="svg-note" x="1020" y="272">ALS · BPR · Content</text>
-  <g class="node purple" aria-label="Hybrid / RRF: 重み付きRRFは小規模共通Runnerに実装済み。全件評価・Mac配信・LLM戦略まで統合した複数候補源の融合は将来。pool_size・重み・rrf_constant・欠損成分を明示する。">
+  <g class="node purple" aria-label="融合 / RRF例: 小規模Runnerの重み付きRRFは実装済み。Phase 2の融合方式・組合せは未確定で、RRFは候補例。全件評価・配信への汎用統合は将来。">
     <rect x="950" y="390" width="365" height="90" rx="14" class="node-box" />
     <rect x="964" y="410" width="42" height="42" rx="12" class="icon-bg" />
     <svg x="973" y="419" width="24" height="24">
       <use href="#i-shuffle" />
     </svg>
-    <text x="1019" y="426" class="node-title">Hybrid / RRF</text>
+    <text x="1019" y="426" class="node-title">融合 / RRF例</text>
     <text x="1019" y="447" class="node-desc">同一候補内で順位を融合</text>
     <text x="1302" y="406" text-anchor="end" class="node-badge">統合は将来</text>
   </g>
-  <g class="node purple" aria-label="再ランキング / 多様性: 候補外の曲を追加せず順位を調整する。ルール/MMR等の決定的方式とLLM rerankを別条件にし、精度・多様性・効率の4観点で評価する。">
+  <g class="node purple" aria-label="再ランキング / 多様性: 候補外の曲を追加せず順位を調整する将来案。ルール/多様性制御/学習型などを候補として比較し、具体方式は未確定。LLM直接ランキング生成は現時点の主目的ではない。">
     <rect x="465" y="390" width="310" height="90" rx="14" class="node-box" />
     <rect x="479" y="410" width="42" height="42" rx="12" class="icon-bg" />
     <svg x="488" y="419" width="24" height="24">
@@ -168,14 +168,14 @@
     <text x="124" y="426" class="node-title">Playback / 権限検証</text>
     <text x="124" y="447" class="node-desc">available / unknown / expired</text>
   </g>
-  <g class="node blue" aria-label="React · 推薦カード: 順位・根拠・プレイヤー">
+  <g class="node blue" aria-label="React · 推薦カード: 曲一覧・プレイヤー">
     <rect x="55" y="590" width="275" height="90" rx="14" class="node-box" />
     <rect x="69" y="610" width="42" height="42" rx="12" class="icon-bg" />
     <svg x="78" y="619" width="24" height="24">
       <use href="#i-music" />
     </svg>
     <text x="124" y="626" class="node-title">React · 推薦カード</text>
-    <text x="124" y="647" class="node-desc">順位・根拠・プレイヤー</text>
+    <text x="124" y="647" class="node-desc">曲一覧・プレイヤー</text>
   </g>
   <g class="node blue" aria-label="同意済みfeedback: 表示と推薦生成は別イベント。初期選択・実試聴を区別し、like/skipをオフライン正解へ置換しない。ログを使ったモデル更新は、固定条件の比較中に自動で行わない。">
     <rect x="465" y="590" width="310" height="90" rx="14" class="node-box" />
@@ -238,6 +238,6 @@
   <g class="edge future-edge">
     <polyline points="620,680 620,731 192,731 192,680" marker-end="url(#arrow)" />
     <rect x="294.5" y="741" width="249" height="24" rx="6" />
-    <text x="419" y="757" text-anchor="middle">次要求へ反映する場合は条件と回数予算を明示</text>
+    <text x="419" y="757" text-anchor="middle">Agentの反映は明示要求後 / 予算は未確定</text>
   </g>
 </svg>

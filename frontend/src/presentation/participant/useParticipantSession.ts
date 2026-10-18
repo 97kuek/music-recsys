@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStudy } from '../StudyProvider';
-import { toggleSelection, type Phase, type Profile, type Session, type EventInput, type Recommendation, type Status, type Track } from '../../domain/contracts';
+import { toggleSelection, type Phase, type Profile, type Session, type EventInput, type ListEvaluation, type Recommendation, type Status, type Track } from '../../domain/contracts';
 import type { PlayerHandle } from '../player/Player';
 
 export function useParticipantSession(status: Status) {
   const service = useStudy();
   const [profile, setProfile] = useState<Profile>({ items: [], artists: [] });
+  const [profileLocked, setProfileLocked] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [phase, setPhase] = useState<Phase>('profile');
   const [recoveryCode, setRecoveryCode] = useState<string>();
@@ -21,6 +22,11 @@ export function useParticipantSession(status: Status) {
   const [result, setResult] = useState<Recommendation>();
   const [index, setIndex] = useState(0);
   const [rating, setRating] = useState<number>();
+  const [discovery, setDiscovery] = useState<ListEvaluation['discovery_status']>('unanswered');
+  const [discovered, setDiscovered] = useState<string[]>([]);
+  const [evaluated, setEvaluated] = useState(false);
+  const [longTermConsent, setLongTermConsent] = useState(false);
+  const [refreshPending, setRefreshPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [goal, setGoal] = useState('auto');
@@ -28,6 +34,8 @@ export function useParticipantSession(status: Status) {
   const player = useRef<PlayerHandle>(null);
   const timings = useRef(new Map<string, {start: number; response: number}>());
   const seen = useRef(new Set<string>());
+  const evaluationsShown = useRef(new Set<string>());
+  const closedLists = useRef(new Set<string>());
   const current = result?.tracks[index];
   const error = (e: unknown) => setMessage(e instanceof Error ? e.message : String(e));
   const run = async (fn: () => Promise<void>) => {
@@ -40,11 +48,24 @@ export function useParticipantSession(status: Status) {
   const apply = (state: Session) => {
     setRegistered(state.registered || false); setActive(true); setFinished(state.finished); setPhase(state.phase);
     setPeriod(state.period); setPeriods(state.periods); setProfile(state.profile);
+    setProfileLocked(state.profile_locked || false);
     setResult(state.recommendation || undefined); setIndex(0); setRating(undefined); setActions(state.actions || []);
+    setLongTermConsent(state.long_term_consent || false);
+    setEvaluated(!!state.list_evaluation);
+    setRating(state.list_evaluation?.rating ?? undefined);
+    setDiscovery(state.list_evaluation?.discovery_status || 'unanswered');
+    setDiscovered(state.list_evaluation?.discovery_item_ids || []);
+    if (state.list_evaluation && state.recommendation) closedLists.current.add(state.recommendation.request_id);
+    if (state.profile_requires_selection) setMessage('保存された好みが30曲を超えています。「保存した好み」で今後使う曲を選んでください');
   };
   useEffect(() => {
     service.forgetLegacyProfile(status.catalog_key);
-    service.state().then(apply).catch(() => {});
+    service.state().then(state => {
+      apply(state);
+      if (state.recommendation && !state.finished && !state.list_evaluation) {
+        emit({kind:'observation_gap', request_id:state.recommendation.request_id}).catch(error);
+      }
+    }).catch(() => {});
   }, [status.catalog_key]);
   useEffect(() => {
     if (!active || phase !== 'profile') return;
@@ -60,6 +81,7 @@ export function useParticipantSession(status: Status) {
     const hide = () => {
       const event = player.current?.checkpoint();
       if (event) emit(event).catch(error);
+      if (!hidden && result && !closedLists.current.has(result.request_id)) emit({kind:'observation_gap', request_id:result.request_id}).catch(error);
       void service.flushEvents(true);
       if (!hidden) { hidden = true; service.progress(phase, 'hidden', true).catch(() => {}); }
     };
@@ -75,13 +97,20 @@ export function useParticipantSession(status: Status) {
     document.addEventListener('visibilitychange', visibility);
     window.addEventListener('pagehide', hide);
     window.addEventListener('online', visibility);
+    window.addEventListener('offline', hide);
     return () => {
       clearInterval(retry);
       document.removeEventListener('visibilitychange', visibility);
       window.removeEventListener('pagehide', hide);
       window.removeEventListener('online', visibility);
+      window.removeEventListener('offline', hide);
     };
-  }, [active, phase, finished]);
+  }, [active, phase, finished, result]);
+  useEffect(() => {
+    if (phase !== 'evaluate' || !result || evaluated || evaluationsShown.current.has(result.request_id)) return;
+    evaluationsShown.current.add(result.request_id);
+    emit({kind:'evaluation_shown', request_id:result.request_id}).catch(error);
+  }, [phase, result, evaluated]);
   useEffect(() => {
     window.scrollTo(0, 0);
     document.getElementById('step-heading')?.focus();
@@ -105,16 +134,17 @@ export function useParticipantSession(status: Status) {
   };
   const recommend = async (initialProfile?: Profile) => {
     await stop();
-    const started = performance.now();
+    let started = performance.now();
     const reply = initialProfile
-      ? await service.beginListening(initialProfile, { goal, top_k: 5 })
+      ? await service.beginListening(initialProfile, { goal, top_k: 5 }, () => { started = performance.now(); })
       : await service.recommend({ goal, top_k: 5 });
     if (initialProfile) setPhase('listen');
     timings.current.set(reply.request_id, {start: started, response: performance.now() - started});
     setResult(reply); setIndex(0); setActions([]); setExpanded(false);
+    setRating(undefined); setDiscovery('unanswered'); setDiscovered([]); setEvaluated(false);
   };
-  const start = (code?: string) => run(async () => {
-    const state = await service.start({ persist: status.logging_mode !== 'browser-memory', consent_version: 'local-ui-v4', ...(code ? {participant_code:code} : {}) });
+  const start = (code?: string, reuse = longTermConsent) => run(async () => {
+    const state = await service.start({ persist: status.logging_mode !== 'browser-memory', consent_version: 'local-ui-v5', long_term_consent: status.logging_mode !== 'browser-memory' && reuse, ...(code ? {participant_code:code} : {}) });
     apply(state);
     if (state.participant_code) { setRecoveryCode(state.participant_code); setMessage('参加コードを発行しました。右上の「？」から控えてください'); }
   });
@@ -129,21 +159,33 @@ export function useParticipantSession(status: Status) {
   });
   const finishPeriod = () => run(async () => {
     await stop();
-    if (rating && result) await emit({ kind: 'rating', request_id: result.request_id, rating });
+    if (result && !closedLists.current.has(result.request_id)) {
+      await emit({ kind: 'list_evaluation', request_id: result.request_id, ...(rating ? {rating} : {}),
+        discovery_status: discovery, discovery_item_ids: discovered, observation_complete: true });
+      closedLists.current.add(result.request_id); setEvaluated(true);
+    }
+    if (refreshPending) {
+      await service.progress('listen'); await recommend(); setPhase('listen'); setRefreshPending(false); return;
+    }
     if (period < periods) {
       const state = await service.next(period); apply(state); await recommend();
     } else { await service.finish(); setFinished(true); }
   });
   const remove = () => run(async () => {
-    await stop(); await service.remove(); service.forgetLegacyProfile(status.catalog_key);
+    // Deletion must not depend on successful delivery of pending telemetry.
+    try { await player.current?.stop(); } catch { /* Continue to the owner deletion endpoint. */ }
+    await service.remove(); service.forgetLegacyProfile(status.catalog_key);
     reset();
     setMessage('データを削除しました');
   });
   const toggle = (field: keyof Profile, value: string) => {
+    if (profileLocked) return;
     setProfile(p => toggleSelection(p, field, value));
   };
+  const requestRefresh = () => run(async () => { setRefreshPending(true); await enter('evaluate'); });
   return {
     profile,
+    profileLocked,
     setExpanded,
     phase,
     recoveryCode,
@@ -162,6 +204,7 @@ export function useParticipantSession(status: Status) {
     setIndex,
     rating,
     setRating,
+    discovery, setDiscovery, discovered, setDiscovered, evaluated, longTermConsent, requestRefresh, refreshPending,
     busy,
     message,
     goal,

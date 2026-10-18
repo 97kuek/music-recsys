@@ -26,6 +26,7 @@ flowchart LR
 - Pages・Workersは使用しない、cloudflaredはMacのホストで動かし、Dockerはアプリ1コンテナだけ
 - 学習/評価はバッチ、アプリは保存済みモデルを起動時に検証ロードしてリアルタイム推論する
 - APIリクエストごとの学習・重み再読込み・モデル選択の自動確定は行わない
+- 任意のリスト評価・新規発見・保存嗜好の[UI/UX](online-ux.md)は実装済み。多段階/LLM/Reactive Agentの[推薦拡張](recommendation-design.md)は未実装、配置方針は維持する
 - 研究室サーバーの外部公開・ポート開放・Tunnel起動は禁止、Mac側の遠隔設定と分離する
 
 ## 保存先・コンポーネント
