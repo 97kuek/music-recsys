@@ -1,6 +1,6 @@
 name: music-recsys
 services:
-  app:
+  app: &app
     build:
       context: ..
       dockerfile: deploy/Dockerfile
@@ -34,3 +34,11 @@ services:
         target: /state
         bind:
           create_host_path: false
+  researcher:
+    <<: *app
+    profiles: [researcher]
+    ports:
+      - "127.0.0.1:8766:8765"
+    command: [python, -m, src.interfaces.http.container, --audience, researcher]
+    environment:
+      MUSIC_RECSYS_RETENTION_DAYS: ${MUSIC_RECSYS_RETENTION_DAYS:-}

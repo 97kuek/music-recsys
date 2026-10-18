@@ -2,6 +2,7 @@
   "protocol_id": "demo-ux-only",
   "seed": 42,
   "top_k": 5,
+  "design": "exploratory_standard",
   "conditions": [
     {
       "condition_id": "A",
@@ -12,6 +13,11 @@
       "condition_id": "B",
       "version": "demo-als",
       "required_route": "als_fold_in_binary_seeds"
+    },
+    {
+      "condition_id": "C",
+      "version": "demo-popularity",
+      "required_route": "popularity"
     }
   ]
 }

@@ -52,6 +52,7 @@ uv sync --locked --group data --group models --group notebook --group tracking
 
 - 研究室は学習・オフライン評価、MacのDocker 1コンテナでReact＋FastAPIを配信、Pages/Workersは不要
 - Mac版はZIPを展開して`bash deploy/mac.sh start`でローカル確認、遠隔用は`start-remote`＋MacホストのCloudflare Tunnel/Access
+- [Macプレビュー手順](docs/mac-preview.md)で、参加者画面と研究者のオンライン分析画面を同じMacから確認できる
 - 学習データ/評価結果は研究室、元データ・配信モデル・必要曲の情報/MP3・被験者評価/操作ログはMacへ配置する方針、実転送は未実施
 - 参加者ログの保存・保持期間・再開は[オンライン評価](docs/online-study.md#保存権限削除)、容量と転送手順は[アプリ構成](docs/app-architecture.md)
 - 研究室の外部公開・ポート開放は禁止、遠隔接続の実地検証はMacで行う

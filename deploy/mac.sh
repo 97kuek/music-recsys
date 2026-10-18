@@ -3,7 +3,7 @@ set -euo pipefail
 umask 077
 root="$(cd "$(dirname "$0")/.." && pwd)"
 action="${1:-start}"
-case "$action" in start|start-remote|stop|status|logs|migrate-state|sessions|export) ;; *) echo 'Usage: bash deploy/mac.sh [start|start-remote|stop|status|logs|migrate-state|sessions|export SESSION_ID]' >&2; exit 2;; esac
+case "$action" in start|start-remote|researcher|stop|status|logs|migrate-state|sessions|export) ;; *) echo 'Usage: bash deploy/mac.sh [start|start-remote|researcher|stop|status|logs|migrate-state|sessions|export SESSION_ID]' >&2; exit 2;; esac
 if [ "$(uname -s)" != Darwin ]; then
   echo 'この起動スクリプトは個人のMac専用です。研究室サーバーでは起動しません。' >&2
   exit 1
@@ -22,7 +22,7 @@ for name in BUNDLE STATE MODEL_VERSION API_TOKEN ACCESS_TEAM ACCESS_AUD ALLOWED_
 done
 export MUSIC_RECSYS_BUNDLE="${MUSIC_RECSYS_BUNDLE:-$root/bundle}"
 export MUSIC_RECSYS_STATE="${MUSIC_RECSYS_STATE:-$HOME/music-recsys/state}"
-compose=(docker compose -f "$root/deploy/compose.yaml")
+compose=(docker compose -f "$root/deploy/compose.yaml" --profile researcher)
 legacy_state=""
 if [ -f "$root/state/sessions.sqlite" ]; then legacy_state="$root/state"
 elif [ -f "$HOME/OtoLab/state/sessions.sqlite" ]; then legacy_state="$HOME/OtoLab/state"; fi
@@ -38,11 +38,11 @@ case "$action" in
     mv "$legacy_state" "$MUSIC_RECSYS_STATE"
     echo "ログ移行完了: $MUSIC_RECSYS_STATE"
     ;;
-  start|start-remote)
+  start|start-remote|researcher)
     if [ -n "$legacy_state" ] && [ "$legacy_state" != "$MUSIC_RECSYS_STATE" ]; then
       echo '旧ログが残っています。bash deploy/mac.sh migrate-state で停止・移行してから起動してください。' >&2; exit 1
     fi
-    if [ "$action" = start ] && [ -n "${MUSIC_RECSYS_API_TOKEN:-}${MUSIC_RECSYS_ACCESS_TEAM:-}${MUSIC_RECSYS_ACCESS_AUD:-}${MUSIC_RECSYS_ALLOWED_ORIGINS:-}${MUSIC_RECSYS_ALLOWED_HOSTS:-}" ]; then
+    if [ "$action" != start-remote ] && [ -n "${MUSIC_RECSYS_API_TOKEN:-}${MUSIC_RECSYS_ACCESS_TEAM:-}${MUSIC_RECSYS_ACCESS_AUD:-}${MUSIC_RECSYS_ALLOWED_ORIGINS:-}${MUSIC_RECSYS_ALLOWED_HOSTS:-}" ]; then
       echo 'これはローカル確認専用です。遠隔設定がないターミナルで実行してください。' >&2; exit 1
     fi
     if [ "$action" = start-remote ]; then
@@ -60,8 +60,15 @@ case "$action" in
       echo 'bundle/transfer.jsonがありません。配布ZIP全体を展開してください。' >&2; exit 1
     fi
     mkdir -p "$MUSIC_RECSYS_STATE"
+    service=app
+    url=http://127.0.0.1:8765
+    if [ "$action" = researcher ]; then
+      service=researcher
+      # Hostnames separate the researcher and participant session cookies.
+      url=http://localhost:8766/#online-analysis
+    fi
     "${compose[@]}" config --quiet
-    "${compose[@]}" up --build -d
+    "${compose[@]}" up --build -d "$service"
     if [ "$action" = start-remote ]; then
       # 全パスが未認証を拒否することを確認、実Access経由の疎通とは別
       check='import urllib.request, urllib.error
@@ -75,11 +82,11 @@ else:
       check='import json, urllib.request; s=json.load(urllib.request.urlopen("http://127.0.0.1:8765/api/status", timeout=2)); assert s["ready"]'
     fi
     for ((i=0; i<60; i++)); do
-      if "${compose[@]}" exec -T app python -c "$check" >/dev/null 2>&1; then
+      if "${compose[@]}" exec -T "$service" python -c "$check" >/dev/null 2>&1; then
         if [ "$action" = start-remote ]; then
           echo 'Access認証付きアプリ起動・未認証401を確認しました。MacでTunnelを開始し、公開URLで認証・試聴を確認してください。'
         else
-          echo 'music-recsys起動完了: http://127.0.0.1:8765'
+          echo "music-recsys起動完了: $url"
         fi
         echo "ログ保存先: $MUSIC_RECSYS_STATE/sessions.sqlite"
         exit 0

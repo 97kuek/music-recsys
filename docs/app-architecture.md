@@ -74,6 +74,8 @@ flowchart LR
 
 ## Macで起動・更新
 
+- ZIPによる操作確認と研究者分析画面の起動は[Macプレビュー](mac-preview.md)を参照
+
 ```bash
 cd "$HOME/Downloads/music-recsys-mac-0.4.0"
 # 旧版のログがある場合だけ実行、両Composeを停止して非上書き移動

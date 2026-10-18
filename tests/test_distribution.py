@@ -61,8 +61,9 @@ def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path):
         archive(root, bundle, output, version="0.2.0")
 
 
-@pytest.mark.parametrize("remote", [False, True])
-def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, remote):
+@pytest.mark.parametrize("action", ["start", "researcher", "start-remote"])
+def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, action):
+    remote = action == "start-remote"
     root = tmp_path / "music-recsys mac"
     (root / "deploy").mkdir(parents=True)
     script = Path("deploy/mac.sh").read_text()
@@ -92,16 +93,24 @@ def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, remote):
             MUSIC_RECSYS_ALLOWED_HOSTS="music.example",
             MUSIC_RECSYS_RETENTION_DAYS="7",
         )
-    action = "start-remote" if remote else "start"
     response = subprocess.run(
         ["bash", str(root / "deploy/mac.sh"), action], env=env, capture_output=True, text=True
     )
     assert response.returncode == 0, response.stderr
-    assert ("未認証401" if remote else "http://127.0.0.1:8765") in response.stdout
+    expected_url = (
+        "http://localhost:8766/#online-analysis"
+        if action == "researcher"
+        else "http://127.0.0.1:8765"
+    )
+    assert ("未認証401" if remote else expected_url) in response.stdout
     assert (tmp_path / "home/music-recsys/state").is_dir()
     calls = (tmp_path / "commands").read_text()
     assert str(root / "bundle") in calls
     assert "up --build -d" in calls
+    service = "researcher" if action == "researcher" else "app"
+    assert f"up --build -d {service}" in calls
+    assert f"exec -T {service} python" in calls
+    assert "--profile researcher" in calls
     assert "--project-directory" not in calls
     if remote:
         assert "assert e.code == 401" in calls
@@ -117,6 +126,10 @@ def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, remote):
     env["MUSIC_RECSYS_ACCESS_TEAM"] = "remote"
     response = subprocess.run(
         ["bash", str(root / "deploy/mac.sh"), "start"], env=env, capture_output=True, text=True
+    )
+    assert response.returncode == 1
+    response = subprocess.run(
+        ["bash", str(root / "deploy/mac.sh"), "researcher"], env=env, capture_output=True, text=True
     )
     assert response.returncode == 1
 

@@ -1,5 +1,6 @@
 """専用Compose用の起動口。ホストへの公開範囲はComposeのloopback mappingで限定。"""
 
+import argparse
 import os
 from pathlib import Path
 
@@ -11,6 +12,9 @@ from src.interfaces.http.server import create_app
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--audience", choices=("participant", "researcher"), default="participant")
+    args = parser.parse_args()
     os.umask(0o077)
     config = Path("/bundle/config.json")
     study = Path("/bundle/study.json")
@@ -18,7 +22,8 @@ def main():
     app = create_app(
         config,
         Path("/state/sessions.sqlite"),
-        study_path=study if study.is_file() else None,
+        audience=args.audience,
+        study_path=study if study.is_file() and args.audience == "participant" else None,
         model_version=setting("MODEL_VERSION") or None,
     )
     uvicorn.run(app, host="0.0.0.0", port=8765, access_log=False, proxy_headers=False)
