@@ -1,0 +1,8 @@
+{
+  "name": "music-recsys",
+  "pages_build_output_dir": "../../src/interfaces/http/static",
+  "compatibility_date": "2026-10-18",
+  "kv_namespaces": [
+    { "binding": "TUNNEL_ORIGINS", "id": "REPLACE_WITH_FREE_KV_NAMESPACE_ID" }
+  ]
+}

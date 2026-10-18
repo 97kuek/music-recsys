@@ -1,10 +1,10 @@
 # music-recsys
 
 - [日本語](README.md)
-- [Preview the UI on a Mac](docs/mac-preview.md). No public URL is configured; set up Tunnel and Access on the Mac before publishing
+- [Preview the UI on a Mac](docs/mac-preview.md). [Domain-free fixed sharing URL](docs/pages-sharing.md); public URL issuance and Mac connectivity are not yet configured
 - A research repository for comparing music recommenders and future LLM/Agent strategy selection
 - Python 3.12, uv, and Parquet for offline evaluation; React, TypeScript, and FastAPI for the listening MVP
-- A research-only LLM/Agent rehearsal foundation is available; participant UI and live API calls remain disconnected. Music4All ID mapping and web preview permissions require verification
+- Research-only LangGraph execution and optional LangSmith tracing connect to FastAPI; participant UI and live API calls remain disconnected. Music4All ID mapping and web preview permissions require verification
 
 - Backend and UI separate domain rules, use cases, adapters and presentation; tests enforce dependency direction
 
@@ -53,8 +53,8 @@ uv sync --locked --group data --group models --group notebook --group tracking
 
 ## Application and data protection
 
-- The lab server trains and evaluates offline; one Mac Docker container serves React and FastAPI, without Pages or Workers
-- Extract the Mac ZIP and run `bash deploy/mac.sh start` for local use; remote use requires `start-remote` and Cloudflare Tunnel/Access on the Mac host
+- The lab server trains and evaluates offline; the Mac runs FastAPI in Docker. Remote sharing uses React on Pages and Functions forwarding to a Quick Tunnel
+- Extract the Mac ZIP and run `bash deploy/mac.sh start` for local use; fixed remote sharing uses `start-pages`, a pages.dev URL, and Access; see [Pages sharing](docs/pages-sharing.md)
 - Training data and evaluation results stay in the lab; source archives, serving models, selected track metadata/audio, and participant logs belong on the Mac; transfer is pending
 - See [online evaluation](docs/online-study.md) for consent, retention, and resuming; see [application architecture](docs/app-architecture.md) for storage budgets and transfer
 - Do not expose lab servers or open public ports; verify authenticated remote access on the Mac
@@ -67,7 +67,9 @@ uv sync --locked --group data --group models --group notebook --group tracking
 
 ### UI, API, database, and deployment
 
-![Participants connect through Cloudflare Access and Tunnel to React, FastAPI, recommenders, and SQLite on the Mac](docs/diagrams/app.svg)
+See [Pages sharing](docs/pages-sharing.md) for the selected deployment. The diagram below shows the alternative Worker/ngrok deployment
+
+![Alternative Worker/ngrok deployment serving the app from the Mac](docs/diagrams/app.svg)
 
 ### Research batches and Notebooks
 

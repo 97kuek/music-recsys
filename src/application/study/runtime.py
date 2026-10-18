@@ -49,3 +49,4 @@ class Runtime:
             models, self.sessions, self.catalog, study, clock
         )
         self.playback = PlaybackService(self.sessions, self.catalog, clock)
+        self.control = None

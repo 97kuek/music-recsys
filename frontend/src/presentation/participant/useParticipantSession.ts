@@ -10,7 +10,6 @@ export function useParticipantSession(status: Status) {
   const [expanded, setExpanded] = useState(false);
   const [phase, setPhase] = useState<Phase>('profile');
   const [recoveryCode, setRecoveryCode] = useState<string>();
-  const [pendingRegistration, setPendingRegistration] = useState<Session>();
   const [consentVersion, setConsentVersion] = useState('local-ui-v6');
   const [registered, setRegistered] = useState(false);
   const [active, setActive] = useState(false);
@@ -148,11 +147,10 @@ export function useParticipantSession(status: Status) {
   };
   const start = (code?: string, reuse?: boolean) => run(async () => {
     const state = await service.start({ persist: status.logging_mode !== 'browser-memory', consent_version: reuse === undefined ? consentVersion : 'local-ui-v6', long_term_consent: status.logging_mode !== 'browser-memory' && (reuse ?? longTermConsent), ...(code ? {participant_code:code} : {}) });
-    if (state.participant_code) { setRecoveryCode(state.participant_code); setPendingRegistration(state); }
-    else apply(state);
+    if (code) setRecoveryCode(code);
+    apply(state);
   });
-  const confirmRegistration = () => { if (pendingRegistration) { apply(pendingRegistration); setPendingRegistration(undefined); } };
-  const reset = () => { setActive(false); setFinished(false); setRegistered(false); setRecoveryCode(undefined); setPendingRegistration(undefined); setResult(undefined); setProfile({ items: [], artists: [] }); setTracks([]); setOffset(0); setPhase('profile'); };
+  const reset = () => { setActive(false); setFinished(false); setRegistered(false); setRecoveryCode(undefined); setResult(undefined); setProfile({ items: [], artists: [] }); setTracks([]); setOffset(0); setPhase('profile'); };
   const logout = () => run(async () => { await stop(); await service.logout(); reset(); });
   const rotateCode = () => run(async () => { const reply = await service.rotateCode(); setRecoveryCode(reply.participant_code); setMessage('参加コードを再発行しました。以前のコードは利用できません'); });
   const beginListening = () => run(() => recommend(profile));
@@ -193,7 +191,6 @@ export function useParticipantSession(status: Status) {
     setExpanded,
     phase,
     recoveryCode,
-    pendingRegistration, confirmRegistration,
     registered,
     active,
     finished,

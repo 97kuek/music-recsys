@@ -22,7 +22,7 @@ export function SavedPreferences({ onDelete }: { onDelete: () => void }) {
     finally { setBusy(false); }
   };
   const options = view ? [...new Map([...view.user_tracks, ...view.inferred_tracks, ...view.excluded_tracks].map(t => [t.item_id,t])).values()] : [];
-  return <><button className="quiet" disabled={busy} onClick={load}>保存した好み</button>{message && !dialog.current?.open && <small role="status">{message}</small>}
+  return <><button className="quiet preferences-button" aria-label="保存した好み" disabled={busy} onClick={load}><span className="preferences-label">保存した好み</span><span className="preferences-short" aria-hidden="true">好み</span></button>{message && !dialog.current?.open && <small role="status">{message}</small>}
     <dialog ref={dialog} className="information" aria-label="保存した好み"><div className="section-heading"><h2>保存した好み</h2><button onClick={() => dialog.current?.close()}>閉じる</button></div>
       <div className="scroll-region saved-preferences">
         <p>変更は次のセッションから使います。比較中の好みは変わりません</p>

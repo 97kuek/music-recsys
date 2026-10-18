@@ -87,7 +87,7 @@ def test_gpu_rank_accuracy_diversity_matches_cpu():
     )
 
 
-@pytest.mark.parametrize("model_name", ["als", "bpr", "content", "bm25"])
+@pytest.mark.parametrize("model_name", ["als", "bpr", "content", "bm25", "ease"])
 def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name):
     import json
     import runpy
@@ -99,7 +99,13 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
     from src.infrastructure.datasets.features import load_features
     from src.infrastructure.datasets.listening_data import validate_bundle
     from src.infrastructure.evaluation.full_scoring import score_cpu
-    from src.infrastructure.recommenders import full_als, full_bm25, full_bpr, full_content
+    from src.infrastructure.recommenders import (
+        full_als,
+        full_bm25,
+        full_bpr,
+        full_content,
+        full_ease,
+    )
     from src.infrastructure.research.configuration import load_settings
     from src.interfaces.cli.experiment_search import load_study_config
     from src.interfaces.cli.full_evaluation import run
@@ -128,6 +134,7 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
         "bpr": (full_bpr, "FullBPR"),
         "content": (full_content, "FullContent"),
         "bm25": (full_bm25, "FullBM25"),
+        "ease": (full_ease, "FullEASE"),
     }[model_name]
     original = getattr(module, name)
     captured = []

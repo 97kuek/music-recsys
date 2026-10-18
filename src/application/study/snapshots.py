@@ -28,6 +28,7 @@ def restore_session(payload, *, context, study, now):
         profile_snapshot=payload.get("profile_snapshot", {}),
         context=payload.get("session_context", {}),
         assignment=payload.get("assignment", {}),
+        control_states=payload.get("control_states", {}),
     )
     session.heard = set(saved["heard"])
     session.recommendations = {k: tuple(v) for k, v in saved["recommendations"].items()}
@@ -64,6 +65,7 @@ def session_snapshot(session, *, context, mode, study, now):
         profile_snapshot=session.profile_snapshot,
         session_context=session.context,
         assignment=session.assignment,
+        control_states=session.control_states,
         initial_profile=asdict(session.profile),
         goals=session.goals,
         recommendation_count=len(session.recommendations),

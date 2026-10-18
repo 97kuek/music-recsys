@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from participant_support import invited_start
 
 from src.domain.study.events import InteractionEvent
 from src.infrastructure.datasets.listening_data import file_sha256
@@ -20,7 +21,7 @@ def bundle(tmp_path_factory):
 def test_profile_and_client_measurements_persist_only_with_consent(bundle, tmp_path):
     app = create_app(bundle, tmp_path / "log.sqlite", model_version="demo-itemcf")
     with TestClient(app, headers={"X-Music-App": "1"}) as client:
-        client.post("/api/sessions", json={"persist": True}).raise_for_status()
+        invited_start(client).raise_for_status()
         client.put("/api/profile", json={"items": ["sample-00"], "artists": []}).raise_for_status()
         reply = client.post("/api/recommendations", json={"goal": "discover"}).json()
         item = reply["tracks"][0]["item_id"]
@@ -97,7 +98,10 @@ def test_media_requires_scope_and_exact_unique_id(bundle, tmp_path):
 
 
 def test_consent_version_and_optional_storage(bundle, tmp_path):
-    app = create_app(bundle, tmp_path / "consent.sqlite", model_version="demo-itemcf")
+    # Legacy optional-storage contracts remain available only to the local researcher.
+    app = create_app(
+        bundle, tmp_path / "consent.sqlite", model_version="demo-itemcf", audience="researcher"
+    )
     with TestClient(app, headers={"X-Music-App": "1"}) as client:
         client.post(
             "/api/sessions", json={"persist": True, "consent_version": "local-ui-v2"}
@@ -116,7 +120,7 @@ def test_consent_version_and_optional_storage(bundle, tmp_path):
 
 def test_v3_managed_export_and_deletion_survive_restart(bundle, tmp_path):
     database = tmp_path / "sessions.sqlite"
-    app = create_app(bundle, database, model_version="demo-itemcf")
+    app = create_app(bundle, database, model_version="demo-itemcf", audience="researcher")
     with TestClient(app, headers={"X-Music-App": "1"}) as client:
         reply = client.post(
             "/api/sessions", json={"persist": True, "consent_version": "local-ui-v3"}
@@ -136,7 +140,7 @@ def test_v3_managed_export_and_deletion_survive_restart(bundle, tmp_path):
             store.export_session(session_id, datetime.now(UTC))
         with pytest.raises(ValueError):
             store.export_session("../../outside", datetime.now(UTC))
-    restarted = create_app(bundle, database, model_version="demo-itemcf")
+    restarted = create_app(bundle, database, model_version="demo-itemcf", audience="researcher")
     with TestClient(restarted, headers={"X-Music-App": "1"}) as client:
         client.cookies.set("music_session", token)
         assert client.get("/api/session/state").status_code == 200

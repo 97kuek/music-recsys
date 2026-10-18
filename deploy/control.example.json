@@ -1,0 +1,12 @@
+{
+  "targets": [
+    {"version": "demo-itemcf", "description": "Local synthetic ItemCF contract check"},
+    {"version": "demo-als", "description": "Local synthetic ALS contract check"}
+  ],
+  "feedback_choices": [],
+  "budget": {
+    "max_calls": 0,
+    "timeout_seconds": 10.0,
+    "max_cost_usd": 0.0
+  }
+}

@@ -5,18 +5,33 @@ import socket
 import subprocess
 import sys
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
 import pytest
 from playwright.sync_api import sync_playwright
 
+from src.application.study.participants import Participants
+from src.infrastructure.persistence.sessions import LocalStore
 from src.interfaces.cli.online_prepare import demo
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("MUSIC_RECSYS_TEST_LIFECYCLE_UI") != "1",
     reason="explicit lifecycle browser test",
 )
+
+
+class LiveApp(str):
+    database: Path
+
+
+def browser_code(app):
+    now = datetime.now(UTC)
+    _, code = Participants(LocalStore(app.database)).issue(
+        expires_at=now + timedelta(days=1), now=now
+    )
+    return code
 
 
 @pytest.fixture(scope="module")
@@ -61,18 +76,20 @@ def live_app(tmp_path_factory):
             time.sleep(0.1)
         else:
             pytest.fail("Temporary lifecycle test server did not start")
-        yield url
+        app = LiveApp(url)
+        app.database = directory / "sessions.sqlite"
+        yield app
     finally:
         process.terminate()
         process.wait(timeout=10)
         process.stderr.close()
 
 
-def begin_playback(page):
+def begin_playback(page, app):
     page.goto("/")
     page.get_by_role("heading", name="はじめに", exact=True).wait_for()
-    page.get_by_role("button", name="初めて利用する", exact=True).click()
-    page.get_by_role("button", name="参加コードを控えて進む", exact=True).click()
+    page.get_by_label("参加コード", exact=True).fill(browser_code(app))
+    page.get_by_role("button", name="同意して始める・再開する", exact=True).click()
     page.locator(".select-song").first.click()
     page.get_by_role("button", name="選択して次へ", exact=True).click()
     page.locator(".recommendations .track-open").first.click()
@@ -100,7 +117,7 @@ def test_final_time_survives_browser_navigation(live_app, action):
         page = context.new_page()
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        begin_playback(page)
+        begin_playback(page, live_app)
         original = context.request.get("/api/session/state").json()
         page.wait_for_timeout(900)  # Less than the periodic five-second checkpoint.
         if action == "reload":
@@ -130,7 +147,7 @@ def test_periodic_time_is_saved_without_navigation_or_pause(live_app):
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(base_url=live_app)
         page = context.new_page()
-        begin_playback(page)
+        begin_playback(page, live_app)
         events = wait_for_checkpoint(context, minimum=1)
         assert not page.evaluate("document.querySelector('audio').paused")
         assert not any(event["kind"] == "pause" for event in events)

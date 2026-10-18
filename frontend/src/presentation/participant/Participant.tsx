@@ -16,7 +16,6 @@ export function Participant({ status }: { status: Status }) {
     setExpanded,
     phase,
     recoveryCode,
-    pendingRegistration, confirmRegistration,
     registered,
     active,
     finished,
@@ -59,7 +58,7 @@ export function Participant({ status }: { status: Status }) {
     <main>
       {message && <div className="notice" role="status" aria-live="polite">{message}</div>}
       {!status.ready && <p className="notice">ただいま準備中です。</p>}
-      {!active ? <Consent localOnly={status.logging_mode === 'browser-memory'} retentionDays={status.retention_days} onAccept={start} onContinue={confirmRegistration} issuedCode={pendingRegistration?.participant_code} message={message} disabled={busy || !status.ready} />
+      {!active ? <Consent localOnly={status.logging_mode === 'browser-memory'} retentionDays={status.retention_days} onAccept={start} message={message} disabled={busy || !status.ready} />
       : finished ? <section className="screen completion"><h1 id="step-heading" tabIndex={-1}>終了しました</h1><p className="muted">この画面を閉じても記録は保存されます</p><button className="primary" onClick={() => start()} disabled={busy}>もう一度</button><button className="quiet" onClick={logout} disabled={busy}>退室する</button></section>
       : phase === 'profile' ? <section className="screen">
         <div className="section-heading"><h1 id="step-heading" tabIndex={-1}>曲を選択</h1><span className="muted">{profile.items.length}曲選択中</span></div>
@@ -79,12 +78,13 @@ export function Participant({ status }: { status: Status }) {
           <button className="track-open" aria-label={`${track.title}を再生`} disabled={busy || !canPreview(track)} onClick={() => run(async () => { if (result) { setIndex(i); await player.current?.play(track, result.request_id); } })}><Artwork track={track} /><span className="song-info"><strong>{track.title}</strong><small>{track.artists.join(' / ')}</small>{!canPreview(track) && <small>試聴できません</small>}</span></button>
           <div className="song-actions"><button className="icon-button" aria-label="いいね" aria-pressed={actions.includes(`like:${track.item_id}`)} disabled={busy || actions.includes(`like:${track.item_id}`)} onClick={() => feedback('like', track)}><MediaIcon name="like" /></button></div>
         </article>)}</div>
-        <div className="screen-actions">{result ? <button className="primary" disabled={busy} onClick={() => run(() => enter('evaluate'))} aria-label="次へ" title="評価へ"><MediaIcon name="forward" /></button> : <button disabled={busy} onClick={() => run(recommend)}>おすすめを再取得</button>}</div>
+        <div className="screen-actions">{result ? <button className="primary" disabled={busy} onClick={() => run(() => enter('evaluate'))} aria-label="おすすめを評価する" title="評価へ">おすすめを評価する<MediaIcon name="forward" /></button> : <button disabled={busy} onClick={() => run(recommend)}>おすすめを再取得</button>}</div>
       </section> : <section className="screen completion">
         <h1 id="step-heading" tabIndex={-1}>おすすめの評価</h1>
         <ListEvaluation rating={rating} setRating={setRating} tracks={result?.tracks.filter(track => actions.includes(`like:${track.item_id}`)) || []}
           discovery={discovery} setDiscovery={setDiscovery} discovered={discovered} setDiscovered={setDiscovered} disabled={evaluated || busy} />
-        <div className="screen-actions"><button className="quiet" disabled={busy || evaluated} onClick={() => run(() => enter('listen'))} aria-label="戻る" title="戻る"><MediaIcon name="back" /></button><button className="primary" disabled={busy} onClick={finishPeriod} aria-label={refreshPending || period < periods ? '次のおすすめへ' : '終了する'} title={period < periods ? '次へ' : '終了する'}><MediaIcon name={period < periods ? 'forward' : 'check'} /></button></div>
+        <p className="muted evaluation-hint" role="status">{evaluated ? 'このリストの回答は送信済みです' : rating || discovery !== 'unanswered' ? '回答は次へ進むと送信されます' : '回答せずに進むこともできます'}</p>
+        <div className="screen-actions evaluation-actions"><button className="quiet" disabled={busy || evaluated} onClick={() => run(() => enter('listen'))} aria-label="試聴に戻る" title="戻る"><MediaIcon name="back" />試聴に戻る</button><button className="primary" disabled={busy} onClick={finishPeriod} aria-label={refreshPending || period < periods ? '次のおすすめへ' : '終了する'} title={period < periods ? '次へ' : '終了する'}>{busy ? '送信中…' : refreshPending || period < periods ? '次のおすすめへ' : '終了する'}<MediaIcon name={refreshPending || period < periods ? 'forward' : 'check'} /></button></div>
       </section>}
     </main>
     {active && !finished && phase !== 'evaluate' && <Player ref={player} emit={emit} onError={error} onExpandedChange={setExpanded}

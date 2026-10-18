@@ -2,13 +2,21 @@
 
 ## 実装の範囲
 
-- 登録済み推薦対象を選ぶ研究用の制御基盤。参加者UI・HTTP・本番bootstrapには未接続
+- 登録済み推薦対象を選ぶ研究用の制御基盤。[研究者向けFastAPI接続](control-http.md)に対応し、参加者UI/実験割当・実API運用には未接続
 - `StrategyControl`で固定・単発選択・Reactiveの入力検査、明示調整、予算、失敗、監査を共通化
 - 選択後は既存`RecommendationService`で推論し、共通の候補・重複・K検査を再利用する
 - 現在の対象は登録`ModelSpec.version_id`。完成パイプラインの登録・融合・再ランキングは未実装
-- LangGraphは任意のローカル実行Adapter、LangSmithは任意の匿名メタデータ送信Adapter
+- 研究者HTTPの実行基盤はLangGraph、観測先は任意のLangSmith。この2つを使う構成とする
 - 実API呼出し・トレース外部送信・実参加者による検証は未実施。合成試験を推薦品質の評価にしない
 - [研究順序・未決事項](research-plan.md) / [戦略制御設計](recommendation-design.md) / [オンライン比較](online-comparison.md)
+
+| ツール | 現在の接続 | 採用する役割 |
+| --- | --- | --- |
+| LangGraph | ローカルAdapterで`START → control → audit → END`、checkpointerなし | 研究者HTTPの戦略制御基盤。参加者APIは未接続。DB再開は安全に拒否 |
+| LangSmith | 明示Clientによる許可済みメタデータ送信Adapter、実送信は未実施 | 任意の観測先。推薦の実行・参加者ログ保存には必須にしない |
+
+- [LangGraphはLangChainの高水準APIなしでも利用可能](https://docs.langchain.com/oss/python/langgraph/overview)。LangChainのagent/chainは採用しない。`uv.lock`の`langchain-core`等はLangGraphの推移的依存として保持する
+- [LangSmith Developer](https://www.langchain.com/pricing)は1席・月5,000 base tracesまで含み、超過は従量制。請求ゼロを条件とする運用ではローカル監査を既定とする
 
 ## 責務と実行
 
@@ -73,7 +81,7 @@ flowchart LR
 - 外部trace IDはランダムUUID。participant/session/request/曲ID・feedback本文・入力hashを送らない
 - LangGraph状態やOpenAI clientを自動trace/wrapしない。`LANGSMITH_TRACING=true`だけで状態を送信しない
 - トレース障害は推薦を取り消さず`trace_status=failed`にする。失敗内容・再送キューを外部へ残さない
-- 制御状態は研究用プロセスのメモリ内のみ。再起動時の継続・同時操作・DB保存・削除伝播は未実装
+- 制御オブジェクトはメモリ内。研究者HTTPはmarker・監査を既存Sessionへ保存し、再起動時のcontrol継続は拒否する。参加者への接続・DBからの制御状態復元は未実装
 - 既存の参加者保持期限・削除機構と外部traceの保持/削除条件を接続するまで実参加者へ有効化しない
 - CLIは合成データの新規0600出力のみ。既存ファイル・元ログ・モデル・実験結果を上書きしない
 

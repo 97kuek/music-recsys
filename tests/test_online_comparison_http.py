@@ -4,6 +4,7 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
+from participant_support import issue_code
 
 from src.interfaces.cli.online_prepare import demo
 from src.interfaces.http.server import create_app
@@ -38,13 +39,18 @@ def test_assignment_restart_frozen_profile_analysis_and_deletion(bundle, tmp_pat
     path = study_file(tmp_path)
     database = tmp_path / "sessions.sqlite"
     app = create_app(bundle, database, study_path=path)
+    code = issue_code(app, 2)
     with TestClient(app, headers={"X-Music-App": "1"}) as client:
         start = client.post(
             "/api/sessions",
-            json=dict(persist=True, consent_version="local-ui-v5", long_term_consent=True),
+            json=dict(
+                persist=True,
+                consent_version="local-ui-v5",
+                long_term_consent=True,
+                participant_code=code,
+            ),
         )
         start.raise_for_status()
-        code = start.json()["participant_code"]
         client.put("/api/profile", json={"items": ["sample-00"]}).raise_for_status()
         client.post("/api/session/progress", json={"phase": "listen"}).raise_for_status()
         first_request = None

@@ -1,50 +1,26 @@
-import { useStudy } from '../StudyProvider';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
-export function Consent({ onAccept, onContinue, issuedCode, message, disabled, localOnly = false, retentionDays }: {
-  onAccept: (code?: string, reuse?: boolean) => void; onContinue: () => void;
-  issuedCode?: string; message?: string; disabled: boolean; localOnly?: boolean; retentionDays?: number | null;
+export function Consent({ onAccept, message, disabled, localOnly = false, retentionDays }: {
+  onAccept: (code?: string, reuse?: boolean) => void;
+  message?: string; disabled: boolean; localOnly?: boolean; retentionDays?: number | null;
 }) {
-  const service = useStudy();
-  const dialog = useRef<HTMLDialogElement>(null);
   const [code, setCode] = useState('');
-  const [expires, setExpires] = useState('');
-  const [error, setError] = useState('');
-  const [copyMessage, setCopyMessage] = useState('');
-  useEffect(() => { if (issuedCode && !dialog.current?.open) dialog.current?.showModal(); }, [issuedCode]);
-  useEffect(() => {
-    setExpires(''); setError('');
-    if (!code) return;
-    let active = true;
-    const timer = setTimeout(() => service.checkCode(code).then(reply => { if (active) setExpires(reply.expires_at); }).catch(() => { if (active) setError('参加コードを確認してください'); }), 450);
-    return () => { active=false;clearTimeout(timer); };
-  }, [code, service]);
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(issuedCode!); setCopyMessage('コピーしました'); }
-    catch { setCopyMessage('コピーできませんでした。コードを選択して控えてください'); }
-  };
+  const [showCode, setShowCode] = useState(false);
   return <section className="screen participation-screen">
     <div className="participation-entry scroll-region">
       <h1 id="step-heading" tabIndex={-1}>はじめに</h1>
       <p className="muted">好きな曲から、次に聴きたい音楽を見つけましょう。</p>
-      <p className="participation-summary">右上の「？」にある利用説明・データの取り扱いを確認し、同意のうえ開始してください。{localOnly ? '操作情報はブラウザ内だけで扱います。' : `選択曲や操作履歴・長期的な好みを${retentionDays ? `${retentionDays}日間` : '既存の保存期限まで'}保存し、後日のおすすめにも利用します。`}</p>
-      <button className="primary" disabled={disabled || (!localOnly && !retentionDays)} onClick={() => onAccept(undefined, !localOnly)}>{localOnly ? 'デモを始める' : '初めて利用する'}</button>
-      {!localOnly && <>
-        {!retentionDays && <small>新規参加は保存期間の設定を待っています。参加コードがあれば保存期限内なら再開できます。</small>}
-        <form onSubmit={event => { event.preventDefault(); if (expires && !disabled) onAccept(code, true); }}>
-          <label>参加コード<input type="password" autoComplete="off" maxLength={64} placeholder="参加コードを入力" value={code} onChange={event => setCode(event.target.value)} /></label>
-          {expires && <small>保存期限：{new Date(expires).toLocaleDateString('ja-JP')}</small>}{error && <p role="status">{error}</p>}
-          <button disabled={disabled || !expires}>参加コードで再開する</button>
+      <p className="participation-summary">右上の「？」にある利用説明・データの取り扱いを確認し、同意のうえ開始してください。{localOnly ? '操作情報はブラウザ内だけで扱います。' : `選択曲や操作履歴・長期的な好みを${retentionDays ? `登録から${retentionDays}日間` : '登録済みの保存期限まで'}保存し、後日のおすすめにも利用します。再訪で保存期限は延長しません。`}</p>
+      {localOnly ? <button className="primary" disabled={disabled} onClick={() => onAccept(undefined, false)}>デモを始める</button> : <>
+        <p>初回も再訪も、実施者から受け取った同じ参加コードを使ってください。コードが不明な場合は実施者へ確認してください。</p>
+        <form onSubmit={event => { event.preventDefault(); if (code.trim() && !disabled) onAccept(code.trim(), true); }}>
+          <label htmlFor="participant-code">参加コード</label>
+          <div className="code-entry"><input id="participant-code" type={showCode ? 'text' : 'password'} inputMode="numeric" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={64} placeholder="4桁のコード" aria-describedby="code-help" value={code} onChange={event => setCode(event.target.value)} /><button type="button" aria-pressed={showCode} onClick={() => setShowCode(!showCode)}>{showCode ? '隠す' : '表示'}</button></div>
+          <small id="code-help">先頭の0も入力してください。以前の長いコードも利用できます。</small>
+          <button className="primary" disabled={disabled || !code.trim()}>{disabled ? '確認中…' : '同意して始める・再開する'}</button>
         </form>
       </>}
       {message && <p role="alert">{message}</p>}
     </div>
-    {!localOnly && <dialog ref={dialog} className="participation-dialog" aria-labelledby="participation-title" onCancel={event => { if (issuedCode || disabled) event.preventDefault(); }}>
-      <h2 id="participation-title">参加コードを控えてください</h2>
-        <p>次回も同じ参加者として利用できます。別端末やCookie削除後の再開に使うので、このコードを控えてください。</p>
-        <div><p>発行された参加コード</p><output className="issued-code" aria-label="発行された参加コード" tabIndex={0}>{issuedCode}</output></div>
-        <button onClick={copy}>参加コードをコピー</button>{copyMessage && <p role="status">{copyMessage}</p>}
-        <button className="primary" onClick={() => { dialog.current?.close(); onContinue(); }}>参加コードを控えて進む</button>
-    </dialog>}
   </section>;
 }

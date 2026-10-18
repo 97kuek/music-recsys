@@ -1,4 +1,4 @@
-"""全学習ユーザーのPopularity / ItemCF / ALS / BPR Validation / 集約履歴を順次読み、個別結果をParquet保存。"""
+"""全学習ユーザーの推薦モデルValidation / 集約履歴を順次読み、個別結果をParquet保存。"""
 
 import argparse
 import json
@@ -38,6 +38,7 @@ def run(config_path, *, model_cache=None, export_path=None, model_version=None):
         "itemcf": {"neighbors", "similarity"},
         "content": {"use_idf", "aggregation", "use_gpu"},
         "bm25": {"neighbors", "k1", "b", "use_gpu"},
+        "ease": {"regularization", "use_gpu", "block_size", "memory_budget_mb"},
         "bpr": {
             "factors",
             "iterations",
@@ -64,10 +65,10 @@ def run(config_path, *, model_cache=None, export_path=None, model_version=None):
         or config.grid
     ):
         raise ValueError(
-            "full evaluation requires listening-v2 popularity/itemcf/als/bpr/content/bm25 with fixed parameters"
+            "full evaluation requires listening-v2 popularity/itemcf/als/bpr/content/bm25/ease with fixed parameters"
         )
-    if config.model == "content" and export_path is not None:
-        raise ValueError("Content sparse serving export is not implemented; omit --export-model")
+    if config.model in {"content", "ease"} and export_path is not None:
+        raise ValueError(f"{config.model} serving export is not implemented; omit --export-model")
     if config.model in {"als", "bpr"} and len(config.seeds) != 1:
         raise ValueError("full factor model requires exactly one seed per run")
     from src.infrastructure.recommenders.popularity import validate_basis
@@ -113,6 +114,10 @@ def run(config_path, *, model_cache=None, export_path=None, model_version=None):
                 from src.infrastructure.recommenders.full_bm25 import FullBM25
 
                 factor_model = FullBM25(paths["learning"], progress=progress, **config.parameters)
+            if config.model == "ease":
+                from src.infrastructure.recommenders.full_ease import FullEASE
+
+                factor_model = FullEASE(paths["learning"], progress=progress, **config.parameters)
             if config.model == "content":
                 from src.infrastructure.recommenders.full_content import FullContent
 
@@ -221,6 +226,8 @@ def run(config_path, *, model_cache=None, export_path=None, model_version=None):
                             if config.model == "content"
                             else "BM25-weighted item-neighbor sum"
                             if config.model == "bm25"
+                            else "binary history times learned dense item coefficients; zero diagonal"
+                            if config.model == "ease"
                             else f"{config.model.upper()} latent score"
                         )
                         + "; ties by training plays then item ID"

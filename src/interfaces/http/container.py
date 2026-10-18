@@ -25,6 +25,7 @@ def main():
         audience=args.audience,
         study_path=study if study.is_file() and args.audience == "participant" else None,
         model_version=setting("MODEL_VERSION") or None,
+        control_path=(setting("CONTROL_CONFIG") or None) if args.audience == "researcher" else None,
     )
     uvicorn.run(app, host="0.0.0.0", port=8765, access_log=False, proxy_headers=False)
 

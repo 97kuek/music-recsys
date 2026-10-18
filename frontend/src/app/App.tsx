@@ -11,7 +11,7 @@ export function App() {
   const [error, setError] = useState('');
   useEffect(() => {
     let active = true;
-    const check = () => service.status().then(value => { if (active) { setStatus(value);setError(''); } }).catch(() => { if (active) setError('現在接続できません'); });
+    const check = () => service.status().then(value => { if (active) { setStatus(value);setError(''); } }).catch(() => { if (active) { setStatus(undefined); setError('現在接続できません'); } });
     check();const timer=setInterval(check,30000);return () => { active=false;clearInterval(timer); };
   }, []);
   if (!status) return <main className="connection-screen"><img src="/favicon.svg" alt="" width="64" height="64" /><h1>music-recsys</h1><p>{error || '接続を確認しています…'}</p>{error && <><p>API未接続のため、推薦・試聴・ログ収集は利用できません。</p><button onClick={() => window.location.reload()}>接続を再確認</button></>}</main>;

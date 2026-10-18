@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import time
 import zipfile
 from pathlib import Path
 
@@ -66,10 +67,10 @@ def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path, mode)
             archive(root, bundle, tmp_path / "invalid.zip", version="0.4.3-demo")
 
 
-@pytest.mark.parametrize("action", ["start", "researcher", "start-remote"])
+@pytest.mark.parametrize("action", ["start", "researcher", "start-remote", "start-share"])
 @pytest.mark.parametrize("demo_zip,configured_days", [(False, None), (True, None), (True, "7")])
 def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, action, demo_zip, configured_days):
-    remote = action == "start-remote"
+    remote = action in {"start-remote", "start-share"}
     root = tmp_path / "music-recsys mac"
     (root / "deploy").mkdir(parents=True)
     script = Path("deploy/mac.sh").read_text()
@@ -85,6 +86,7 @@ def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, action, demo_zi
     (binaries / "docker").write_text(
         '#!/bin/sh\nprintf "%s\\n" "$MUSIC_RECSYS_BUNDLE" "$MUSIC_RECSYS_STATE" "retention=$MUSIC_RECSYS_RETENTION_DAYS" "$*" >> "$TEST_LOG"\nexit 0\n'
     )
+    (binaries / "ngrok").write_text('#!/bin/sh\nprintf "%s\n" "$*" >> "$TEST_LOG"\nexit 0\n')
     for path in binaries.iterdir():
         path.chmod(0o755)
     env = {k: v for k, v in os.environ.items() if not k.startswith(("OTOLAB_", "MUSIC_RECSYS_"))}
@@ -102,6 +104,11 @@ def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, action, demo_zi
             MUSIC_RECSYS_ALLOWED_ORIGINS="https://music.example",
             MUSIC_RECSYS_ALLOWED_HOSTS="music.example",
             MUSIC_RECSYS_RETENTION_DAYS="7",
+        )
+    if action == "start-share":
+        env.update(
+            MUSIC_RECSYS_SHARE_URL="https://study.synthetic.workers.dev",
+            MUSIC_RECSYS_TUNNEL_URL="https://synthetic.ngrok-free.app",
         )
     response = subprocess.run(
         ["bash", str(root / "deploy/mac.sh"), action], env=env, capture_output=True, text=True
@@ -123,6 +130,9 @@ def test_mac_launcher_uses_bundle_and_persistent_state(tmp_path, action, demo_zi
     assert f"exec -T {service} python" in calls
     assert "--profile researcher" in calls
     assert "--project-directory" not in calls
+    if action == "start-share":
+        assert "https://study.synthetic.workers.dev/" in response.stdout
+        assert "--url https://synthetic.ngrok-free.app --inspect=false" in calls
     expected_days = "7" if remote else (configured_days or ("1" if demo_zip else ""))
     assert f"retention={expected_days}\n" in calls
     if not remote and demo_zip:
@@ -195,3 +205,80 @@ def test_mac_state_migration_stops_both_projects_and_never_overwrites(
         calls = (tmp_path / "calls").read_text()
         assert calls.count(" down") == 2
         assert "-p otolab" in calls
+
+
+def test_fixed_link_can_be_displayed_while_docker_is_stopped(tmp_path):
+    binaries = tmp_path / "bin"
+    binaries.mkdir()
+    (binaries / "uname").write_text("#!/bin/sh\necho Darwin\n")
+    (binaries / "docker").write_text("#!/bin/sh\nexit 1\n")
+    for binary in binaries.iterdir():
+        binary.chmod(0o755)
+    env = {
+        **os.environ,
+        "PATH": f"{binaries}:/usr/bin:/bin",
+        "MUSIC_RECSYS_SHARE_URL": "https://study.synthetic.workers.dev",
+    }
+    result = subprocess.run(
+        ["bash", "deploy/mac.sh", "share-link"], env=env, capture_output=True, text=True
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip() == "https://study.synthetic.workers.dev/"
+
+
+def test_pages_launcher_registers_ephemeral_tunnel_without_exposing_token(tmp_path):
+    root = tmp_path / "package"
+    (root / "deploy").mkdir(parents=True)
+    (root / "deploy/pages.sh").write_text(Path("deploy/pages.sh").read_text())
+    (root / "deploy/mac.sh").write_text(
+        '#!/bin/sh\nprintf "%s\\n" "$*" "$MUSIC_RECSYS_ALLOWED_HOSTS" '
+        '"$MUSIC_RECSYS_ALLOWED_ORIGINS" > "$TEST_START"\n'
+    )
+    binaries = tmp_path / "bin"
+    binaries.mkdir()
+    scripts = {
+        "uname": "echo Darwin\n",
+        "cloudflared": "echo 'https://changing-example.trycloudflare.com'\nexec sleep 30\n",
+        "curl": 'printf "%s\\n" "$*" > "$TEST_ARGS"\ncp "$2" "$TEST_CONFIG"\n',
+    }
+    for name, script in scripts.items():
+        binary = binaries / name
+        binary.write_text("#!/bin/sh\n" + script)
+        binary.chmod(0o755)
+    env = {
+        **os.environ,
+        "PATH": f"{binaries}:/usr/bin:/bin",
+        "MUSIC_RECSYS_PAGES_URL": "https://study-example.pages.dev",
+        "MUSIC_RECSYS_PUBLISH_TOKEN": "a" * 64,
+        "TEST_START": str(tmp_path / "start"),
+        "TEST_ARGS": str(tmp_path / "args"),
+        "TEST_CONFIG": str(tmp_path / "config"),
+    }
+    process = subprocess.Popen(
+        ["bash", str(root / "deploy/pages.sh")],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        for _ in range(60):
+            if (tmp_path / "config").exists():
+                break
+            time.sleep(0.05)
+        assert (tmp_path / "config").exists()
+    finally:
+        process.terminate()
+        stdout, stderr = process.communicate(timeout=5)
+    assert "配布する固定リンク: https://study-example.pages.dev/" in stdout
+    assert "a" * 64 not in stdout + stderr + (tmp_path / "args").read_text()
+    assert (tmp_path / "start").read_text().splitlines() == [
+        "start-remote",
+        "study-example.pages.dev",
+        "https://study-example.pages.dev",
+    ]
+    config = (tmp_path / "config").read_text()
+    assert "https://study-example.pages.dev/api/_tunnel" in config
+    assert "https://changing-example.trycloudflare.com" in config
+    config_path = (tmp_path / "args").read_text().split()[1]
+    assert not Path(config_path).exists()

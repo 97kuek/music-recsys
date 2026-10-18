@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
+from src.domain.study.participants import CodeCollisionError
+
 
 class LocalStore:
     def __init__(self, path):
@@ -295,10 +297,13 @@ class LocalStore:
 
     def add_participant(self, participant_id, code_hash, expires_at):
         with self.connect() as db:
-            db.execute(
-                "INSERT INTO participants VALUES (?,?,?,?)",
-                (participant_id, code_hash, expires_at.isoformat(), "{}"),
-            )
+            try:
+                db.execute(
+                    "INSERT INTO participants VALUES (?,?,?,?)",
+                    (participant_id, code_hash, expires_at.isoformat(), "{}"),
+                )
+            except sqlite3.IntegrityError as error:
+                raise CodeCollisionError("参加コードが重複しています") from error
 
     def participant(self, participant_id, now):
         with self.connect() as db:
@@ -322,10 +327,13 @@ class LocalStore:
 
     def update_participant_code(self, participant_id, code_hash, now):
         with self.connect() as db:
-            db.execute(
-                "UPDATE participants SET code_hash=? WHERE participant_id=? AND expires>?",
-                (code_hash, participant_id, now.isoformat()),
-            )
+            try:
+                db.execute(
+                    "UPDATE participants SET code_hash=? WHERE participant_id=? AND expires>?",
+                    (code_hash, participant_id, now.isoformat()),
+                )
+            except sqlite3.IntegrityError as error:
+                raise CodeCollisionError("参加コードが重複しています") from error
 
     def update_participant_profile(self, participant_id, profile, now):
         with self.connect() as db:

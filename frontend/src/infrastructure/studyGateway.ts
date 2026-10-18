@@ -20,7 +20,6 @@ export function createStudyGateway(request: Request, mediaUrl: (path: string) =>
     logout: () => request('session/logout', 'POST', {}),
     remove: () => request('session', 'DELETE'),
     rotateCode: () => request<{participant_code:string}>('participants/code', 'POST', {}),
-    checkCode: code => request<{expires_at:string}>('participants/check', 'POST', { code }),
     playback: (item, requestId) => request<Playback>(requestId ? 'playbacks' : 'previews', 'POST', requestId ? { request_id: requestId, item_id: item } : { item_id: item }),
     mediaUrl,
     comparison: () => request<Comparison[]>('comparison'),

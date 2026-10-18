@@ -2,6 +2,7 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
+from participant_support import invited_start, issue_code
 
 from src.interfaces.cli.online_prepare import demo
 from src.interfaces.http.server import create_app
@@ -33,7 +34,7 @@ def test_blinded_within_subject_flow(bundle, tmp_path):
         assert "models" not in status and status["experience"] == "experiment"
         assert c.get("/api/comparison").status_code == 404
         assert c.get("/openapi.json").status_code == 404
-        c.post("/api/sessions", json={"persist": True}).raise_for_status()
+        invited_start(c).raise_for_status()
         c.put("/api/profile", json={"items": ["sample-00"]}).raise_for_status()
         c.post("/api/session/progress", json={"phase": "listen"}).raise_for_status()
         assert c.post("/api/recommendations", json={"version": "demo-bpr"}).status_code == 400
@@ -71,7 +72,15 @@ def test_external_api_auth_cookie_and_origin(bundle, tmp_path, monkeypatch):
             "X-Music-App": "1",
             "Origin": "https://otolab.example",
         }
-        response = c.post("/api/sessions", json={}, headers=headers)
+        response = c.post(
+            "/api/sessions",
+            json={
+                "persist": True,
+                "consent_version": "local-ui-v4",
+                "participant_code": issue_code(app),
+            },
+            headers=headers,
+        )
         assert response.status_code == 200
         assert "Secure" in response.headers["set-cookie"]
         headers["Origin"] = "https://other.example"
@@ -128,7 +137,7 @@ def test_condition_enforces_actual_route(
     )
     app = create_app(bundle, tmp_path / "log.sqlite", study_path=plan)
     with TestClient(app, headers={"X-Music-App": "1"}) as client:
-        client.post("/api/sessions", json={"persist": True}).raise_for_status()
+        invited_start(client).raise_for_status()
         client.put("/api/profile", json={"items": items}).raise_for_status()
         client.post("/api/session/progress", json={"phase": "listen"}).raise_for_status()
         response = client.post("/api/recommendations", json={})
@@ -148,7 +157,7 @@ def test_profile_preview_is_private_and_not_a_recommendation(bundle, tmp_path):
     app = create_app(bundle, tmp_path / "preview.sqlite", model_version="demo-itemcf")
     with TestClient(app, headers={"X-Music-App": "1"}) as c:
         assert c.post("/api/previews", json={"item_id": "sample-00"}).status_code == 401
-        c.post("/api/sessions", json={}).raise_for_status()
+        invited_start(c).raise_for_status()
         reply = c.post("/api/previews", json={"item_id": "sample-00"})
         reply.raise_for_status()
         url = reply.json()["url"]
@@ -157,7 +166,7 @@ def test_profile_preview_is_private_and_not_a_recommendation(bundle, tmp_path):
         assert not session.heard and not session.recommendations and not session.playback_bindings
         assert not c.get("/api/session/export").json()["events"]
         with TestClient(app, headers={"X-Music-App": "1"}) as other:
-            other.post("/api/sessions", json={}).raise_for_status()
+            invited_start(other).raise_for_status()
             assert other.get(url).status_code == 404
         c.post("/api/session/progress", json={"phase": "listen"}).raise_for_status()
         assert c.get(url).status_code == 404

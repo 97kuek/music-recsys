@@ -71,6 +71,7 @@ uv sync --locked --group data --group models --group notebook --group tracking
 | `bpr-30epoch/seed0.json` | grid | `bpr-30epoch/seed0/`、`seed0-{32,64,128,256}/` |
 | `content.json` / `bm25.json` | full_evaluation | `content/` / `bm25/` |
 | `bm25/{50,100}.json` | full_evaluation | `bm25-{50,100}/` |
+| `ease.json` | full_evaluation | `ease/l500/` / [EASE・GPU条件](ease.md) |
 
 ```bash
 .venv/bin/python -m src.interfaces.cli.grid --config configs/itemcf.json
@@ -147,9 +148,8 @@ CUDA_PATH=/usr OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
   --export-model data/models/model-v1 --model-version model-v1
 ```
 
-- 同じ学習プロセスの重みをexport、アプリ起動・推薦リクエスト内では学習しない
-- 保存形式・検証・Cold-startは[推薦アーキテクチャ](architecture.md#保存済みモデルとcold-start)
-- Content全件モデルの疎行列exportは未対応、BM25はItemCF配信形式へ接続する
+- 同じ学習プロセスの重みをexportし、配信中は学習しない。保存形式・検証・Cold-startは[推薦アーキテクチャ](architecture.md#保存済みモデルとcold-start)
+- ContentとEASEの配信用exportは未対応、BM25はItemCF配信形式へ接続する
 
 ## ALS/BPRの感度分析・seed比較
 

@@ -25,7 +25,7 @@ bash deploy/mac.sh researcher
 - 通常の`start`は参加者サービスだけを起動する。研究者画面は`researcher`を明示した場合だけ起動する
 - 合成デモZIPは保持1日・専用保存先を自動設定する。`MUSIC_RECSYS_RETENTION_DAYS`/`MUSIC_RECSYS_STATE`の明示値を優先する
 - `DEMO`マーカーは梱包時に合成bundleだけへ付与する。実曲bundleへの差替え・遠隔起動では保存期間を別途明示する
-- 本実験の保持規程を決定するものではない。初回ボタンが無効なら起動時の保存期間設定と`/api/status`の`retention_days`を確認する
+- 本実験の保持規程を決定するものではない。コード発行に失敗する場合は起動時の保存期間設定と`/api/status`の`retention_days`を確認する
 - 旧ログの検出で停止した場合は自動移行/削除せず、[既存の移行手順](app-architecture.md#macで起動更新)を確認する
 
 ## 画面の確認
@@ -33,16 +33,17 @@ bash deploy/mac.sh researcher
 ```mermaid
 flowchart LR
     Z[MacでZIP展開] --> D[Docker Desktopで起動]
-    D --> P[参加者: 新規 / 参加コード入力]
-    P --> C[初回: 発行コードを確認 → 曲を選択]
+    D --> P[研究者が4桁コードを個別配布]
+    P --> C[参加者: 同じコードで開始・再開 → 曲を選択]
     C --> L[3条件を各5曲: 自由試聴・Like・任意評価]
     L --> S[Macの一時的なデモ用SQLite]
     S --> R[研究者: 保存済みログを再集計]
     R --> E[満足度・行動・欠測・CSV/JSON]
 ```
 
-- 最初は「初めて利用する」または参加コード入力。説明と保存/再利用の同意内容は右上の「？」で確認する
-- 初回は発行されたコードを控えてから好きな曲を選び、3回の推薦リストを試す
+- 研究者が`MUSIC_RECSYS_RETENTION_DAYS`を設定し、`bash deploy/mac.sh issue-codes 5`でコードを個別発行する
+- 初回も再訪も同じ配布コードを入力する。説明と保存/再利用への同意内容は右上の「？」で確認する
+- 好きな曲を選び、3回の推薦リストを試す。参加者自身で別の参加者を新規発行する入口はない
 - 各リストの満足度と新規発見は任意回答。モデル名は参加者へ表示しない
 - 研究者画面の「オンライン比較実験の分析」を開き「保存済みログを再集計」を押す
 - 最初のデータは空。自分が操作した結果だけを表示し、架空の被験者結果を同梱しない
@@ -65,5 +66,5 @@ bash deploy/mac.sh stop
 ## 配布物と遠隔公開
 
 - ZIPとchecksumは`data/app/music-recsys-mac-0.4.3.zip`と同じ階層に置く。旧ZIPは新版の検証後に整理する
-- 遠隔公開は[MacのTunnel/Access設定](app-architecture.md#cloudflare-tunnel--accessでの遠隔接続)を使う。Pages/Workersへデプロイしない
-- 公開ホスト名はMac側のTunnel設定で確定する。Access認証・本人削除・保持期限を確認後、READMEとGitHub Aboutへ掲載する
+- 無料の固定URL・Mac停止中の案内・遠隔起動は[Pages共有構成](pages-sharing.md)を参照。実URLは未発行
+- 今回の修正をMacへ反映するには新しい配布物が必要。既存の0.4.3 ZIPが自動更新されることはない

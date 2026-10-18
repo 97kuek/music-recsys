@@ -1,0 +1,9 @@
+{
+  "name": "music-recsys-share",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-18",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "vars": { "TUNNEL_ORIGIN": "https://REPLACE_WITH_ASSIGNED_DOMAIN.ngrok-free.app" }
+}

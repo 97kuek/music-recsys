@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 653" aria-labelledby="deployment-title deployment-desc" width="1400" height="653" lang="ja" role="img">
   <title id="deployment-title">01 配置とUI・API・DB</title>
-  <desc id="deployment-desc">被験者はAccessとTunnelを経由してMacのReactとFastAPIへ接続。FastAPIはRecommendationService、SQLite、必要曲のbundleを使う。チャットUIは将来案。</desc>
+  <desc id="deployment-desc">被験者はAccess・WorkerとTunnelを経由してMacのReactとFastAPIへ接続。FastAPIはRecommendationService、SQLite、必要曲のbundleを使う。チャットUIは将来案。</desc>
   <defs>
     <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
       <path d="M1 1 7 4 1 7" fill="none" stroke="#8292a7" stroke-width="1.2" />
@@ -114,7 +114,7 @@
   <g class="zone orange">
     <rect x="340" y="26" width="250" height="600" rx="20" />
     <text x="362" y="56" class="zone-title">Cloudflare</text>
-    <text x="362" y="77" class="zone-desc">Access + Tunnel / Pages・Workersなし</text>
+    <text x="362" y="77" class="zone-desc">Access + Worker / 固定共有URL</text>
   </g>
   <g class="zone blue">
     <rect x="624" y="26" width="752" height="600" rx="20" />
@@ -155,22 +155,22 @@
     <text x="424" y="148" class="node-title">Cloudflare Access</text>
     <text x="424" y="169" class="node-desc">被験者のアクセス認証</text>
   </g>
-  <g class="node orange" aria-label="Cloudflare Tunnel: HTTPSをMacへ中継">
+  <g class="node orange" aria-label="Cloudflare Worker: 固定URL・休止案内">
     <rect x="355" y="310" width="220" height="90" rx="14" class="node-box" />
     <rect x="369" y="330" width="42" height="42" rx="12" class="icon-bg" />
     <svg x="378" y="339" width="24" height="24">
       <use href="#i-cloud" />
     </svg>
-    <text x="424" y="346" class="node-title">Cloudflare Tunnel</text>
-    <text x="424" y="367" class="node-desc">HTTPSをMacへ中継</text>
+    <text x="424" y="346" class="node-title">Cloudflare Worker</text>
+    <text x="424" y="367" class="node-desc">固定URL・休止案内</text>
   </g>
-  <g class="node blue" aria-label="cloudflared: Dockerコンテナはアプリの1個だけ。cloudflaredはMacホスト上で起動し、アプリのloopback待受へ転送する。">
+  <g class="node blue" aria-label="ngrok Free: Dockerコンテナはアプリの1個だけ。ngrok FreeはMacホスト上で起動し、アプリのloopback待受へ転送する。">
     <rect x="690" y="112" width="220" height="90" rx="14" class="node-box" />
     <rect x="704" y="132" width="42" height="42" rx="12" class="icon-bg" />
     <svg x="713" y="141" width="24" height="24">
       <use href="#i-cloud" />
     </svg>
-    <text x="759" y="148" class="node-title">cloudflared</text>
+    <text x="759" y="148" class="node-title">ngrok Free</text>
     <text x="759" y="169" class="node-desc">Macホストで実行</text>
   </g>
   <g class="node green" aria-label="FastAPI: UI / 推薦 / 音声 / 同意API">

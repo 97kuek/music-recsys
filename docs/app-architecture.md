@@ -16,17 +16,18 @@ flowchart LR
         U[React build / 同じFastAPIから配信] --> L
       end
       L --> S[stateのSQLite / 評価・操作ログ]
-      T[ホストのcloudflared] --> L
+      T[Macホストのngrok / 任意のcloudflared] --> L
     end
     P[被験者ブラウザ] --> C[Cloudflare Access認証]
-    C -->|HTTPS / Tunnel| T
+    C --> W[固定URLのWorker / 接続失敗時は休止案内]
+    W -->|HTTPS / Tunnel| T
 ```
 
 - React＋TypeScript＋Vite、FastAPI、既存RecommendationServiceのモジュラーモノリス
-- Pages・Workersは使用しない、cloudflaredはMacのホストで動かし、Dockerはアプリ1コンテナだけ
+- ローカルはDocker 1コンテナ。遠隔共有は[Pages＋Quick Tunnel](pages-sharing.md)、上図のWorker＋ngrokは[代替案](sharing.md)
 - 学習/評価はバッチ、アプリは保存済みモデルを起動時に検証ロードしてリアルタイム推論する
 - APIリクエストごとの学習・重み再読込み・モデル選択の自動確定は行わない
-- 任意評価・新規発見・保存嗜好の[UI/UX](online-ux.md)は実装済み。[LLM/Agent基盤](llm-agent-evaluation.md)は研究用CLIのみ、参加者画面と多段階推薦へ未接続
+- 任意評価・新規発見・保存嗜好の[UI/UX](online-ux.md)は実装済み。[LLM/Agent基盤](llm-agent-evaluation.md)は研究者HTTPまで接続、参加者画面と多段階推薦へ未接続
 - 研究室サーバーの外部公開・ポート開放・Tunnel起動は禁止、Mac側の遠隔設定と分離する
 
 ## 保存先・コンポーネント
@@ -173,25 +174,12 @@ uv sync --locked --group app --group data --group models
 
 ## Cloudflare Tunnel / Accessでの遠隔接続
 
-- [Cloudflareの手順](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/)でnamed tunnelとAccessアプリを用意、対象hostname全体を保護し被験者だけAllowにする
-- Macのホストへcloudflaredを導入、`deploy/cloudflared.example.yml`をprivate領域へコピーしてUUID・credentials・hostname・TEAM/AUDを設定する
-- 以下のTEAM/AUD・Origin/hostはAccessアプリと一致させる、認証情報をGit・Vite変数・ブラウザへ含めない
-
-```bash
-# Macの非公開設定から実値を指定、保持日数は説明文に合う値を決める
-export MUSIC_RECSYS_ACCESS_TEAM=REPLACE_WITH_TEAM
-export MUSIC_RECSYS_ACCESS_AUD=REPLACE_WITH_AUD
-export MUSIC_RECSYS_ALLOWED_ORIGINS=https://music-recsys.example.com
-export MUSIC_RECSYS_ALLOWED_HOSTS=music-recsys.example.com
-export MUSIC_RECSYS_RETENTION_DAYS=REPLACE_WITH_DAYS
-bash deploy/mac.sh start-remote
-cloudflared tunnel --config /absolute/private/cloudflared.yml run
-```
-
-- `start-remote`は認証/保持日数の必須設定と未認証401を確認する、`start`はローカル確認専用、Tunnelは自動起動しない
-- UI/音声/APIは同一Origin、全パスでAccess JWTを検証、更新APIはOrigin/専用ヘッダー、cookieはHttpOnly/SameSite/Secure
-- API/音声はno-store、Access認証と研究参加の同意・参加コードを分離、`MUSIC_RECSYS_API_TOKEN`は本構成では設定しない
-- Macのスリープ・回線切断・Docker/Tunnel停止中は利用できない、常時稼働する外部案内ページは置かない
-- `/availability`も認証対象、次回予定は`MUSIC_RECSYS_NEXT_OPEN_AT`で明示、timezone付きISO日時、未指定/過去は予定未定
-- ローカル合成デモはprepareで作成、ブラウザのみの確認はpublic_demo export＋`npm run build:demo`、通常buildはFastAPIへ接続する
-- 遠隔接続・Mac実機・実曲再生は実地確認が必要、既存Cloudflare上のPages/Workersは本リポジトリの設定削除だけでは停止されない
+- 固定URL・休止案内・初期設定は[Pages共有構成](pages-sharing.md)、コード発行と代替案は[共有構成](sharing.md)へ集約する
+- 既存ドメインがある場合は`deploy/cloudflared.example.yml`のnamed tunnelも選択可能。Macのホスト上で実行する
+- `start-remote`はAccess TEAM/AUD・HTTPS Origin・allowed host・保持日数を明示して起動する
+- 研究者サービスはloopbackだけで待受ける。参加者サービスの遠隔認証設定を研究者へ流用しない
+- UI/音声/APIは同一Origin、FastAPIで全パスのAccess JWTを検証、更新APIはOrigin/専用ヘッダーも検証する
+- cookieはHttpOnly/SameSite/Secure、API/音声はno-store。`MUSIC_RECSYS_API_TOKEN`はこの構成では設定しない
+- Macのスリープ・回線切断・Docker/Tunnel停止中は利用できない。Workerが稼働していれば休止案内を返す
+- `/availability`も認証対象。次回予定の`MUSIC_RECSYS_NEXT_OPEN_AT`はtimezone付きISO日時で明示、未指定/過去は予定未定
+- 遠隔接続・Mac実機・実曲再生は実地確認が必要。配布物の更新だけで外部Workerや旧デプロイが更新/停止することはない

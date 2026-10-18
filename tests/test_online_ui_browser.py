@@ -4,6 +4,7 @@ import os
 
 import pytest
 from playwright.sync_api import expect, sync_playwright
+from test_event_delivery_browser import browser_code
 from test_event_delivery_browser import live_app as lifecycle_app
 
 live_app = lifecycle_app
@@ -11,6 +12,25 @@ live_app = lifecycle_app
 pytestmark = pytest.mark.skipif(
     os.environ.get("MUSIC_RECSYS_TEST_ONLINE_UI") != "1", reason="explicit online UI test"
 )
+
+
+def test_open_page_shows_backend_outage_and_can_reconnect(live_app):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page(base_url=live_app)
+        page.clock.install()
+        page.goto("/")
+        expect(page.get_by_label("参加コード", exact=True)).to_be_visible()
+        page.route(
+            "**/api/status",
+            lambda route: route.fulfill(status=503, json={"detail": "Mac offline"}),
+        )
+        page.clock.run_for(30_001)
+        expect(page.get_by_text("現在接続できません", exact=True)).to_be_visible()
+        page.unroute("**/api/status")
+        page.get_by_role("button", name="接続を再確認", exact=True).click()
+        expect(page.get_by_label("参加コード", exact=True)).to_be_visible()
+        browser.close()
 
 
 @pytest.mark.parametrize("width,height", [(1440, 1000), (390, 844), (320, 568)])
@@ -39,23 +59,11 @@ def test_list_feedback_playback_and_saved_preferences(live_app, width, height):
             "el => { const s=getComputedStyle(el.querySelector('.consent-copy p')), b=getComputedStyle(document.body); return s.fontFamily===b.fontFamily && s.fontSize===b.fontSize && s.letterSpacing===b.letterSpacing; }"
         )
         page.get_by_role("button", name="説明を閉じる", exact=True).click()
-        page.get_by_role("button", name="初めて利用する", exact=True).click()
-        registration = page.get_by_role("dialog", name="参加コードを控えてください")
-        expect(registration).to_be_visible()
-        assert registration.evaluate(
-            "el => getComputedStyle(el, '::backdrop').backdropFilter==='none'"
-        )
-        code_output = registration.get_by_label("発行された参加コード")
-        participant_code = code_output.inner_text()
-        assert len(participant_code) >= 16
-        assert code_output.evaluate("el => el.scrollWidth <= el.clientWidth")
-        assert page.evaluate(
-            "document.querySelector('.participation-dialog') === document.querySelector(':modal')"
-        )
-        page.keyboard.press("Escape")
-        expect(registration).to_be_visible()
-        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
-        page.get_by_role("button", name="参加コードを控えて進む", exact=True).click()
+        expect(page.get_by_role("button", name="初めて利用する", exact=True)).to_have_count(0)
+        participant_code = browser_code(live_app)
+        assert len(participant_code) == 4 and participant_code.isdigit()
+        code_input.fill(participant_code)
+        page.get_by_role("button", name="同意して始める・再開する", exact=True).click()
         page.locator(".select-song").first.click()
         page.get_by_role("button", name="選択して次へ", exact=True).click()
         expect(page.locator(".recommendations .song-row")).to_have_count(5)
@@ -73,9 +81,15 @@ def test_list_feedback_playback_and_saved_preferences(live_app, width, height):
         page.wait_for_function("() => document.querySelector('audio').currentTime > .15")
         page.locator(".recommendations .track-open").nth(2).click()
         page.wait_for_function("() => document.querySelector('audio').currentTime > .15")
-        page.get_by_role("button", name="次へ", exact=True).click()
+        page.get_by_role("button", name="おすすめを評価する", exact=True).click()
         expect(page.get_by_role("group", name="リスト全体の満足度")).to_be_visible()
         page.get_by_role("button", name="満足度 4", exact=True).click()
+        for name in ("試聴に戻る", "終了する"):
+            box = page.get_by_role("button", name=name, exact=True).bounding_box()
+            assert box and box["y"] >= 0 and box["y"] + box["height"] <= height
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        if os.environ.get("MUSIC_RECSYS_SCREENSHOTS") == "1":
+            page.screenshot(path=f"/tmp/music-feedback-{width}.png")
         question = page.locator(".list-evaluation fieldset")
         expect(question.locator('input[type="checkbox"]')).to_have_count(2)
         question.locator('input[type="checkbox"]').first.check()
@@ -130,29 +144,26 @@ def test_participant_code_resumes_from_another_browser(live_app):
             lambda route: route.fulfill(status=503, json={"detail": "一時的に開始できません"}),
             times=1,
         )
-        page.get_by_role("button", name="初めて利用する", exact=True).click()
+        code = browser_code(live_app)
+        page.get_by_label("参加コード", exact=True).fill(code)
+        page.get_by_role("button", name="同意して始める・再開する", exact=True).click()
         expect(page.get_by_role("alert")).to_contain_text("一時的に開始できません")
-        expect(page.get_by_role("dialog", name="参加コードを控えてください")).not_to_be_visible()
-        page.get_by_role("button", name="初めて利用する", exact=True).click()
-        dialog = page.get_by_role("dialog", name="参加コードを控えてください")
-        expect(dialog).to_be_visible()
-        code = dialog.get_by_label("発行された参加コード").inner_text()
-        page.get_by_role("button", name="参加コードを控えて進む", exact=True).click()
+        page.get_by_role("button", name="同意して始める・再開する", exact=True).click()
+        expect(page.get_by_role("heading", name="曲を選択", exact=True)).to_be_visible()
         original = first.request.get("/api/session/state").json()
         returning = browser.new_context(base_url=live_app)
         revisit = returning.new_page()
         revisit.goto("/")
         revisit.get_by_label("参加コード", exact=True).fill("invalid")
-        expect(revisit.get_by_text("参加コードを確認してください", exact=True)).to_be_visible()
-        expect(revisit.get_by_role("button", name="参加コードで再開する")).to_be_disabled()
+        revisit.get_by_role("button", name="同意して始める・再開する", exact=True).click()
+        expect(revisit.get_by_role("alert")).to_contain_text("参加コードを確認してください")
         revisit.get_by_label("参加コード", exact=True).fill(code)
-        revisit.get_by_role("button", name="参加コードで再開する", exact=True).click()
+        revisit.get_by_role("button", name="同意して始める・再開する", exact=True).click()
         expect(revisit.get_by_role("heading", name="曲を選択", exact=True)).to_be_visible()
         assert (
             returning.request.get("/api/session/state").json()["session_id"]
             == original["session_id"]
         )
-        expect(revisit.get_by_role("dialog", name="参加コードを控えてください")).not_to_be_visible()
         # Code login rotates the session credential; the previous browser cannot keep writing.
         assert first.request.get("/api/session/state").status == 401
         assert returning.request.delete("/api/session", headers={"X-Music-App": "1"}).ok

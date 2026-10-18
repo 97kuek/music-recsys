@@ -4,9 +4,11 @@ import argparse
 import asyncio
 import os
 import secrets
+from collections import deque
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from time import monotonic
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
@@ -108,10 +110,21 @@ class Advance(Body):
 
 
 def create_app(
-    config_path, database, *, audience="participant", model_version=None, study_path=None
+    config_path,
+    database,
+    *,
+    audience="participant",
+    model_version=None,
+    study_path=None,
+    control_path=None,
+    control_factory=None,
 ):
     if audience not in {"participant", "researcher"}:
         raise ValueError("invalid audience")
+    if audience != "researcher" and (control_path is not None or control_factory is not None):
+        raise ValueError("strategy control is available only to the local researcher")
+    if control_path is not None and control_factory is not None:
+        raise ValueError("supply one explicit control configuration")
     study = read_study_plan(study_path) if study_path else None
     runtime = create_runtime(
         config_path,
@@ -119,6 +132,12 @@ def create_app(
         study=study,
         scope={"audience": audience, "model_version": model_version},
     )
+    if control_path is not None:
+        from src.infrastructure.config.control import build_control
+
+        runtime.control = build_control(runtime, control_path)
+    elif control_factory is not None:
+        runtime.control = control_factory(runtime)
     retention_days = setting("RETENTION_DAYS")
     retention_days = int(retention_days) if retention_days else None
     if retention_days is not None and not 1 <= retention_days <= 366:
@@ -207,6 +226,8 @@ def create_app(
                 await asyncio.sleep(60)
                 with runtime.lock:
                     runtime.sessions.expire()
+                    if runtime.control is not None:
+                        runtime.control.expire()
 
         task = asyncio.create_task(purge())
         yield
@@ -228,6 +249,8 @@ def create_app(
 
     register_analysis_routes(app, runtime, require_researcher)
     app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
+
+    failed_entries = deque()
 
     @app.middleware("http")
     async def local_boundary(request, call_next):
@@ -255,7 +278,22 @@ def create_app(
                 return JSONResponse({"detail": "同一画面から操作してください"}, 403)
             if len(await request.body()) > 16384:
                 return JSONResponse({"detail": "入力が大きすぎます"}, 413)
+        entry = request.method == "POST" and request.url.path in {
+            "/api/sessions",
+            "/api/participants/check",
+        }
+        if entry and not researcher:
+            while failed_entries and failed_entries[0] <= monotonic() - 60:
+                failed_entries.popleft()
+            if len(failed_entries) >= 10:
+                return JSONResponse(
+                    {"detail": "入力の試行が多いため、1分待ってから再試行してください"},
+                    429,
+                    headers={"Retry-After": "60", "Cache-Control": "no-store"},
+                )
         response = await call_next(request)
+        if entry and not researcher and response.status_code in {400, 401, 422}:
+            failed_entries.append(monotonic())
         response.headers.update(
             {
                 "Cache-Control": "public, max-age=31536000, immutable"
@@ -279,6 +317,10 @@ def create_app(
     def session(request):
         token = request.cookies.get("music_session", "")
         return token, runtime.sessions.get(token)
+
+    from src.interfaces.http.control import register_control_routes
+
+    register_control_routes(app, runtime, require_researcher, session)
 
     @app.get("/healthz")
     def health():
@@ -372,6 +414,16 @@ def create_app(
     @app.post("/api/sessions")
     def start(body: Start, request: Request):
         with runtime.lock:
+            if not researcher:
+                if (
+                    body.consent_version not in {"local-ui-v4", "local-ui-v5", "local-ui-v6"}
+                    or not body.persist
+                ):
+                    raise ValueError("利用説明を確認し、保存に同意して参加コードを入力してください")
+                if not body.participant_code:
+                    _, previous = session(request)
+                    if not previous.registered:
+                        raise PermissionError("実施者から配布された参加コードを入力してください")
             token, current, code = runtime.sessions.open_session(
                 old_token=request.cookies.get("music_session"),
                 persist=body.persist,
@@ -554,6 +606,8 @@ def create_app(
     def delete(request: Request):
         with runtime.lock:
             runtime.sessions.delete(request.cookies.get("music_session", ""))
+            if runtime.control is not None:
+                runtime.control.expire()
             response = JSONResponse({"deleted": True})
             response.delete_cookie("music_session")
             return response
@@ -583,6 +637,7 @@ def main():
     parser.add_argument("--audience", choices=["participant", "researcher"], default="participant")
     parser.add_argument("--model-version", help="通常モード用の明示設定。採用設定の確定ではない")
     parser.add_argument("--study", type=Path, help="サーバー側の比較計画JSON")
+    parser.add_argument("--control", type=Path, help="研究者専用の明示LangGraph設定JSON")
     args = parser.parse_args()
     if args.host not in {"127.0.0.1", "localhost"} and not setting("API_TOKEN"):
         parser.error("external binding requires MUSIC_RECSYS_API_TOKEN and explicit origins")
@@ -593,6 +648,7 @@ def main():
             audience=args.audience,
             model_version=args.model_version,
             study_path=args.study,
+            control_path=args.control,
         ),
         host=args.host,
         port=args.port,

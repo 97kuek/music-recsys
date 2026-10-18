@@ -1,0 +1,16 @@
+{
+  "extends": "common.json",
+  "experiment": {
+    "name": "music4all-ease",
+    "output": "../data/experiments/ease/l500"
+  },
+  "model": {
+    "name": "ease",
+    "parameters": {
+      "regularization": 500.0,
+      "use_gpu": true,
+      "block_size": 256,
+      "memory_budget_mb": 22528
+    }
+  }
+}

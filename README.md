@@ -1,10 +1,10 @@
 # music-recsys
 
 - [English](README.en.md)
-- [Macで実際のUIを確認する](docs/mac-preview.md) / 公開URLは未設定（Mac側でTunnel＋Accessの初期設定が必要）
+- [Macで実際のUIを確認する](docs/mac-preview.md) / [ドメインなしの固定共有URL](docs/pages-sharing.md)（実URLの発行・Mac接続設定は未実施）
 - 従来型推薦・LLM/Agentによる戦略選択を比較する音楽推薦の研究用リポジトリ
 - Python 3.12・uv・Parquetによるオフライン評価、React＋TypeScript＋FastAPIの試聴MVP
-- LLM/Agentは研究用検証基盤のみ実装、参加者UI・実APIへ未接続。Music4AllのID接続・Web試聴条件は確認が必要
+- LLM/Agentは[研究者向けFastAPI接続](docs/control-http.md)まで実装、参加者UI・実API運用へ未接続。Music4AllのID接続・Web試聴条件は確認が必要
 
 - バックエンドとUIはドメイン・ユースケース・技術依存・表示へ分離、依存方向をテストで検証する
 
@@ -40,6 +40,7 @@ uv sync --locked --group data --group models --group notebook --group tracking
 | 正解/候補・Recall/NDCG・多様性・効率・欠測 | [オフライン評価指標](docs/listening-evaluation.md) |
 | 単独→多段階→LLM選択→Reactive Agentの4フェーズ・未決事項 | [研究計画](docs/research-plan.md) |
 | 既存実験の観測・仮説 | [考察](docs/discussion.md) |
+| 次に比較する推薦手法と根拠 | [追加比較の提案](docs/recommendation-options.md) |
 
 ## Notebook
 
@@ -52,8 +53,8 @@ uv sync --locked --group data --group models --group notebook --group tracking
 
 ## アプリ・データ保護
 
-- 研究室は学習・オフライン評価、MacのDocker 1コンテナでReact＋FastAPIを配信、Pages/Workersは不要
-- Mac版はZIPを展開して`bash deploy/mac.sh start`でローカル確認、遠隔用は`start-remote`＋MacホストのCloudflare Tunnel/Access
+- 研究室は学習・オフライン評価、MacはDockerのFastAPI。遠隔共有はPagesのReact＋FunctionsからQuick Tunnelへ接続する
+- Mac版はZIPを展開して`bash deploy/mac.sh start`でローカル確認、無料の固定入口・休止案内は[Pages共有構成](docs/pages-sharing.md)を参照
 - [Macプレビュー手順](docs/mac-preview.md)で、参加者画面と研究者のオンライン分析画面を同じMacから確認できる
 - 学習データ/評価結果は研究室、元データ・配信モデル・必要曲の情報/MP3・被験者評価/操作ログはMacへ配置する方針、実転送は未実施
 - 参加者ログの保存・保持期間・再開は[オンライン評価](docs/online-study.md#保存権限削除)、容量と転送手順は[アプリ構成](docs/app-architecture.md)
@@ -67,7 +68,9 @@ uv sync --locked --group data --group models --group notebook --group tracking
 
 ### UI・API・DBと配置
 
-![被験者ブラウザからCloudflare AccessとTunnelを経由してMacのReact・FastAPI・推薦サービス・SQLiteへ接続する構成](docs/diagrams/app.svg)
+Pagesでの配置は[共有構成図](docs/pages-sharing.md)を参照。以下はWorker＋ngrokを使う代替案
+
+![Workerとngrokを経由してMacのアプリへ接続する代替案](docs/diagrams/app.svg)
 
 ### 研究バッチ・Notebook
 

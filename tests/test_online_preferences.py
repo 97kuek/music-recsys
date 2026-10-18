@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from participant_support import invitation, issue_code
 
 from src.application.study.preferences import PreferenceService
 from src.application.study.sessions import token_key
@@ -31,7 +32,7 @@ def start(client, reuse=True, code=None):
             "consent_version": "local-ui-v5",
             "persist": True,
             "long_term_consent": reuse,
-            **({"participant_code": code} if code else {}),
+            **({"participant_code": code} if code else invitation(client, 30)),
         },
     )
 
@@ -163,7 +164,8 @@ def test_switch_logs_are_bound_to_playback_and_destination(app):
 def test_legacy_satisfaction_is_restored_without_asking_for_a_second_rating(app):
     with TestClient(app, headers={"X-Music-App": "1"}) as c:
         c.post(
-            "/api/sessions", json={"persist": True, "consent_version": "local-ui-v4"}
+            "/api/sessions",
+            json={"persist": True, "consent_version": "local-ui-v4", **invitation(c, 30)},
         ).raise_for_status()
         reply = recommend(c)
         c.post(
@@ -226,7 +228,7 @@ def test_revisit_uses_consented_likes_but_never_session_requests(app):
         # Saved edits don't mutate inputs of the currently active session.
         assert set(c.get("/api/session/state").json()["profile"]["items"]) == {"sample-00", liked}
         c.post("/api/session/logout").raise_for_status()
-        third = start(c, code=first["participant_code"]).json()
+        third = start(c, code=c.issued_code).json()
         assert third["profile"]["items"] == ["sample-01"]
         assert (
             snapshot(app, c)["session"]["participant_id"]
@@ -236,7 +238,8 @@ def test_revisit_uses_consented_likes_but_never_session_requests(app):
 
 def test_consent_is_not_inferred_from_old_or_nonconsented_logs(app):
     with TestClient(app, headers={"X-Music-App": "1"}) as c:
-        code = start(c, False).json()["participant_code"]
+        start(c, False).raise_for_status()
+        code = c.issued_code
         reply = recommend(c)
         liked = reply["tracks"][0]["item_id"]
         emit(c, reply, "like", "like", item_id=liked).raise_for_status()
@@ -247,16 +250,20 @@ def test_consent_is_not_inferred_from_old_or_nonconsented_logs(app):
         assert c.get("/api/session/state").json()["profile"]["items"] == []
 
 
-def test_integrated_consent_issues_code_and_requires_explicit_agreement(app):
+def test_integrated_consent_requires_invitation_and_explicit_agreement(app):
     with TestClient(app, headers={"X-Music-App": "1"}) as c:
-        body = {"consent_version": "local-ui-v6", "persist": True}
+        body = {
+            "consent_version": "local-ui-v6",
+            "persist": True,
+            "participant_code": issue_code(app, 30),
+        }
         assert c.post("/api/sessions", json=body).status_code == 400
         with app.state.runtime.sessions.store.connect() as db:
-            assert db.execute("SELECT count(*) FROM participants").fetchone()[0] == 0
+            assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 0
         response = c.post("/api/sessions", json={**body, "long_term_consent": True})
         response.raise_for_status()
         first = response.json()
-        assert first["participant_code"] and first["consent_version"] == "local-ui-v6"
+        assert "participant_code" not in first and first["consent_version"] == "local-ui-v6"
         assert first["registered"] and first["long_term_consent"]
         assert snapshot(app, c)["schema_version"] == 2
         participant_id = snapshot(app, c)["session"]["participant_id"]
@@ -265,7 +272,7 @@ def test_integrated_consent_issues_code_and_requires_explicit_agreement(app):
         c.post("/api/session/logout").raise_for_status()
         again = c.post(
             "/api/sessions",
-            json={**body, "long_term_consent": True, "participant_code": first["participant_code"]},
+            json={**body, "long_term_consent": True, "participant_code": body["participant_code"]},
         )
         again.raise_for_status()
         assert again.json()["session_id"] != first["session_id"]
@@ -284,10 +291,7 @@ def test_delete_cascades_and_stale_save_cannot_resurrect_preferences(app):
         with pytest.raises(PermissionError):
             store.put("stale", stale)
         assert c.get("/api/profile/long-term").status_code == 401
-        assert (
-            c.post("/api/participants/check", json={"code": first["participant_code"]}).status_code
-            == 401
-        )
+        assert c.post("/api/participants/check", json={"code": c.issued_code}).status_code == 401
         with store.connect() as db:
             assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 0
             assert db.execute("SELECT count(*) FROM participants").fetchone()[0] == 0

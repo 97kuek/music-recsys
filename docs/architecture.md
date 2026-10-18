@@ -47,6 +47,7 @@ flowchart LR
 | UserCF | 本人を除く類似ユーザーの既聴曲へ近傍重みを加算 | 小規模共通Runner |
 | Implicit ALS | 信頼度付き行列分解、ユーザー・楽曲因子の内積 | 小規模・全件CPU/GPU・配信 |
 | BPR-MF | 観測正例を未観測負例より高くするペア学習、因子内積 | 小規模・全件CPU/GPU・配信 |
+| EASE | 二値聴取行列の対角ゼロ制約付きridge、密な曲間係数 | 全件GPU評価・小規模CPU参照、配信未対応 |
 | Content | 学習カタログのタグTF-IDFと履歴プロファイルのCosine | 小規模・全件GPU評価・タグ特徴モデルの配信 |
 | Hybrid | ItemCF/UserCFとContentの順位を重み付きRRFで融合 | 小規模共通Runner |
 
@@ -66,6 +67,7 @@ flowchart LR
 | ALS数値解法 | CPUはfloat64直接解法、512のGPUはfloat32共役勾配・cg_steps=20、差を因子数だけの効果にしない |
 | BPR | implicit 0.7.2、factors=32/64/128/256、iterations=30/100/200/500、lr=.01、reg=.01、seed=42/43/44、float32 |
 | BPR負例 | 学習CSRの楽曲エントリ由来、既聴負例を棄却して更新スキップ、全曲既聴ユーザーはPopularity補完 |
+| EASE | λ=500の単一診断、二値X、GPU float32 Choleskyと列ブロック解法 / [条件とCLI](ease.md) |
 | Content | 学習曲だけでIDFを計算、L2正規化した曲特徴をbinary/log_count履歴で集約、欠損を嗜好根拠にしない |
 | Hybrid | CFとContentのRRF、cf_weight・rrf_constant・pool_sizeを明示、未取得成分の寄与は0 |
 

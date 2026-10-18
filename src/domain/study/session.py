@@ -29,3 +29,4 @@ class Session:
     profile_snapshot: dict = field(default_factory=dict)
     context: dict = field(default_factory=dict)
     assignment: dict = field(default_factory=dict)
+    control_states: dict = field(default_factory=dict)

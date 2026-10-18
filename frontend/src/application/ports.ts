@@ -17,7 +17,6 @@ export interface StudyGateway {
   logout(): Promise<unknown>;
   remove(): Promise<unknown>;
   rotateCode(): Promise<{ participant_code: string }>;
-  checkCode(code: string): Promise<{ expires_at: string }>;
   playback(item: string, request?: string): Promise<Playback>;
   mediaUrl(path: string): string;
   comparison(): Promise<Comparison[]>;

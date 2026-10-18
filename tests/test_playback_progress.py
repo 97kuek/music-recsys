@@ -4,6 +4,7 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
+from participant_support import invited_start
 
 from src.interfaces.cli.online_prepare import demo
 from src.interfaces.http.server import create_app
@@ -21,7 +22,7 @@ def client_for(bundle, database):
 
 
 def setup(client):
-    client.post("/api/sessions", json={"persist": True}).raise_for_status()
+    invited_start(client).raise_for_status()
     client.put("/api/profile", json={"items": ["sample-00"]}).raise_for_status()
     recommendation = client.post("/api/recommendations", json={}).json()
     item = recommendation["tracks"][0]["item_id"]
@@ -92,7 +93,7 @@ def test_progress_snapshots_do_not_mark_an_item_heard_or_change_consent(bundle, 
         export = client.get("/api/session/export").json()
         assert [e["listened_seconds"] for e in export["events"]] == [2.0, 4.0]
         assert max(e["listened_seconds"] for e in export["events"]) == 4.0
-        assert session.log.session.consent_version == "local-save-v1"
+        assert session.log.session.consent_version == "local-ui-v4"
         with client.app.state.runtime.sessions.store.connect() as db:
             saved = json.loads(db.execute("SELECT payload FROM sessions").fetchone()[0])
         assert saved["resume"]["format"] == "music-recsys-resume-v1"
