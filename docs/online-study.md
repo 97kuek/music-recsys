@@ -39,7 +39,7 @@ flowchart LR
 | レイテンシ | selection_seconds・inference_seconds・response_latency_ms・display_latency_ms |
 | 到達/離脱 | funnelのphase・enter/hidden/visible/exit・period・受信時刻、finished・termination_reason |
 
-- 操作種別はimpression/play/pause/ended/error/skip/like/rating、過去互換用のsave契約は保持
+- 操作種別はimpression/play/pause/playback_progress/ended/error/skip/like/rating、過去互換用のsave契約は保持
 - 参加者画面に保存ボタンは置かず、いいね/スキップを記録、いいねでモデルをオンライン更新しない
 - 自由文入力は参加者画面に置かない、研究者APIでも保存の別同意がなければ内容・hashとも残さない
 - 初期選択中の試聴は推薦イベント・heardへ加算せず、現在はその試聴ログも保存しない
@@ -65,6 +65,34 @@ flowchart LR
 - 初期選択・実履歴・ALS fold-in・BPRのPopularity補完を分けて集計する
 - ログに学習生履歴・候補全ID集合を複製しないため、ログだけで推論を完全再現できるとは限らない
 - 未計測の料金/token/callはnull、Agentステップログ・失敗要求の体系的監視は未実装
+
+## 離脱時の記録
+
+```mermaid
+flowchart LR
+    P[再生中: 5秒ごとの累積試聴時間] --> Q[メモリ内の未送信イベント / 固定event_id]
+    Q --> A[通常送信 / ACK後に除去]
+    H[visibilitychange hidden / pagehide] --> C[最終試聴時間を同期採取]
+    C --> Q
+    Q --> K[待ち行列を迂回 / fetch keepalive / 合計48KiB以内]
+    K --> S[同じcookieとOrigin検査 / 再生ID検証 / 同内容の重複排除]
+    A --> S
+```
+
+- `playback_progress`は累積試聴時間のチェックポイント、play/pauseを増やさず、heardへ加算しない
+- 未送信イベントは確認応答までメモリに保持、5秒ごと・再表示・接続復帰時に同じevent_idで再試行する
+- 通常送信の応答待ちでも離脱送信を開始、最新の累積時間を優先し、同時keepaliveの本文合計を48KiB以内に抑える
+- 送信済み同内容の再送は条件遷移・終了後も重複計上せず、DB書込み失敗後は同じ記録の保存を再試行する
+- 新規イベントは現在のセッション・比較条件の制約に従う
+- 削除・退室・セッション開始で未送信キューを破棄、ブラウザの永続ストレージへ操作ログを保存しない
+- [visibilitychange](https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event)と[keepalive](https://developer.mozilla.org/en-US/docs/Web/API/Request/keepalive)を使用する
+- OS強制終了・通信断・ブラウザの送信制限では最終送信を保証しない、未送信のまま再読込みしたメモリ内記録は復元できない
+- 5秒間隔は保存頻度であり、試聴秒数の精度保証や欠測時間の上限ではない
+- ブラウザ確認は`npm --prefix frontend run build`後、`playwright install chromium`と次の明示試験を実行、CIでも確認する
+
+```bash
+MUSIC_RECSYS_TEST_LIFECYCLE_UI=1 .venv/bin/pytest -q tests/test_event_delivery_browser.py
+```
 
 ## 保存・権限・削除
 

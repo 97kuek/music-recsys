@@ -1,10 +1,13 @@
 """参加者管理が要求する保存・再生・比較計画のポート。"""
 
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
 from src.domain.catalog import PlaybackAvailability, PlaybackContext
+
+Clock = Callable[[], datetime]
 
 
 class Playback(Protocol):

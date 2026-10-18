@@ -46,7 +46,7 @@ def test_profile_and_client_measurements_persist_only_with_consent(bundle, tmp_p
             "display_latency_ms": 25.0,
         }
         client.post("/api/events", json=impression).raise_for_status()
-        with app.state.runtime.store.connect() as db:
+        with app.state.runtime.sessions.store.connect() as db:
             saved = json.loads(db.execute("SELECT payload FROM sessions").fetchone()[0])
         assert saved["initial_profile"]["selected_item_ids"] == ["sample-00"]
         assert saved["goals"][reply["request_id"]]["heard_item_ids"] == []
@@ -55,7 +55,7 @@ def test_profile_and_client_measurements_persist_only_with_consent(bundle, tmp_p
         payload.update(event_id="bad", listened_seconds=-1.0)
         assert client.post("/api/events", json=payload).status_code == 422
         client.delete("/api/session").raise_for_status()
-        with app.state.runtime.store.connect() as db:
+        with app.state.runtime.sessions.store.connect() as db:
             assert db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 0
 
 
@@ -102,7 +102,7 @@ def test_consent_version_and_optional_storage(bundle, tmp_path):
         client.post(
             "/api/sessions", json={"persist": True, "consent_version": "local-ui-v2"}
         ).raise_for_status()
-        with app.state.runtime.store.connect() as db:
+        with app.state.runtime.sessions.store.connect() as db:
             saved = json.loads(db.execute("SELECT payload FROM sessions").fetchone()[0])
         assert saved["session"]["consent_version"] == "local-ui-v2"
         assert saved["session"]["started_at"]
@@ -110,7 +110,7 @@ def test_consent_version_and_optional_storage(bundle, tmp_path):
         client.post(
             "/api/sessions", json={"persist": False, "consent_version": "local-ui-v2"}
         ).raise_for_status()
-        with app.state.runtime.store.connect() as db:
+        with app.state.runtime.sessions.store.connect() as db:
             assert db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 0
 
 
@@ -124,7 +124,7 @@ def test_v3_managed_export_and_deletion_survive_restart(bundle, tmp_path):
         reply.raise_for_status()
         session_id = reply.json()["session_id"]
         token = client.cookies.get("music_session")
-        store = app.state.runtime.store
+        store = app.state.runtime.sessions.store
         summaries = store.summaries(datetime.now(UTC))
         assert summaries[0]["session_id"] == session_id
         exported = store.export_session(session_id, datetime.now(UTC))
@@ -142,14 +142,14 @@ def test_v3_managed_export_and_deletion_survive_restart(bundle, tmp_path):
         assert client.get("/api/session/state").status_code == 200
         client.delete("/api/session").raise_for_status()
         assert not exported.exists()
-        assert restarted.state.runtime.store.summaries(datetime.now(UTC)) == []
+        assert restarted.state.runtime.sessions.store.summaries(datetime.now(UTC)) == []
 
 
 def test_expiry_removes_managed_exports(bundle, tmp_path):
     app = create_app(bundle, tmp_path / "sessions.sqlite", model_version="demo-itemcf")
     runtime = app.state.runtime
-    token, session = runtime.start(True, False, consent_version="local-ui-v3")
-    store = runtime.store
+    token, session = runtime.sessions.start(True, False, consent_version="local-ui-v3")
+    store = runtime.sessions.store
     exported = store.export_session(session.log.session.session_id, datetime.now(UTC))
     store.purge(datetime.now(UTC) + timedelta(days=2))
     assert not exported.exists()

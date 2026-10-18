@@ -33,17 +33,12 @@ export function Researcher() {
   const [log, setLog] = useState<unknown>();
   const [actions, setActions] = useState<string[]>([]);
   const player = useRef<PlayerHandle>(null);
-  const queue = useRef(Promise.resolve());
   const error = (e: unknown) => setMessage(e instanceof Error ? e.message : String(e));
   const run = async (fn: () => Promise<void>) => {
     setBusy(true); setMessage('');
     try { await fn(); } catch (e) { error(e); } finally { setBusy(false); }
   };
-  const emit = (event: EventInput): Promise<void> => {
-    const next = queue.current.then(async () => { await service.emit(event); });
-    queue.current = next.catch(error);
-    return next;
-  };
+  const emit = async (event: EventInput): Promise<void> => { await service.emit(event); };
   useEffect(() => { service.status().then(setStatus).catch(error); }, []);
   useEffect(() => {
     let active = true;
@@ -58,7 +53,20 @@ export function Researcher() {
     else if (values.length < limit) setter([...values, id]);
     else setMessage(`選択は${limit}件までです`);
   };
-  const stop = async () => { await player.current?.stop(); await queue.current; };
+  const stop = async () => { await player.current?.stop(); await service.flushEvents(); };
+  useEffect(() => {
+    const flush = () => {
+      const event = player.current?.checkpoint();
+      if (event) emit(event).catch(error);
+      void service.flushEvents(true);
+    };
+    const visibility = () => { if (document.hidden) flush(); else service.flushEvents().catch(error); };
+    const retry = setInterval(() => { service.flushEvents().catch(() => {}); }, 5000);
+    document.addEventListener('visibilitychange', visibility);
+    window.addEventListener('pagehide', flush);
+    return () => { clearInterval(retry); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('pagehide', flush); };
+  }, [service]);
+
   const start = () => run(async () => {
     await stop(); await service.start({ persist, allow_text: textConsent && persist });
     await profile(); setStarted(true); setFinished(false); setResult(undefined); setRating(undefined); setLog(undefined); setActions([]);

@@ -53,7 +53,18 @@ class InteractionEvent:
     event_id: str
     session_id: str
     request_id: str
-    kind: Literal["impression", "play", "pause", "ended", "error", "skip", "save", "like", "rating"]
+    kind: Literal[
+        "impression",
+        "play",
+        "pause",
+        "playback_progress",
+        "ended",
+        "error",
+        "skip",
+        "save",
+        "like",
+        "rating",
+    ]
     occurred_at: datetime
     item_id: str | None = None
     rating: float | None = None
@@ -74,6 +85,12 @@ class InteractionEvent:
                 type(value) not in (int, float) or not math.isfinite(value) or value < 0
             ):
                 raise ValueError("client measurements must be finite and nonnegative")
+        if self.kind == "playback_progress" and (
+            self.playback_id is None
+            or self.listened_seconds is None
+            or self.position_seconds is None
+        ):
+            raise ValueError("playback progress requires playback ID, position and listening time")
         if self.listened_seconds is not None and self.playback_id is None:
             raise ValueError("listening time requires playback ID")
         for value in (self.event_id, self.session_id, self.request_id):
@@ -83,6 +100,7 @@ class InteractionEvent:
             "impression",
             "play",
             "pause",
+            "playback_progress",
             "ended",
             "error",
             "skip",

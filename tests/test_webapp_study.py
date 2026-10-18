@@ -50,7 +50,7 @@ def test_blinded_within_subject_flow(bundle, tmp_path):
         c.post("/api/session/finish", json={}).raise_for_status()
         public = c.get("/api/session/export").text
         assert "demo-als" not in public and "demo-itemcf" not in public
-        with app.state.runtime.store.connect() as db:
+        with app.state.runtime.sessions.store.connect() as db:
             saved = json.loads(db.execute("SELECT payload FROM sessions").fetchone()[0])
         assert len(saved["requests"]) == 2
         assert {r["model"]["version_id"] for r in saved["requests"]} == {"demo-als", "demo-itemcf"}
@@ -133,13 +133,14 @@ def test_condition_enforces_actual_route(
         client.post("/api/session/progress", json={"phase": "listen"}).raise_for_status()
         response = client.post("/api/recommendations", json={})
         assert response.status_code == (200 if accepted else 400), response.text
-        with app.state.runtime.store.connect() as db:
+        with app.state.runtime.sessions.store.connect() as db:
             saved = json.loads(db.execute("SELECT payload FROM sessions").fetchone()[0])
         assert len(saved["requests"]) == int(accepted)
         assert len(saved["goals"]) == int(accepted)
         if not accepted:
             assert all(
-                not s.recommendations and not s.replies for s in app.state.runtime.sessions.values()
+                not s.recommendations and not s.replies
+                for s in app.state.runtime.sessions.active.values()
             )
 
 
@@ -152,7 +153,7 @@ def test_profile_preview_is_private_and_not_a_recommendation(bundle, tmp_path):
         reply.raise_for_status()
         url = reply.json()["url"]
         assert c.get(url).status_code == 200
-        session = next(iter(app.state.runtime.sessions.values()))
+        session = next(iter(app.state.runtime.sessions.active.values()))
         assert not session.heard and not session.recommendations and not session.playback_bindings
         assert not c.get("/api/session/export").json()["events"]
         with TestClient(app, headers={"X-Music-App": "1"}) as other:

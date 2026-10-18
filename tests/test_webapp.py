@@ -95,7 +95,7 @@ def test_play_feedback_finish_delete(client):
     assert client.post("/api/recommendations", json={"version": "demo-bpr"}).status_code == 400
     assert client.delete("/api/session").status_code == 200
     assert client.get("/api/session/export").status_code == 401
-    with client.app.state.runtime.store.connect() as db:
+    with client.app.state.runtime.sessions.store.connect() as db:
         assert db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 0
 
 
@@ -107,7 +107,7 @@ def test_consent_and_text(client, persist, allow_text):
     recommend(client)
     payload = client.get("/api/session/export").json()
     assert ("private note" in json.dumps(payload)) == (persist and allow_text)
-    with client.app.state.runtime.store.connect() as db:
+    with client.app.state.runtime.sessions.store.connect() as db:
         rows = db.execute("SELECT token_hash, payload FROM sessions").fetchall()
     assert len(rows) == int(persist)
     if rows:

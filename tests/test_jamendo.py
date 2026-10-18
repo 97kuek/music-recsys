@@ -97,7 +97,9 @@ def bundle(tmp_path):
 
 def test_mock_api_to_recommendation_playback_events(tmp_path):
     app = create_app(bundle(tmp_path), tmp_path / "logs.sqlite", model_version="tags")
-    app.state.runtime.playback.client = JamendoClient("private", transport=transport([track()]))
+    app.state.runtime.catalog.playback.client = JamendoClient(
+        "private", transport=transport([track()])
+    )
     with TestClient(app, headers={"X-Music-App": "1"}) as client:
         assert client.post("/api/sessions", json={"persist": False}).status_code == 200
         assert client.put("/api/profile", json={"items": ["mtg:1"]}).status_code == 200
@@ -122,11 +124,11 @@ def test_mock_api_to_recommendation_playback_events(tmp_path):
                 },
             )
             assert response.status_code == 200, response.text
-        with app.state.runtime.store.connect() as db:
+        with app.state.runtime.sessions.store.connect() as db:
             assert db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 0
         assert (
-            app.state.runtime.playback.availability(
-                app.state.runtime.context("mtg:2", "test"), datetime.now(UTC)
+            app.state.runtime.catalog.playback.availability(
+                app.state.runtime.catalog.context("mtg:2", "test"), datetime.now(UTC)
             ).status
             == "available"
         )

@@ -7,7 +7,7 @@ export interface StudyGateway {
   start(command: StartCommand): Promise<Session>;
   saveProfile(profile: Profile): Promise<unknown>;
   recommend(command: RecommendCommand): Promise<Recommendation>;
-  event(event: EventInput & { event_id: string }): Promise<unknown>;
+  event(event: EventInput & { event_id: string }, keepalive?: boolean): Promise<unknown>;
   progress(phase: Phase, kind?: string, keepalive?: boolean): Promise<unknown>;
   next(period: number): Promise<Session>;
   finish(): Promise<unknown>;

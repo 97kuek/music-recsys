@@ -1,0 +1,7 @@
+"""ユースケースへ注入する現在時刻。"""
+
+from datetime import UTC, datetime
+
+
+def utc_now():
+    return datetime.now(UTC)

@@ -33,6 +33,13 @@ jobs:
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
+      - run: .venv/bin/playwright install --with-deps chromium
+      - run: .venv/bin/pytest -q tests/test_event_delivery_browser.py
+        env:
+          MUSIC_RECSYS_TEST_LIFECYCLE_UI: '1'
+          OMP_NUM_THREADS: '1'
+          OPENBLAS_NUM_THREADS: '1'
+          MKL_NUM_THREADS: '1'
       - run: .venv/bin/python -m src.interfaces.cli.online_prepare --demo --output data/app/ci-demo
         env:
           OMP_NUM_THREADS: '1'

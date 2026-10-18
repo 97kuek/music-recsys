@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
-from src.application.study.runtime import now
+from src.application.study.clock import utc_now as now
 from src.bootstrap import create_runtime
 from src.infrastructure.auth.access import AccessVerifier
 from src.infrastructure.config.settings import setting
@@ -53,7 +53,18 @@ class Recommend(Body):
 class Event(Body):
     event_id: str = Field(min_length=1, max_length=100)
     request_id: str = Field(min_length=1, max_length=100)
-    kind: Literal["impression", "play", "pause", "ended", "error", "skip", "save", "like", "rating"]
+    kind: Literal[
+        "impression",
+        "play",
+        "pause",
+        "playback_progress",
+        "ended",
+        "error",
+        "skip",
+        "save",
+        "like",
+        "rating",
+    ]
     item_id: str | None = Field(default=None, max_length=200)
     rating: int | None = Field(default=None, ge=1, le=5)
     playback_id: str | None = Field(default=None, max_length=100)
@@ -104,7 +115,7 @@ def create_app(
         if opening.utcoffset() is None:
             raise ValueError("NEXT_OPEN_AT requires a timezone")
         next_open_at = opening.astimezone(UTC).isoformat()
-    if model_version is not None and model_version not in runtime.models:
+    if model_version is not None and model_version not in runtime.recommendations.models:
         raise ValueError("normal-mode model is not ready")
     researcher = audience == "researcher"
     api_token = setting("API_TOKEN")
@@ -165,7 +176,7 @@ def create_app(
             while True:
                 await asyncio.sleep(60)
                 with runtime.lock:
-                    runtime.expire()
+                    runtime.sessions.expire()
 
         task = asyncio.create_task(purge())
         yield
@@ -234,7 +245,7 @@ def create_app(
 
     def session(request):
         token = request.cookies.get("music_session", "")
-        return token, runtime.get(token)
+        return token, runtime.sessions.get(token)
 
     @app.get("/healthz")
     def health():
@@ -244,7 +255,7 @@ def create_app(
     def availability():
         return {
             "state": "online" if study or model_version or researcher else "unconfigured",
-            "mode": runtime.mode,
+            "mode": runtime.catalog.mode,
             "checked_at": now().isoformat(),
             "next_open_at": next_open_at,
         }
@@ -252,7 +263,7 @@ def create_app(
     @app.get("/api/status")
     def status():
         public = {
-            "mode": runtime.mode,
+            "mode": runtime.catalog.mode,
             "audience": audience,
             "experience": "experiment" if study else "normal",
             "ready": bool(study or model_version or researcher),
@@ -264,7 +275,7 @@ def create_app(
             return public
         return {
             **public,
-            "mode": runtime.mode,
+            "mode": runtime.catalog.mode,
             "study_status": "local-development-only",
             "selection": "comparison-only",
             "models": [
@@ -274,12 +285,13 @@ def create_app(
                     "parameters": spec.parameters,
                     "als_fold_in": model.als_fold_in,
                 }
-                for spec, model in runtime.models.values()
+                for spec, model in runtime.recommendations.models.values()
             ],
             "unavailable": [
                 name
                 for name in ("popularity", "itemcf", "als", "bpr")
-                if name not in {spec.algorithm for spec, _ in runtime.models.values()}
+                if name
+                not in {spec.algorithm for spec, _ in runtime.recommendations.models.values()}
             ],
         }
 
@@ -295,22 +307,24 @@ def create_app(
         query = q.casefold()
         matches = [
             item
-            for item, row in runtime.tracks.items()
+            for item, row in runtime.catalog.tracks.items()
             if query
             in (
                 item + " " + (row.get("title") or "") + " " + " ".join(row.get("artists", []))
             ).casefold()
         ]
         return {
-            "tracks": [runtime.track(item) for item in matches[offset : offset + 24]],
+            "tracks": [runtime.catalog.track(item) for item in matches[offset : offset + 24]],
             "total": len(matches),
-            "artists": [artist for artist in runtime.artists if query in artist.casefold()][:24],
+            "artists": [artist for artist in runtime.catalog.artists if query in artist.casefold()][
+                :24
+            ],
         }
 
     @app.post("/api/participants/check")
     def check_code(body: ParticipantCode):
         with runtime.lock:
-            participant = runtime.participants.resolve(body.code, now())
+            participant = runtime.sessions.participants.resolve(body.code, now())
             return {"expires_at": participant["expires_at"]}
 
     @app.post("/api/participants/code")
@@ -319,13 +333,13 @@ def create_app(
             _, current = session(request)
             if not current.registered:
                 raise ValueError("参加コードがないセッションです")
-            code = runtime.participants.rotate(current.log.session.participant_id, now())
+            code = runtime.sessions.participants.rotate(current.log.session.participant_id, now())
             return {"participant_code": code}
 
     @app.post("/api/sessions")
     def start(body: Start, request: Request):
         with runtime.lock:
-            token, current, code = runtime.open_session(
+            token, current, code = runtime.sessions.open_session(
                 old_token=request.cookies.get("music_session"),
                 persist=body.persist,
                 allow_text=body.allow_text,
@@ -354,7 +368,7 @@ def create_app(
     def profile(body: Profile, request: Request):
         with runtime.lock:
             token, current = session(request)
-            return runtime.set_profile(token, body.items, body.artists)
+            return runtime.sessions.set_profile(token, body.items, body.artists)
 
     @app.post("/api/recommendations")
     def recommend(body: Recommend, request: Request):
@@ -362,7 +376,7 @@ def create_app(
             token, current = session(request)
             if not researcher and body.version is not None:
                 raise ValueError("推薦条件はサーバーで割り当てます")
-            reply = runtime.assigned_recommendation(
+            reply = runtime.recommendations.assigned_recommendation(
                 token,
                 body.version if researcher else model_version,
                 body.goal,
@@ -375,7 +389,7 @@ def create_app(
     def event(body: Event, request: Request):
         with runtime.lock:
             token, _ = session(request)
-            runtime.event(token, body.model_dump())
+            runtime.playback.event(token, body.model_dump())
             return {"accepted": True}
 
     @app.post("/api/previews")
@@ -383,7 +397,7 @@ def create_app(
         with runtime.lock:
             token, current = session(request)
 
-            preview_id, external = runtime.bind_preview(token, body.item_id)
+            preview_id, external = runtime.playback.bind_preview(token, body.item_id)
             return {
                 "url": external["audio"] if external else f"/api/preview-audio/{preview_id}",
                 "external": external is not None,
@@ -394,24 +408,22 @@ def create_app(
     def preview_audio(preview_id: str, request: Request):
         with runtime.lock:
             _, current = session(request)
-            item = current.preview_bindings.get(preview_id)
-            if (
-                current.finished
-                or current.phase != "profile"
-                or current.recommendations
-                or item is None
-            ):
-                raise HTTPException(404, "試聴が見つかりません")
-            return FileResponse(
-                runtime.playback.file(runtime.context(item, current.profile.user_id), now())
-            )
+            try:
+                path = runtime.playback.preview_file(
+                    request.cookies.get("music_session", ""), preview_id
+                )
+            except LookupError as error:
+                raise HTTPException(404, str(error)) from error
+            return FileResponse(path)
 
     @app.post("/api/playbacks")
     def playback(body: Playback, request: Request):
         with runtime.lock:
             token, current = session(request)
 
-            playback_id, external = runtime.bind_playback(token, body.item_id, body.request_id)
+            playback_id, external = runtime.playback.bind_playback(
+                token, body.item_id, body.request_id
+            )
             return {
                 "playback_id": playback_id,
                 "url": external["audio"] if external else f"/api/audio/{playback_id}",
@@ -423,13 +435,12 @@ def create_app(
     def audio(playback_id: str, request: Request):
         with runtime.lock:
             _, current = session(request)
-            binding = current.playback_bindings.get(playback_id)
-            if current.finished or binding is None:
-                raise HTTPException(404, "試聴が見つかりません")
-            runtime.require_current_request(current, binding[0])
-            path = runtime.playback.file(
-                runtime.context(binding[1], current.profile.user_id), now()
-            )
+            try:
+                path = runtime.playback.playback_file(
+                    request.cookies.get("music_session", ""), playback_id
+                )
+            except LookupError as error:
+                raise HTTPException(404, str(error)) from error
             return FileResponse(path)
 
     @app.get("/api/session/export")
@@ -453,7 +464,7 @@ def create_app(
             return {
                 **payload,
                 "goals": current.goals,
-                "mode": runtime.mode,
+                "mode": runtime.catalog.mode,
                 "funnel": current.funnel,
             }
 
@@ -461,7 +472,7 @@ def create_app(
     def finish(request: Request):
         with runtime.lock:
             token, current = session(request)
-            runtime.finish(token)
+            runtime.sessions.finish(token)
             return {"finished": True}
 
     @app.get("/api/session/state")
@@ -474,21 +485,21 @@ def create_app(
     def progress(body: Progress, request: Request):
         with runtime.lock:
             token, _ = session(request)
-            runtime.progress(token, body.phase, body.kind)
+            runtime.sessions.progress(token, body.phase, body.kind)
             return {"accepted": True}
 
     @app.post("/api/session/next")
     def next_period(body: Advance, request: Request):
         with runtime.lock:
             token, current = session(request)
-            current = runtime.next_period(token, body.period)
+            current = runtime.sessions.next_period(token, body.period)
             return session_state(current)
 
     @app.post("/api/session/leave")
     def leave(request: Request):
         with runtime.lock:
             token, current = session(request)
-            runtime.leave(token)
+            runtime.sessions.leave(token)
             return {"finished": True}
 
     @app.post("/api/session/logout")
@@ -496,7 +507,7 @@ def create_app(
         with runtime.lock:
             token, current = session(request)
             if not current.finished:
-                runtime.leave(token)
+                runtime.sessions.leave(token)
             response = JSONResponse({"signed_out": True})
             response.delete_cookie("music_session")
             return response
@@ -504,7 +515,7 @@ def create_app(
     @app.delete("/api/session")
     def delete(request: Request):
         with runtime.lock:
-            runtime.delete(request.cookies.get("music_session", ""))
+            runtime.sessions.delete(request.cookies.get("music_session", ""))
             response = JSONResponse({"deleted": True})
             response.delete_cookie("music_session")
             return response

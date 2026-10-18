@@ -34,7 +34,6 @@ export function Participant({ status }: { status: Status }) {
     setGoal,
     actions,
     player,
-    queue,
     current,
     error,
     run,

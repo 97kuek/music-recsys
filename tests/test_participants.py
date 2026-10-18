@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from src.application.study.runtime import token_key
+from src.application.study.sessions import token_key
 from src.interfaces.cli.online_prepare import demo
 from src.interfaces.http.server import create_app
 
@@ -35,7 +35,7 @@ def start(client, code=None):
 
 
 def payload(app, cookie):
-    return app.state.runtime.store.get(token_key(cookie), datetime.now(UTC))
+    return app.state.runtime.sessions.store.get(token_key(cookie), datetime.now(UTC))
 
 
 def test_registration_requires_explicit_retention_and_consent(bundle, tmp_path, monkeypatch):
@@ -52,7 +52,7 @@ def test_registration_requires_explicit_retention_and_consent(bundle, tmp_path, 
             ).status_code
             == 400
         )
-        with app.state.runtime.store.connect() as db:
+        with app.state.runtime.sessions.store.connect() as db:
             assert db.execute("SELECT count(*) FROM participants").fetchone()[0] == 0
             assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 0
 
@@ -97,7 +97,7 @@ def test_restart_and_code_recover_original_session_and_events(bundle, tmp_path, 
         assert cookie not in json.dumps(payload(app, cookie))
     # Restart more than 24 hours later using the same persisted database.
     future = datetime.now(UTC) + timedelta(days=2)
-    monkeypatch.setattr("src.application.study.runtime.now", lambda: future)
+    monkeypatch.setattr("src.application.study.clock.utc_now", lambda: future)
     monkeypatch.setattr("src.interfaces.http.server.now", lambda: future)
     app = app_for(bundle, database, monkeypatch)
     with TestClient(app, headers={"X-Music-App": "1"}) as c:
@@ -118,7 +118,7 @@ def test_restart_and_code_recover_original_session_and_events(bundle, tmp_path, 
         data = payload(app, new_cookie)
         assert data["session"]["participant_id"] == participant_id
         assert data["session"]["retain_until"] == expiry
-        assert app.state.runtime.store.get(token_key(cookie), future) is None
+        assert app.state.runtime.sessions.store.get(token_key(cookie), future) is None
         assert "demo-itemcf" not in json.dumps(resumed)
         other.post("/api/session/progress", json={"phase": "evaluate"}).raise_for_status()
         other.post("/api/session/finish", json={}).raise_for_status()
@@ -130,7 +130,7 @@ def test_restart_and_code_recover_original_session_and_events(bundle, tmp_path, 
             payload(app, other.cookies.get("music_session"))["session"]["participant_id"]
             == participant_id
         )
-        with app.state.runtime.store.connect() as db:
+        with app.state.runtime.sessions.store.connect() as db:
             assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 2
 
 
@@ -147,7 +147,9 @@ def test_rotate_logout_and_withdraw_all_sessions(bundle, tmp_path, monkeypatch):
             ).status_code
             == 200
         )
-        managed = app.state.runtime.store.export_session(first["session_id"], datetime.now(UTC))
+        managed = app.state.runtime.sessions.store.export_session(
+            first["session_id"], datetime.now(UTC)
+        )
         c.post("/api/session/logout").raise_for_status()
         assert not c.cookies.get("music_session")
         assert managed.exists()
@@ -156,7 +158,7 @@ def test_rotate_logout_and_withdraw_all_sessions(bundle, tmp_path, monkeypatch):
         c.delete("/api/session").raise_for_status()
         assert not managed.exists()
         assert c.post("/api/participants/check", json={"code": rotated}).status_code == 401
-        with app.state.runtime.store.connect() as db:
+        with app.state.runtime.sessions.store.connect() as db:
             assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 0
             assert db.execute("SELECT count(*) FROM participants").fetchone()[0] == 0
 
@@ -166,9 +168,11 @@ def test_expiry_purges_identity_profile_and_logs(bundle, tmp_path, monkeypatch):
     app = app_for(bundle, database, monkeypatch)
     with TestClient(app, headers={"X-Music-App": "1"}) as c:
         first = start(c).json()
-        managed = app.state.runtime.store.export_session(first["session_id"], datetime.now(UTC))
+        managed = app.state.runtime.sessions.store.export_session(
+            first["session_id"], datetime.now(UTC)
+        )
         future = datetime.now(UTC) + timedelta(days=91)
-        monkeypatch.setattr("src.application.study.runtime.now", lambda: future)
+        monkeypatch.setattr("src.application.study.clock.utc_now", lambda: future)
         monkeypatch.setattr("src.interfaces.http.server.now", lambda: future)
         assert c.get("/api/session/state").status_code == 401
         assert not managed.exists()
@@ -176,7 +180,7 @@ def test_expiry_purges_identity_profile_and_logs(bundle, tmp_path, monkeypatch):
             c.post("/api/participants/check", json={"code": first["participant_code"]}).status_code
             == 401
         )
-        with app.state.runtime.store.connect() as db:
+        with app.state.runtime.sessions.store.connect() as db:
             assert db.execute("SELECT count(*) FROM participants").fetchone()[0] == 0
 
 
@@ -192,6 +196,6 @@ def test_changed_model_does_not_restore_old_assignment_or_delete_logs(
     with TestClient(other, headers={"X-Music-App": "1"}) as c:
         c.cookies.set("music_session", cookie)
         assert c.get("/api/session/state").status_code == 401
-        assert len(other.state.runtime.store.summaries(datetime.now(UTC))) == 1
+        assert len(other.state.runtime.sessions.store.summaries(datetime.now(UTC))) == 1
         c.delete("/api/session").raise_for_status()
-        assert other.state.runtime.store.summaries(datetime.now(UTC)) == []
+        assert other.state.runtime.sessions.store.summaries(datetime.now(UTC)) == []

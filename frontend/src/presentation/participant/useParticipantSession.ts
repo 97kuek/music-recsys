@@ -26,7 +26,6 @@ export function useParticipantSession(status: Status) {
   const [goal, setGoal] = useState('auto');
   const [actions, setActions] = useState<string[]>([]);
   const player = useRef<PlayerHandle>(null);
-  const queue = useRef(Promise.resolve());
   const timings = useRef(new Map<string, {start: number; response: number}>());
   const seen = useRef(new Set<string>());
   const current = result?.tracks[index];
@@ -36,12 +35,8 @@ export function useParticipantSession(status: Status) {
     setBusy(true); setMessage('');
     try { await fn(); } catch (e) { error(e); } finally { setBusy(false); }
   };
-  const emit = (event: EventInput): Promise<void> => {
-    const next = queue.current.then(async () => { await service.emit(event); });
-    queue.current = next.catch(error);
-    return next;
-  };
-  const stop = async () => { await player.current?.stop(); await queue.current; };
+  const emit = async (event: EventInput): Promise<void> => { await service.emit(event); };
+  const stop = async () => { await player.current?.stop(); await service.flushEvents(); };
   const apply = (state: Session) => {
     setRegistered(state.registered || false); setActive(true); setFinished(state.finished); setPhase(state.phase);
     setPeriod(state.period); setPeriods(state.periods); setProfile(state.profile);
@@ -61,12 +56,31 @@ export function useParticipantSession(status: Status) {
   }, [offset, phase, active]);
   useEffect(() => {
     if (!active || finished) return;
-    const send = (kind: string) => { service.progress(phase, kind, true).catch(() => {}); };
-    const visibility = () => send(document.hidden ? 'hidden' : 'visible');
-    const pagehide = () => send('hidden');
+    let hidden = false;
+    const hide = () => {
+      const event = player.current?.checkpoint();
+      if (event) emit(event).catch(error);
+      void service.flushEvents(true);
+      if (!hidden) { hidden = true; service.progress(phase, 'hidden', true).catch(() => {}); }
+    };
+    const visibility = () => {
+      if (document.hidden) hide();
+      else {
+        hidden = false;
+        service.flushEvents().catch(error);
+        service.progress(phase, 'visible').catch(() => {});
+      }
+    };
+    const retry = setInterval(() => { service.flushEvents().catch(() => {}); }, 5000);
     document.addEventListener('visibilitychange', visibility);
-    window.addEventListener('pagehide', pagehide);
-    return () => { document.removeEventListener('visibilitychange', visibility); window.removeEventListener('pagehide', pagehide); };
+    window.addEventListener('pagehide', hide);
+    window.addEventListener('online', visibility);
+    return () => {
+      clearInterval(retry);
+      document.removeEventListener('visibilitychange', visibility);
+      window.removeEventListener('pagehide', hide);
+      window.removeEventListener('online', visibility);
+    };
   }, [active, phase, finished]);
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -154,7 +168,6 @@ export function useParticipantSession(status: Status) {
     setGoal,
     actions,
     player,
-    queue,
     current,
     error,
     run,

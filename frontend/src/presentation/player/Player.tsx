@@ -4,7 +4,7 @@ import { MediaIcon } from '../shared/MediaIcon';
 import { Artwork } from '../shared/Artwork';
 import { canPreview, type EventInput, type Track } from '../../domain/contracts';
 
-export type PlayerHandle = { stop: () => Promise<void>; play: (track: Track, request?: string) => Promise<void> };
+export type PlayerHandle = { stop: () => Promise<void>; checkpoint: () => EventInput | undefined; play: (track: Track, request?: string) => Promise<void> };
 type Binding = { track: Track; request?: string; playback?: string };
 const time = (n: number) => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
 export const Player = forwardRef<PlayerHandle, {
@@ -17,6 +17,7 @@ export const Player = forwardRef<PlayerHandle, {
   const dialog = useRef<HTMLDialogElement>(null);
   const binding = useRef<Binding | null>(null);
   const listened = useRef(0);
+  const reported = useRef(0);
   const lastTick = useRef<{wall: number; position: number} | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [track, setTrack] = useState<Track>();
@@ -47,6 +48,30 @@ export const Player = forwardRef<PlayerHandle, {
     if (!b?.request) return Promise.resolve();
     return emit({ kind, request_id: b.request, item_id: b.track.item_id, playback_id: b.playback, position_seconds: audio.current?.currentTime || 0, listened_seconds: listened.current });
   };
+  const checkpoint = (): EventInput | undefined => {
+    tick();
+    const b = binding.current;
+    if (!b?.request || !b.playback || listened.current <= reported.current + .001) return;
+    reported.current = listened.current;
+    return { kind: 'playback_progress', request_id: b.request, item_id: b.track.item_id,
+      playback_id: b.playback, position_seconds: audio.current?.currentTime || 0,
+      listened_seconds: listened.current };
+  };
+  const checkpointRef = useRef(checkpoint);
+  checkpointRef.current = checkpoint;
+  const emitRef = useRef(emit);
+  emitRef.current = emit;
+  const errorRef = useRef(onError);
+  errorRef.current = onError;
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const a = audio.current;
+      if (!a || a.paused || a.ended) return;
+      const event = checkpointRef.current();
+      if (event) emitRef.current(event).catch(errorRef.current);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
   const releaseAudio = async () => {
     tick(); const old = binding.current; binding.current = null;
     const a = audio.current;
@@ -64,7 +89,7 @@ export const Player = forwardRef<PlayerHandle, {
   };
   const toggle = async () => { const a = audio.current; if (!a?.getAttribute('src')) return; if (a.paused) await a.play(); else a.pause(); };
   useEffect(() => () => { audio.current?.pause(); }, []);
-  useImperativeHandle(ref, () => ({stop, play: async (next, request) => {
+  useImperativeHandle(ref, () => ({stop, checkpoint, play: async (next, request) => {
     if (binding.current?.track.item_id === next.item_id && binding.current.request === request && audio.current?.getAttribute('src')) { await toggle(); return; }
     const token = ++generation.current;
     const oldItem = binding.current?.track.item_id;
@@ -75,7 +100,7 @@ export const Player = forwardRef<PlayerHandle, {
       if (token !== generation.current) return;
       if (oldItem && oldItem !== next.item_id && !goingBack.current) visitHistory.current.push(oldItem);
       goingBack.current = false;
-      listened.current = 0; lastTick.current = null; setPosition(0); setDuration(0);
+      listened.current = 0; reported.current = 0; lastTick.current = null; setPosition(0); setDuration(0);
       binding.current = {track:next, request, playback:data.playback_id}; setTrack(next); setLicense(data.license_url);
       if (audio.current) { audio.current.src = data.external ? data.url : service.mediaUrl(data.url); await audio.current.play(); }
     } finally { if (token === generation.current) setLoading(false); }

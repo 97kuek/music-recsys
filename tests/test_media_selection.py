@@ -44,8 +44,8 @@ def test_selected_audio_and_catalog_define_same_candidates_for_every_model(media
     selected = ["sample-00", "sample-01"]
     config = prepare(*media, tmp_path / "study", item_ids=selected)
     runtime = create_runtime(config, database=tmp_path / "state.sqlite")
-    assert set(runtime.tracks) == set(selected)
-    assert all(set(items) == set(selected) for items in runtime.candidates.values())
+    assert set(runtime.catalog.tracks) == set(selected)
+    assert all(set(items) == set(selected) for items in runtime.recommendations.candidates.values())
     prepared = json.loads(config.read_text())
     assert set(prepared["audio"]) == set(selected)
     assert len(list((config.parent / "audio").iterdir())) == 2

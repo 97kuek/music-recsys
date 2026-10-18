@@ -175,12 +175,12 @@ def test_recommendation_session_uses_injected_model_media_and_repository():
         playback=Media(),
         store=store,
     )
-    token, session = runtime.start(True, False)
-    runtime.set_profile(token, ["a"], [])
-    runtime.progress(token, "listen")
-    reply = runtime.assigned_recommendation(token, "v1", "discover", 2, "")
+    token, session = runtime.sessions.start(True, False)
+    runtime.sessions.set_profile(token, ["a"], [])
+    runtime.sessions.progress(token, "listen")
+    reply = runtime.recommendations.assigned_recommendation(token, "v1", "discover", 2, "")
     assert [track["item_id"] for track in reply["tracks"]] == ["b", "c"]
-    runtime.finish(token)
+    runtime.sessions.finish(token)
     assert (
         session.finished
         and next(iter(store.payloads.values()))["termination_reason"] == "completed"

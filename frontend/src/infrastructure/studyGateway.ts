@@ -10,7 +10,7 @@ export function createStudyGateway(request: Request, mediaUrl: (path: string) =>
     start: command => request<Session>('sessions', 'POST', command),
     saveProfile: profile => request('profile', 'PUT', profile),
     recommend: command => request<Recommendation>('recommendations', 'POST', command),
-    event: event => request('events', 'POST', event),
+    event: (event, keepalive = false) => request('events', 'POST', event, keepalive),
     progress: (phase, kind = 'enter', keepalive = false) => request('session/progress', 'POST', { phase, kind }, keepalive),
     next: period => request<Session>('session/next', 'POST', { period }),
     finish: () => request('session/finish', 'POST', {}),

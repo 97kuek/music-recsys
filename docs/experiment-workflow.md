@@ -11,7 +11,7 @@
 | `src/domain/recommendation/` | 推薦契約・候補制約・初期選択・特徴・モデル識別 |
 | `src/domain/evaluation/` | 履歴と正解を分離した入力・精度・多様性の指標定義 |
 | `src/domain/study/` / `catalog.py` / `datasets.py` | 比較計画・割付・セッション・参加コード・カタログ契約 |
-| `src/application/` | 推薦実行・参加者開始/再開・プロフィール・条件遷移・終了 |
+| `src/application/` | `study/runtime.py`でカタログ・セッション・推薦・再生サービスを組立、保存形式は`snapshots.py`へ分離 |
 | `src/application/ports/` | 推論・保存・音源・取得Adapterが満たす契約 |
 | `src/infrastructure/` | CPU/GPU推薦器・モデル保存・Parquet・SQLite・音源・認証・追跡 |
 | `src/interfaces/cli/` | 入力準備・条件展開・評価・保存・比較・配布のコマンド |
