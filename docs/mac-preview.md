@@ -66,5 +66,5 @@ bash deploy/mac.sh stop
 ## 配布物と遠隔公開
 
 - ZIPとchecksumは`data/app/music-recsys-mac-0.4.3.zip`と同じ階層に置く。旧ZIPは新版の検証後に整理する
-- 無料の固定URL・Mac停止中の案内・遠隔起動は[Pages共有構成](pages-sharing.md)を参照。実URLは未発行
+- 固定URLは[https://music-recsys-app.pages.dev/](https://music-recsys-app.pages.dev/)。現在は休止案内、MacとAccessの接続は[Pages共有構成](pages-sharing.md)を参照
 - 今回の修正をMacへ反映するには新しい配布物が必要。既存の0.4.3 ZIPが自動更新されることはない

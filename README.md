@@ -1,7 +1,7 @@
 # music-recsys
 
 - [English](README.en.md)
-- [Macで実際のUIを確認する](docs/mac-preview.md) / [ドメインなしの固定共有URL](docs/pages-sharing.md)（実URLの発行・Mac接続設定は未実施）
+- 公開URL: [music-recsys-app.pages.dev](https://music-recsys-app.pages.dev/)（現在は休止案内、Mac・Access接続は未設定） / [共有設定](docs/pages-sharing.md) / [MacでUIを確認](docs/mac-preview.md)
 - 従来型推薦・LLM/Agentによる戦略選択を比較する音楽推薦の研究用リポジトリ
 - Python 3.12・uv・Parquetによるオフライン評価、React＋TypeScript＋FastAPIの試聴MVP
 - LLM/Agentは[研究者向けFastAPI接続](docs/control-http.md)まで実装、参加者UI・実API運用へ未接続。Music4AllのID接続・Web試聴条件は確認が必要

@@ -1,7 +1,7 @@
 # music-recsys
 
 - [日本語](README.md)
-- [Preview the UI on a Mac](docs/mac-preview.md). [Domain-free fixed sharing URL](docs/pages-sharing.md); public URL issuance and Mac connectivity are not yet configured
+- Public URL: [music-recsys-app.pages.dev](https://music-recsys-app.pages.dev/) (offline notice; Mac and Access setup pending). [Sharing setup](docs/pages-sharing.md) / [Mac preview](docs/mac-preview.md)
 - A research repository for comparing music recommenders and future LLM/Agent strategy selection
 - Python 3.12, uv, and Parquet for offline evaluation; React, TypeScript, and FastAPI for the listening MVP
 - Research-only LangGraph execution and optional LangSmith tracing connect to FastAPI; participant UI and live API calls remain disconnected. Music4All ID mapping and web preview permissions require verification
