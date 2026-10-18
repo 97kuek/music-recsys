@@ -84,7 +84,7 @@ function Experiment({data}: {data: OnlineExperiment}) {
       {data.conditions.map(c => <Bars key={c.condition_id} title={`${c.condition_id}：段階別満足度`} maximum={5} values={[0,1,2].map(n => ({label: n ? `調整${n}` : '初回', value: c.stages[String(n)].mean}))} />)}
       <Table headings={['仮名ID / セッション', '条件', '初回', '調整1', '調整2', '調整数', '最終', '改善', '観測状態']}>{data.outcomes.map((o, i) => <tr key={i}><td>{o.participant_id}<br/>{o.session_id}</td><td>{o.condition_id}</td><td>{number(o.initial_satisfaction)}</td><td>{o.stages['1'].status}: {number(o.stages['1'].satisfaction)}</td><td>{o.stages['2'].status}: {number(o.stages['2'].satisfaction)}</td><td>{o.adjustment_count ?? '未開始'}</td><td>{number(o.final_satisfaction)}</td><td>{number(o.improvement)}</td><td>{o.improvement_status}</td></tr>)}</Table>
       <p>段階間の行動率差と満足度差はoutcomes出力のtransitionsへ記録します。未調整は改善0と扱いません。</p>
-    </> : <p>LLM/Agent：実行本体は未実装。調整データがないため推移グラフを表示しません。</p>}
+    </> : <p>LLM/Agent：参加者向け実行は未接続。調整データがないため推移グラフを表示しません。</p>}
     <h4>効率性・欠測・順序</h4>
     <Bars title="条件別の総推論時間（秒）" values={data.conditions.map(c => ({label: c.condition_id, value: c.latency.inference_seconds.total}))} />
     <Bars title="条件別の総API料金（USD）" values={data.conditions.map(c => ({label: c.condition_id, value: c.usage.api_cost_usd.total}))} />

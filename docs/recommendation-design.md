@@ -2,10 +2,10 @@
 
 ## 設計の範囲
 
-- [研究計画](research-plan.md#研究の4フェーズ)のPhase 2〜4を見据えた未実装の設計案
+- [研究計画](research-plan.md#研究の4フェーズ)のPhase 2〜4を見据えた拡張案。研究用制御の実装範囲は[検証基盤](llm-agent-evaluation.md)へ分離する
 - 推薦実行と戦略制御を分離し、既存契約・モデル・候補検証を可能な限り再利用する
 - 多段階の組合せ/融合/再ランキング、選択単位、Agentの操作範囲/実行基盤は未確定
-- 以下のコンポーネント名は責務を説明する仮称。新しいクラス・API・設定を追加したものではない
+- 将来図のコンポーネント名は責務を説明する仮称。配信UI/APIや未採用のパイプライン構成を実装済みとしない
 - 現行推薦方式・Cold-start・出典管理は[推薦アーキテクチャ](architecture.md)、試聴環境は[アプリ構成](app-architecture.md)
 
 ## 現行コードとの対応
@@ -25,7 +25,7 @@
 - `RecommendationRequest`はnew/repeatのみ。混合総合taskは[評価仕様](listening-evaluation.md#設定選択と追加評価)の未実装案
 - オンラインではgoalを別ログに持つが、自然文の意味解釈やLLM入力Contextは実装されていない
 - ModelSpecをそのままパイプライン定義と見なしたり、既存Selectionで任意toolを表せると見なしたりしない
-- 現行Selectionにusageはなく、SessionLogは推薦Responseのusageを記録する。選択APIの使用量を別計測・合算する契約は追加設計が必要
+- 現行Selectionにusageはなく、SessionLogは推薦Responseのusageを記録する。研究用ControlStepでは判断usageを分離し、配信ログ/分析への統合は未対応
 
 ## 現行実行: 実装済み経路
 
@@ -109,20 +109,21 @@ flowchart TB
 - Agentは明示要求後の状態、行動選択、許可された処理の実行、結果参照、停止/予算を管理するアプリ側の責務
 - Agent内でDecisionsを再利用する構造を想定するが、API自体に反復・ユーザー起動・停止制御を委ねない
 - モデル切替・融合変更・再ランキング等は許可行動の候補。どれをAgentへ公開するかは未確定
-- 直接SDK/アプリ状態機械と、LangChain/LangGraph等の利用は比較案。フレームワーク採用を決定済みとしない
+- 研究用検証基盤に直接Python制御と任意LangGraph Adapterを用意する。研究上の採用構成を確定せず、配信の必須依存にしない
 - 自由文・嗜好・操作情報の外部送信は現行のローカル保存同意とは別の利用範囲を設計する
 
-## 今後必要なコンポーネント: 未実装
+## 実装済みの基盤と不足コンポーネント
 
-- 共通評価UI/指標集計、長期嗜好の追加同意・再訪・編集・削除は実装済み。[オンライン指標](online-metrics.md) / [長期嗜好管理](participant-profile.md)を参照
+- 共通評価UI/指標集計、長期嗜好の同意・再訪・編集・削除は実装済み。[オンライン指標](online-metrics.md) / [長期嗜好管理](participant-profile.md)を参照
+- 固定/単発/Reactive制御・Decisions port/Adapter・任意LangGraph/LangSmith・合成CLIは[検証基盤](llm-agent-evaluation.md)に実装。実API・参加者UI・自律反復へ未接続
 - SessionLogは親要求ID・条件・list_number・adjustment_indexと単一鎖を検査する。既定は旧セッション全体2調整、新戦略比較はcondition範囲を明示できる。現在の推薦は初回のみ
 - 明示調整に対応する画面/実行APIは未公開。初回と調整後で評価を再利用する[将来の画面遷移](online-ux.md#将来のreactive-agent-未実装)に従う
 
 | 段階 | コンポーネント候補 | 実装前に決めること |
 | --- | --- | --- |
 | Phase 2 | 段階実行Adapter、候補/融合/再ランキング契約、パイプライン出典・全件/配信接続 | 構成と候補予算、比較の基準、失敗/不足時の扱い |
-| Phase 3 | Rule/Decisions Strategy、外部判断port/Adapter、登録ID解釈・検査 | 選択単位・共通入力・同意・timeout/再試行/fallback・費用予算 |
-| Phase 4 | 明示調整操作、Reactive制御、許可行動・停止/予算管理 | 操作範囲・1調整内の反復・失敗時処理。最大2調整/選択肢＋任意文は確定 |
+| Phase 3 | 既存研究用Decisions Adapterの配信接続、Rule選択、実usage検証 | 選択単位・共通入力・同意・timeout/再試行/fallback・費用予算 |
+| Phase 4 | 研究用Reactive状態の永続化/削除、明示調整UI/API、内部反復 | 操作範囲・1調整内の反復・失敗時処理。最大2調整/選択肢＋任意文は確定 |
 | 共通 | StudyPlanのdesign/controller・固定割当/入力・親子集計は対応済み。パイプライン/step/選択usage/失敗監視は不足 | ログ版・instrument版・保持/削除の伝播、旧ログとの互換性 |
 | オンライン評価 | 共通評価基盤を調整前後の各要求へ接続、外部判断のusage/失敗監視 | 主指標はSatisfaction。予算・自由文/外部送信同意、実参加者での観測確認 |
 | 評価 | 同条件の単独対多段階・固定/ルール/単発/反復の実行経路 | 入力権限・候補・予算・分母/観測窓・採用前のValidation比較 |

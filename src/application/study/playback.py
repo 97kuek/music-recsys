@@ -61,8 +61,7 @@ class PlaybackService:
         )
         if event.kind == "play":
             context = self.catalog.context(event.item_id, session.profile.user_id)
-            if self.catalog.mode != "jamendo":
-                self.catalog.playback.file(context, self.clock())
+            self.catalog.playback.file(context, self.clock())
         session.log.append(event, now=self.clock())
         session.playbacks[event.event_id] = data
         if event.kind == "play":

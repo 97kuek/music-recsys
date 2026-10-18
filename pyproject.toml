@@ -102,3 +102,8 @@ app = [
     "pyjwt[crypto]>=2.10,<3",
     "uvicorn>=0.54.0",
 ]
+llm = [
+    "langgraph>=1,<2",
+    "langsmith>=0.4,<1",
+    "openai>=3.26,<4",
+]

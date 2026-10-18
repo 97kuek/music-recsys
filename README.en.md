@@ -3,7 +3,7 @@
 - [日本語](README.md)
 - A research repository for comparing music recommenders and future LLM/Agent strategy selection
 - Python 3.12, uv, and Parquet for offline evaluation; React, TypeScript, and FastAPI for the listening MVP
-- LLM/Agent selection is not implemented; Music4All has offered to provide data; file receipt, ID mapping, and web preview scope remain to be checked
+- A research-only LLM/Agent rehearsal foundation is available; participant UI and live API calls remain disconnected. Music4All ID mapping and web preview permissions require verification
 
 - Backend and UI separate domain rules, use cases, adapters and presentation; tests enforce dependency direction
 
@@ -27,6 +27,7 @@ uv sync --locked --group data --group models --group notebook --group tracking
 | Topic | Document, currently in Japanese |
 | --- | --- |
 | Recommenders, shared API, and future LLM/Agent orchestration | [Recommendation architecture](docs/architecture.md) |
+| Optional Decisions, LangGraph and LangSmith adapters; synthetic rehearsal | [LLM/Agent foundation](docs/llm-agent-evaluation.md) |
 | Phase 2–4 responsibilities, contract reuse, and missing components | [Recommendation extension design](docs/recommendation-design.md) |
 | Five-person exploratory assignment, researcher analysis, CSV/JSON exports | [Online comparison protocol](docs/online-comparison.md) |
 | Modules, Notebook/CLI execution, outputs, and development | [Code and execution workflow](docs/experiment-workflow.md) |

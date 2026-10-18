@@ -1,9 +1,10 @@
 # music-recsys
 
 - [English](README.en.md)
+- [Macで実際のUIを確認する](docs/mac-preview.md) / 遠隔公開はCloudflare Tunnel＋Access（公開URLはMac側の設定後に掲載）
 - 従来型推薦・LLM/Agentによる戦略選択を比較する音楽推薦の研究用リポジトリ
 - Python 3.12・uv・Parquetによるオフライン評価、React＋TypeScript＋FastAPIの試聴MVP
-- LLM/Agentは未実装、Music4Allはデータ提供の連絡を受領、ファイル受領・ID接続・Web試聴条件の確認はこれから
+- LLM/Agentは研究用検証基盤のみ実装、参加者UI・実APIへ未接続。Music4AllのID接続・Web試聴条件は確認が必要
 
 - バックエンドとUIはドメイン・ユースケース・技術依存・表示へ分離、依存方向をテストで検証する
 
@@ -27,6 +28,7 @@ uv sync --locked --group data --group models --group notebook --group tracking
 | --- | --- |
 | 推薦器・共通API・将来のLLM/Agent | [推薦システムのアーキテクチャ](docs/architecture.md) |
 | Phase 2〜4の責務分離・既存契約の再利用・不足機能 | [推薦拡張設計](docs/recommendation-design.md) |
+| Decisions・LangGraph・LangSmithの任意Adapterと合成検証 | [LLM/Agent検証基盤](docs/llm-agent-evaluation.md) |
 | コード構成・Notebook/CLI・保存先・開発 | [コード構成・実行フロー](docs/experiment-workflow.md) |
 | 取得元・checksum・提供状況 | [データ出典](docs/data-sources.md) |
 | UI/API・データ配置/容量・Mac Docker・Tunnel/Access | [アプリ全体のアーキテクチャ](docs/app-architecture.md) |
@@ -34,7 +36,7 @@ uv sync --locked --group data --group models --group notebook --group tracking
 | オンライン指標の式・分母/分子・欠測と集計CLI | [オンライン指標](docs/online-metrics.md) |
 | 5人・通常3条件/戦略2条件の割当・研究者分析・CSV/JSON | [オンライン比較実験](docs/online-comparison.md) |
 | 試聴・任意評価・将来のReactive Agentの画面と公平性 | [オンラインUI/UX](docs/online-ux.md) |
-| 再訪・長期嗜好の追加同意・確認/修正/削除 | [長期嗜好管理](docs/participant-profile.md) |
+| 再訪・長期嗜好の同意・確認/修正/削除 | [長期嗜好管理](docs/participant-profile.md) |
 | 正解/候補・Recall/NDCG・多様性・効率・欠測 | [オフライン評価指標](docs/listening-evaluation.md) |
 | 単独→多段階→LLM選択→Reactive Agentの4フェーズ・未決事項 | [研究計画](docs/research-plan.md) |
 | 既存実験の観測・仮説 | [考察](docs/discussion.md) |
@@ -53,6 +55,7 @@ uv sync --locked --group data --group models --group notebook --group tracking
 - 研究室は学習・オフライン評価、MacのDocker 1コンテナでReact＋FastAPIを配信、Pages/Workersは不要
 - Mac版はZIPを展開して`bash deploy/mac.sh start`でローカル確認、遠隔用は`start-remote`＋MacホストのCloudflare Tunnel/Access
 - [Macプレビュー手順](docs/mac-preview.md)で、参加者画面と研究者のオンライン分析画面を同じMacから確認できる
+- 遠隔公開URLはMacのTunnel/Access設定後にここへ掲載する。現在のZIP確認にPages/Workersは使わない
 - 学習データ/評価結果は研究室、元データ・配信モデル・必要曲の情報/MP3・被験者評価/操作ログはMacへ配置する方針、実転送は未実施
 - 参加者ログの保存・保持期間・再開は[オンライン評価](docs/online-study.md#保存権限削除)、容量と転送手順は[アプリ構成](docs/app-architecture.md)
 - 研究室の外部公開・ポート開放は禁止、遠隔接続の実地検証はMacで行う

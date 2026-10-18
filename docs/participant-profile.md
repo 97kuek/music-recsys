@@ -4,9 +4,9 @@
 
 - participant_idは仮名ユーザー、session_idは1回のWeb利用、request_idは1つの推薦リストを識別する
 - 既存の参加コード・本人cookie・SQLiteのparticipants/sessionsを再利用し、新しい常駐DBは導入しない
-- 説明版local-ui-v5に、長期嗜好の保存・後日の再利用に対する任意の追加同意を設ける
-- 追加同意なしでもセッション内の試聴・評価を利用できる。v5ではそのセッションの行動を長期嗜好へ使わない
-- 旧v2/v3/v4のログから長期利用の同意を推定しない。既存の進行中セッションは元の同意範囲で再開する
+- 説明版local-ui-v6は長期嗜好の保存・後日の再利用を説明の1・2へ統合し、開始操作で同意を取得する。別チェック欄は置かない
+- 詳細は右上の「？」で参照し、初期画面にも保存・再利用の要約を表示する。初回は発行コードを前面で確認してから進む
+- 旧v2〜v5のログから新しい同意を推定しない。v5の任意追加同意なしの記録・進行中セッションは元の範囲を維持する
 - 期限は参加者登録時に固定し、再訪で延長しない。旧セッションの期限も変更しない
 - 自由文保存や外部API送信は別同意が必要。現在の参加者画面は両方を行わない
 - 新説明も開発用であり、実参加者での研究利用に必要な説明・音源条件・保持/分析規程を代替しない
@@ -21,7 +21,7 @@
 
 - 生の行動履歴は既存セッション保存を正本とし、別の履歴JSONへ二重コピーしない
 - Like・プロフィール取得/編集・新セッション開始で導出を更新し、derived_profileへ処理版・計算時刻・カタログ出典・根拠付き曲/artistを保存する
-- 長期嗜好の導出は同一participant・期限内・追加同意あり・同じconfig出典の履歴に限定する
+- 長期嗜好の導出は同一participant・期限内・保存/再利用への同意あり・同じconfig出典の履歴に限定する
 - 別カタログのIDや旧ログを無断で対応付けず、利用できない情報を合成データで埋めない
 
 ## 初期の抽出方法
@@ -37,7 +37,7 @@
 
 ```mermaid
 flowchart LR
-    C[追加同意・参加コード/本人cookie] --> P[同じparticipant_id]
+    C[保存/再利用への同意・参加コード/本人cookie] --> P[同じparticipant_id]
     P --> S[新しいsession_id]
     H[期限内・同意済みの履歴] --> D[Like集合と根拠を導出]
     D --> F[開始時の嗜好スナップショット]
@@ -74,8 +74,8 @@ flowchart LR
 
 | 契約 | 用途 |
 | --- | --- |
-| POST /api/sessions | local-ui-v5・persist・long_term_consentを明示して開始/再開 |
-| GET /api/profile/long-term | 本人cookieと追加同意がある場合だけ履歴/設定/導出/根拠を返す |
+| POST /api/sessions | local-ui-v6・persist・long_term_consent=trueを明示して開始/再開。旧版も互換読込み |
+| GET /api/profile/long-term | 本人cookieと保存/再利用への同意がある場合だけ履歴/設定/導出/根拠を返す |
 | PUT /api/profile/long-term | items・artists・excluded_itemsを次セッション用に保存 |
 | DELETE /api/session | 本人の全参加データ・履歴・プロフィールを削除 |
 | PUT /api/session/context | 研究者起動だけの記録用契約。選択肢＋別同意のある自由文を保存し、推論は行わない |
@@ -83,4 +83,4 @@ flowchart LR
 - Session Contextの候補値はcalmer/more_energy/different_style、自由文は最大500文字。研究での質問語句の採用ではない
 - 調整フォーム・自由文の参加者収集・外部API・Agentは未公開。研究者契約だけで実参加者への有効化条件を満たしたとはしない
 - [Applicationサービス](../src/application/study/preferences.py) / [純粋な導出](../src/domain/study/preferences.py) / [SQLite](../src/infrastructure/persistence/sessions.py) / [HTTP](../src/interfaces/http/profiles.py)
-- [テスト](../tests/test_online_preferences.py)は追加同意・再訪・分離・修正・期限・削除・旧ログを一時DBで確認する
+- [テスト](../tests/test_online_preferences.py)は統合同意・旧追加同意・再訪・分離・修正・期限・削除を一時DBで確認する

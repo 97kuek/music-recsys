@@ -338,7 +338,7 @@ class SessionLog:
         return copy.deepcopy(
             {
                 "schema_version": 2
-                if self.session.consent_version == "local-ui-v5"
+                if self.session.consent_version in {"local-ui-v5", "local-ui-v6"}
                 or any(e.get("event_version") == 2 for e in self._events.values())
                 else 1,
                 "session": session,

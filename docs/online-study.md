@@ -8,7 +8,7 @@
 - オフラインは履歴の予測、オンラインは実際の受け取り方を調べる。オンライン主指標はリスト満足度1〜5、測定定義は[オンライン指標](online-metrics.md)
 - 最大5人・通常3条件/将来の戦略2条件の探索的比較、固定割当・研究者分析・CSV/JSONは[比較実験](online-comparison.md)
 - 従来型/単発LLMの共通UIと将来のReactive Agent、同等feedback機会の比較は[UI/UX](online-ux.md)、研究順序は[4フェーズ](research-plan.md#研究の4フェーズ)
-- 継続利用の追加同意・履歴/嗜好/Session Contextの分離・本人修正/削除は[長期嗜好管理](participant-profile.md)
+- 継続利用の同意・履歴/嗜好/Session Contextの分離・本人修正/削除は[長期嗜好管理](participant-profile.md)
 - 参加者画面にモデル名・パラメータ・推論経路・Validation表を表示しない
 - 配信はMacのReact＋FastAPI 1コンテナとTunnel/Access、[構成・保存先・容量](app-architecture.md)に従う
 
@@ -114,8 +114,8 @@ MUSIC_RECSYS_TEST_LIFECYCLE_UI=1 .venv/bin/pytest -q tests/test_event_delivery_b
 | 再起動後 | 保存同意あり・期限内・同じconfig/計画/公開範囲なら復元、同じcookieまたは参加コードで再開 |
 | 管理者の取得 | 生ログはMac上のCLI。仮名化集計はローカル研究者画面/API・読取り専用CLIで取得 |
 
-- 同意UIはlocal-ui-v5、長期再利用は任意の追加同意。保持日数未設定時は新規参加できず、旧v2/v3/v4は読込み互換を維持
-- 新UIは説明文の末尾までスクロールし、ログ保存へ同意後に開始する、拒否時は開始しない
+- 同意UIはlocal-ui-v6、長期保存/再利用を説明の1・2へ統合。保持日数未設定時は新規参加できず、旧v2〜v5の同意範囲・読込み互換を維持
+- 初期画面は新規利用/参加コード入力。右上の「？」へ詳細説明を置き、開始付近の要約と同意表示を経て利用開始する。発行コードは前面で確認する
 - 退室と本人データ削除は区別し、削除は参加コード・関連セッション・プロフィールにも適用する
 - サーバー停止中は削除タイマーが動かない、再起動時に期限切れを削除する
 - `secure_delete=ON`はSQLite内の削除補助であり、SSD・OSバックアップの完全消去保証ではない

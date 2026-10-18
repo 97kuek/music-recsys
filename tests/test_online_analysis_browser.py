@@ -55,7 +55,9 @@ def test_actual_researcher_analysis_and_download(tmp_path, width):
         expect(panel.get_by_text("参加者 2人 / 2セッション", exact=False)).to_be_visible()
         expect(panel.get_by_role("img", name="初回満足度の参加者平均", exact=True)).to_be_visible()
         expect(panel.get_by_role("img", name="参加者ごとの初回満足度", exact=True)).to_be_visible()
-        expect(panel.get_by_text("LLM/Agent：実行本体は未実装。", exact=False)).to_be_visible()
+        expect(
+            panel.get_by_text("LLM/Agent：参加者向け実行は未接続。", exact=False)
+        ).to_be_visible()
         expect(panel.get_by_role("img", name="条件別の総API料金（USD）", exact=True)).to_have_count(
             0
         )

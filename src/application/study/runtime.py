@@ -27,8 +27,8 @@ class Runtime:
         scope=None,
         clock: Clock | None = None,
     ):
-        if config.get("mode") not in ("demo", "music4all", "jamendo"):
-            raise ValueError("mode must explicitly be demo, music4all or jamendo")
+        if config.get("mode") not in ("demo", "music4all"):
+            raise ValueError("mode must explicitly be demo or music4all")
         clock = clock or (lambda: system_clock.utc_now())
         self.config = config
         self.lock = RLock()

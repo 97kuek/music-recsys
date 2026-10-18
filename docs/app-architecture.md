@@ -26,7 +26,7 @@ flowchart LR
 - Pages・Workersは使用しない、cloudflaredはMacのホストで動かし、Dockerはアプリ1コンテナだけ
 - 学習/評価はバッチ、アプリは保存済みモデルを起動時に検証ロードしてリアルタイム推論する
 - APIリクエストごとの学習・重み再読込み・モデル選択の自動確定は行わない
-- 任意のリスト評価・新規発見・保存嗜好の[UI/UX](online-ux.md)は実装済み。多段階/LLM/Reactive Agentの[推薦拡張](recommendation-design.md)は未実装、配置方針は維持する
+- 任意評価・新規発見・保存嗜好の[UI/UX](online-ux.md)は実装済み。[LLM/Agent基盤](llm-agent-evaluation.md)は研究用CLIのみ、参加者画面と多段階推薦へ未接続
 - 研究室サーバーの外部公開・ポート開放・Tunnel起動は禁止、Mac側の遠隔設定と分離する
 
 ## 保存先・コンポーネント
@@ -98,8 +98,8 @@ bash deploy/mac.sh stop
 .venv/bin/python -m src.interfaces.cli.online_bundle \
   --config data/app/demo/config.json --study deploy/demo-study.json --output data/app/mac-demo-new
 .venv/bin/python -m src.interfaces.cli.online_distribution \
-  --root . --bundle data/app/mac-demo-new --version 0.4.0 \
-  --output data/app/music-recsys-mac-0.4.0.zip
+  --root . --bundle data/app/mac-demo-new --version 0.4.2-demo \
+  --output data/app/music-recsys-mac-0.4.2-demo.zip
 ```
 
 - 作成先は新規だけ、既存ZIP/bundleを上書きしない、元履歴・評価JSON・ログ・認証情報を配布へ混ぜない
@@ -170,9 +170,6 @@ uv sync --locked --group app --group data --group models
 - permissionは`web_preview=true`・`access_scope=restricted-study`・確認済み`evidence_ref`・timezone付き`expires_at`・明示`item_ids`
 - 許諾JSONは確認済み条件の記録であり、それ自体が法的許諾を発生させるものではない
 - mediaは新bundleへコピー/hash検証、モデルの絶対参照を残すので別ホストへ移す場合はbundle化する
-- 外部サービスPoCは既定と分離、`catalog_poc` / `jamendo_poc` / `listenbrainz_poc --help`で明示操作する
-- JamendoはAPI承認待ち、ListenBrainz履歴は音源配信権を含まず、未許諾の外部データを学習可能と推測しない
-- 公式資料: [Jamendo tracks/規約](https://developer.jamendo.com/v3.0/tracks) / [規約](https://devportal.jamendo.com/api_terms_of_use) / [ListenBrainz](https://listenbrainz.org/data/) / [FMA](https://github.com/mdeff/fma)
 
 ## Cloudflare Tunnel / Accessでの遠隔接続
 

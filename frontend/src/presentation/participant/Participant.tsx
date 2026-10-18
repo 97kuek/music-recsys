@@ -16,6 +16,7 @@ export function Participant({ status }: { status: Status }) {
     setExpanded,
     phase,
     recoveryCode,
+    pendingRegistration, confirmRegistration,
     registered,
     active,
     finished,
@@ -54,11 +55,11 @@ export function Participant({ status }: { status: Status }) {
     toggle,
   } = useParticipantSession(status);
   return <div className="participant app-shell">
-    <header><a className="brand" href="/" aria-label="music-recsys"><img src="/favicon.svg" width="28" height="28" alt="" /> music-recsys</a><div className="header-actions">{active && registered && longTermConsent && <SavedPreferences onDelete={remove} />}<Information status={status} code={recoveryCode} onCode={registered ? rotateCode : undefined} onDelete={remove} />{active && <button className="icon-button" aria-label="退室する" title="退室する" disabled={busy} onClick={logout}><MediaIcon name="exit" /></button>}</div></header>
+    <header><a className="brand" href="/" aria-label="music-recsys"><img src="/favicon.svg" width="28" height="28" alt="" /> music-recsys</a><div className="header-actions">{active && registered && longTermConsent && <SavedPreferences onDelete={remove} />}<Information status={status} code={recoveryCode} onCode={registered ? rotateCode : undefined} onDelete={active ? remove : undefined} />{active && <button className="icon-button" aria-label="退室する" title="退室する" disabled={busy} onClick={logout}><MediaIcon name="exit" /></button>}</div></header>
     <main>
       {message && <div className="notice" role="status" aria-live="polite">{message}</div>}
       {!status.ready && <p className="notice">ただいま準備中です。</p>}
-      {!active ? <Consent localOnly={status.logging_mode === 'browser-memory'} retentionDays={status.retention_days} onAccept={start} disabled={busy || !status.ready} />
+      {!active ? <Consent localOnly={status.logging_mode === 'browser-memory'} retentionDays={status.retention_days} onAccept={start} onContinue={confirmRegistration} issuedCode={pendingRegistration?.participant_code} message={message} disabled={busy || !status.ready} />
       : finished ? <section className="screen completion"><h1 id="step-heading" tabIndex={-1}>終了しました</h1><p className="muted">この画面を閉じても記録は保存されます</p><button className="primary" onClick={() => start()} disabled={busy}>もう一度</button><button className="quiet" onClick={logout} disabled={busy}>退室する</button></section>
       : phase === 'profile' ? <section className="screen">
         <div className="section-heading"><h1 id="step-heading" tabIndex={-1}>曲を選択</h1><span className="muted">{profile.items.length}曲選択中</span></div>

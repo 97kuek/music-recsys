@@ -7,7 +7,6 @@ from pathlib import Path
 from src.application.study.runtime import Runtime
 from src.domain.recommendation.models import ModelSpec
 from src.infrastructure.datasets.listening_data import file_sha256
-from src.infrastructure.media.jamendo import JamendoPlayback
 from src.infrastructure.media.playback import AudioAsset, LocalPlayback
 from src.infrastructure.models.model_artifacts import load_model
 from src.infrastructure.persistence.sessions import LocalStore
@@ -63,7 +62,7 @@ def create_runtime(config_path, *, database, study=None, scope=None):
             datetime.fromisoformat(meta["expires_at"]),
             meta["sample"],
         )
-    playback = JamendoPlayback(records) if config["mode"] == "jamendo" else LocalPlayback(assets)
+    playback = LocalPlayback(assets)
     return Runtime(
         config=config,
         config_sha256=file_sha256(path),

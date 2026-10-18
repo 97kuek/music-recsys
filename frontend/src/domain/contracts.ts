@@ -8,13 +8,12 @@ export type Movement = 'next' | 'previous' | 'direct';
 export type ListEvaluation = { rating?: number; discovery_status: 'unanswered' | 'none' | 'selected'; discovery_item_ids: string[]; observation_complete: boolean };
 export type EventInput = { request_id: string; kind: string; item_id?: string; rating?: number; playback_id?: string; position_seconds?: number; listened_seconds?: number; response_latency_ms?: number; display_latency_ms?: number; event_version?: 1 | 2; movement?: Movement; target_item_id?: string; was_playing?: boolean; discovery_status?: ListEvaluation['discovery_status']; discovery_item_ids?: string[]; observation_complete?: boolean };
 
-// Jamendo resolves current availability when the user requests a preview.
-export const canPreview = (track: Track) => track.playback_status === 'available' || track.provider === 'jamendo';
+export const canPreview = (track: Track) => track.playback_status === 'available';
 
 
 export type Phase = 'profile' | 'listen' | 'evaluate';
 export type Profile = { items: string[]; artists: string[] };
-export type Session = { phase: Phase; period: number; periods: number; finished: boolean; profile: Profile; recommendation: Recommendation | null; actions?: string[]; registered?: boolean; participant_code?: string; list_evaluation?: ListEvaluation | null; long_term_consent?: boolean; profile_requires_selection?: boolean; profile_locked?: boolean };
+export type Session = { phase: Phase; period: number; periods: number; finished: boolean; profile: Profile; recommendation: Recommendation | null; actions?: string[]; registered?: boolean; participant_code?: string; consent_version?: string; list_evaluation?: ListEvaluation | null; long_term_consent?: boolean; profile_requires_selection?: boolean; profile_locked?: boolean };
 export type CatalogPage = { tracks: Track[]; artists: string[]; total: number };
 export type Playback = { playback_id?: string; url: string; external?: boolean; license_url?: string };
 export type StartCommand = { persist: boolean; allow_text?: boolean; consent_version?: string; participant_code?: string; long_term_consent?: boolean };

@@ -28,9 +28,9 @@ class Body(BaseModel):
 
 
 class Start(Body):
-    consent_version: Literal["local-ui-v2", "local-ui-v3", "local-ui-v4", "local-ui-v5"] | None = (
-        None
-    )
+    consent_version: (
+        Literal["local-ui-v2", "local-ui-v3", "local-ui-v4", "local-ui-v5", "local-ui-v6"] | None
+    ) = None
     persist: bool = False
     participant_code: str | None = Field(default=None, min_length=1, max_length=64)
     allow_text: bool = False
@@ -178,6 +178,7 @@ def create_app(
         return {
             "session_id": current.log.session.session_id,
             "registered": current.registered,
+            "consent_version": current.log.session.consent_version,
             "expires_at": current.log.session.retain_until.isoformat(),
             "phase": current.phase,
             "period": current.period + 1,
@@ -262,7 +263,7 @@ def create_app(
                 else "no-store",
                 "X-Content-Type-Options": "nosniff",
                 "Referrer-Policy": "no-referrer",
-                "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://*.jamendo.com https://*.jamendousercontent.com; media-src 'self' https://*.jamendo.com https://*.jamendousercontent.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
+                "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
             }
         )
         return response
@@ -582,11 +583,7 @@ def main():
     parser.add_argument("--audience", choices=["participant", "researcher"], default="participant")
     parser.add_argument("--model-version", help="通常モード用の明示設定。採用設定の確定ではない")
     parser.add_argument("--study", type=Path, help="サーバー側の比較計画JSON")
-    parser.add_argument("--jamendo-env-file", type=Path)
     args = parser.parse_args()
-    from src.infrastructure.media.jamendo import configure_credentials
-
-    configure_credentials(args.jamendo_env_file)
     if args.host not in {"127.0.0.1", "localhost"} and not setting("API_TOKEN"):
         parser.error("external binding requires MUSIC_RECSYS_API_TOKEN and explicit origins")
     uvicorn.run(

@@ -10,7 +10,7 @@ class PreferenceService:
     def view(self, token):
         session = self.sessions.get(token)
         if not session.registered or not session.long_term_consent:
-            raise PermissionError("長期嗜好の保存・再利用への追加同意が必要です")
+            raise PermissionError("長期嗜好の保存・再利用への同意が必要です")
         return self.for_participant(session.profile.user_id)
 
     def for_participant(self, participant_id):
@@ -62,7 +62,7 @@ class PreferenceService:
                 "artists": profile.get("selected_artist_ids", []),
             },
             "excluded_items": profile.get("excluded_items", []),
-            "consent": profile.get("long_term_permission"),
+            "consent": participant["profile"].get("long_term_permission"),
             "retain_until": participant["expires_at"],
         }
 

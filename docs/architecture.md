@@ -47,11 +47,10 @@ flowchart LR
 | UserCF | 本人を除く類似ユーザーの既聴曲へ近傍重みを加算 | 小規模共通Runner |
 | Implicit ALS | 信頼度付き行列分解、ユーザー・楽曲因子の内積 | 小規模・全件CPU/GPU・配信 |
 | BPR-MF | 観測正例を未観測負例より高くするペア学習、因子内積 | 小規模・全件CPU/GPU・配信 |
-| Content | 学習カタログのタグTF-IDFと履歴プロファイルのCosine | 小規模・全件GPU評価・Jamendoタグ配信 |
+| Content | 学習カタログのタグTF-IDFと履歴プロファイルのCosine | 小規模・全件GPU評価・タグ特徴モデルの配信 |
 | Hybrid | ItemCF/UserCFとContentの順位を重み付きRRFで融合 | 小規模共通Runner |
 
 - Contentの曲類似は聴取履歴由来のItemCFと区別する
-- MTG-Jamendo/FMAの曲特徴だけではユーザー×楽曲履歴を作れない
 - 楽曲統計・タグ頻度を、ユーザー履歴のPopularity/協調フィルタと読み替えない
 - 同点は原則として学習再生回数降順・item_id昇順、Popularityはスコア降順・item_id昇順
 - 根拠不足のPopularity補完と実際の推論経路を記録し、方式固有の成果として数えない
@@ -74,7 +73,7 @@ flowchart LR
 - CPU/GPUのsolver・精度・並列更新順の違いを出典へ残し、seed固定でもビット一致を保証しない
 - 長時間計算前にホスト側の`nvidia-smi`を確認し、空いていれば対応GPU実装を優先する
 - 学習だけでなく順位付け・指標集計・bootstrapもGPU化の対象とする
-- 全件Contentの疎行列モデルexportは未実装、既存Jamendo Content配信とは別経路
+- 全件Contentの疎行列モデルexportは未実装、タグ特徴JSONの小規模配信とは別経路
 
 ## 共通契約
 
@@ -124,7 +123,7 @@ flowchart TB
     S -.-> A
 ```
 
-- 現行は固定/比較割当Strategy。ルール/LLM/Agentと汎用多段階は未実装、小規模Hybridのみ既存
+- 配信は固定/比較割当Strategy。[LLM/Agent検証基盤](llm-agent-evaluation.md)は研究用CLIのみで、配信UI/HTTPへ未接続。ルール/汎用多段階は未実装
 - Phase 1単独→2多段階→3LLM戦略選択→4Reactive Agentの順で検証する
 - Decisionsを活用する方向は確定し、判断の型とアプリによる実行責務は[拡張設計](recommendation-design.md#decisions-apiとagentの境界)へ集約する
 - 単発LLMは直接の楽曲ランキング生成を主目的とせず、登録済み処理を選択する。推薦器/完成パイプラインの選択粒度は未確定

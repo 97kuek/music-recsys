@@ -71,10 +71,8 @@ def live_app(tmp_path_factory):
 def begin_playback(page):
     page.goto("/")
     page.get_by_role("heading", name="はじめに", exact=True).wait_for()
-    page.locator(".consent-copy").evaluate(
-        "el => {el.scrollTop=el.scrollHeight;el.dispatchEvent(new Event('scroll'))}"
-    )
-    page.get_by_role("button", name="同意して進む", exact=True).click()
+    page.get_by_role("button", name="初めて利用する", exact=True).click()
+    page.get_by_role("button", name="参加コードを控えて進む", exact=True).click()
     page.locator(".select-song").first.click()
     page.get_by_role("button", name="選択して次へ", exact=True).click()
     page.locator(".recommendations .track-open").first.click()

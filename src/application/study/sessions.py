@@ -62,10 +62,14 @@ class SessionService:
         participant=None,
         long_term_consent=False,
     ):
+        if consent_version == "local-ui-v6" and not long_term_consent:
+            raise ValueError("この説明版では長期嗜好の保存・再利用を含む同意が必要です")
         if long_term_consent and (
-            not persist or participant is None or consent_version != "local-ui-v5"
+            not persist
+            or participant is None
+            or consent_version not in {"local-ui-v5", "local-ui-v6"}
         ):
-            raise ValueError("長期嗜好には参加者登録と追加同意が必要です")
+            raise ValueError("長期嗜好には参加者登録と保存・再利用への同意が必要です")
         current = self.clock()
         self.expire()
         if len(self.active) >= 100:
@@ -90,7 +94,7 @@ class SessionService:
             )
         )
         profile = participant["profile"] if participant else {}
-        if consent_version == "local-ui-v5" and not long_term_consent:
+        if consent_version in {"local-ui-v5", "local-ui-v6"} and not long_term_consent:
             profile = {}
         if profile.get("catalog_key") != self.resume_context["config_sha256"]:
             profile = {}
@@ -153,7 +157,9 @@ class SessionService:
         inputs = session.assignment.get("input")
         if inputs is not None:
             if inputs.get("long_term_consent") and not session.long_term_consent:
-                raise ValueError("固定した比較入力の再利用には長期嗜好の追加同意が必要です")
+                raise ValueError(
+                    "固定した比較入力の再利用には長期嗜好の保存・再利用への同意が必要です"
+                )
             profile = inputs["profile"]
             session.profile = InitialProfile(
                 session.profile.user_id,
@@ -254,9 +260,13 @@ class SessionService:
     ):
         old = old_token
         participant, code = None, None
-        if long_term_consent and (consent_version != "local-ui-v5" or not persist):
+        if consent_version == "local-ui-v6" and not long_term_consent:
+            raise ValueError("この説明版では長期嗜好の保存・再利用を含む同意が必要です")
+        if long_term_consent and (
+            consent_version not in {"local-ui-v5", "local-ui-v6"} or not persist
+        ):
             raise ValueError("長期嗜好には新しい説明版と保存同意が必要です")
-        if consent_version in {"local-ui-v4", "local-ui-v5"}:
+        if consent_version in {"local-ui-v4", "local-ui-v5", "local-ui-v6"}:
             if not persist:
                 raise ValueError("この説明版ではログ保存への同意が必要です")
             if participant_code:
@@ -286,13 +296,14 @@ class SessionService:
                 participant, code = self.participants.issue(
                     expires_at=self.clock() + timedelta(days=retention_days), now=self.clock()
                 )
-            if consent_version == "local-ui-v5" and long_term_consent:
+            if consent_version in {"local-ui-v5", "local-ui-v6"} and long_term_consent:
                 previous = participant["profile"]
                 permission = previous.get("long_term_permission") or {
                     "version": "long-term-v1",
                     "granted_at": self.clock().isoformat(),
                     "retain_until": participant["expires_at"],
                 }
+                permission = {**permission, "consent_version": consent_version}
                 self.store.update_participant_profile(
                     participant["participant_id"],
                     {**previous, "long_term_permission": permission},
@@ -334,7 +345,8 @@ class SessionService:
             current.profile_snapshot.update(confirmed_items=items, confirmed_artists=artists)
         self.save(token, current)
         if current.registered and (
-            current.long_term_consent or current.log.session.consent_version != "local-ui-v5"
+            current.long_term_consent
+            or current.log.session.consent_version not in {"local-ui-v5", "local-ui-v6"}
         ):
             self.participants.save_profile(
                 current.profile.user_id,

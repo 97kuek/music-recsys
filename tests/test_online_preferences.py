@@ -247,6 +247,32 @@ def test_consent_is_not_inferred_from_old_or_nonconsented_logs(app):
         assert c.get("/api/session/state").json()["profile"]["items"] == []
 
 
+def test_integrated_consent_issues_code_and_requires_explicit_agreement(app):
+    with TestClient(app, headers={"X-Music-App": "1"}) as c:
+        body = {"consent_version": "local-ui-v6", "persist": True}
+        assert c.post("/api/sessions", json=body).status_code == 400
+        with app.state.runtime.sessions.store.connect() as db:
+            assert db.execute("SELECT count(*) FROM participants").fetchone()[0] == 0
+        response = c.post("/api/sessions", json={**body, "long_term_consent": True})
+        response.raise_for_status()
+        first = response.json()
+        assert first["participant_code"] and first["consent_version"] == "local-ui-v6"
+        assert first["registered"] and first["long_term_consent"]
+        assert snapshot(app, c)["schema_version"] == 2
+        participant_id = snapshot(app, c)["session"]["participant_id"]
+        profile = c.get("/api/profile/long-term").json()
+        assert profile["consent"]["consent_version"] == "local-ui-v6"
+        c.post("/api/session/logout").raise_for_status()
+        again = c.post(
+            "/api/sessions",
+            json={**body, "long_term_consent": True, "participant_code": first["participant_code"]},
+        )
+        again.raise_for_status()
+        assert again.json()["session_id"] != first["session_id"]
+        assert snapshot(app, c)["session"]["participant_id"] == participant_id
+        assert not again.json().get("participant_code")
+
+
 def test_delete_cascades_and_stale_save_cannot_resurrect_preferences(app):
     with TestClient(app, headers={"X-Music-App": "1"}) as c:
         first = start(c).json()

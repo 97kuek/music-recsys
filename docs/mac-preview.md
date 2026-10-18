@@ -13,7 +13,7 @@
 4. ターミナルで展開フォルダへ移動し、以下を実行する
 
 ```bash
-cd "$HOME/Downloads/music-recsys-mac-0.4.1-demo"
+cd "$HOME/Downloads/music-recsys-mac-0.4.2-demo"
 # デモ操作ログを既存の参加者データとは別の場所に保存する
 export MUSIC_RECSYS_STATE="$HOME/music-recsys/demo-online-state"
 export MUSIC_RECSYS_RETENTION_DAYS=1
@@ -34,14 +34,16 @@ bash deploy/mac.sh researcher
 ```mermaid
 flowchart LR
     Z[MacでZIP展開] --> D[Docker Desktopで起動]
-    D --> P[参加者: 説明・保存同意・好きな曲を選択]
-    P --> L[3条件を各5曲: 自由試聴・Like・任意評価]
+    D --> P[参加者: 新規 / 参加コード入力]
+    P --> C[初回: 発行コードを確認 → 曲を選択]
+    C --> L[3条件を各5曲: 自由試聴・Like・任意評価]
     L --> S[Macの一時的なデモ用SQLite]
     S --> R[研究者: 保存済みログを再集計]
     R --> E[満足度・行動・欠測・CSV/JSON]
 ```
 
-- 参加者画面で同意後、好きな曲を選び、3回の推薦リストを試す
+- 最初は「初めて利用する」または参加コード入力。説明と保存/再利用の同意内容は右上の「？」で確認する
+- 初回は発行されたコードを控えてから好きな曲を選び、3回の推薦リストを試す
 - 各リストの満足度と新規発見は任意回答。モデル名は参加者へ表示しない
 - 研究者画面の「オンライン比較実験の分析」を開き「保存済みログを再集計」を押す
 - 最初のデータは空。自分が操作した結果だけを表示し、架空の被験者結果を同梱しない
@@ -60,3 +62,9 @@ bash deploy/mac.sh stop
 - デモログは`~/music-recsys/demo-online-state/sessions.sqlite`、本人削除・保持期限の対象となる
 - 手動取得した分析コピーは自動削除されない。自分で保管/削除を管理する
 - Mac実機・Docker Desktopでの起動は利用者側で確認する。LinuxのCLI/ブラウザ試験とは区別する
+
+## 配布物と遠隔公開
+
+- ZIPとchecksumは`data/app/music-recsys-mac-0.4.2-demo.zip`と同じ階層に置く。配布物用の入れ子フォルダは作らない
+- 遠隔公開は[MacのTunnel/Access設定](app-architecture.md#cloudflare-tunnel--accessでの遠隔接続)を使う。Pages/Workersへデプロイしない
+- 公開ホスト名はMac側のTunnel設定で確定する。Access認証・本人削除・保持期限を確認後、READMEとGitHub Aboutへ掲載する

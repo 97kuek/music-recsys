@@ -41,7 +41,7 @@ flowchart LR
 | 明示要求後の再判断は有効か | 固定/単発とReactive Agentの比較、情報量・試聴機会・反復予算の差を明記 |
 | オフライン差は体験と対応するか | 履歴予測と[オンラインの受け取り方](online-metrics.md)を分離し、母集団・候補差を考慮 |
 
-- Decisions活用の方向以外のAPI/モデル/予算は別途選定。LLM/Agent・汎用多段階推薦は未実装、小規模Hybridの実装とは区別する
+- Decisionsの任意Adapter・LangGraph実行・LangSmith匿名traceは[研究用検証基盤](llm-agent-evaluation.md)に実装。参加者UI/実APIは未接続、モデル/予算・汎用多段階推薦は未採用
 - 新規発見=New Recall@20、再聴取=Repeat Recall@20、総合=混合Binary NDCG@20を選択用候補とする
 - 混合総合評価は未実装、採用モデル/主指標を勝手に固定せず、常に[4観点](listening-evaluation.md)を保存する
 
