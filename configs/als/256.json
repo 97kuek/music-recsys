@@ -2,7 +2,7 @@
   "extends": "../common.json",
   "experiment": {
     "name": "music4all-als-256",
-    "output": "../../data/experiments/als-256"
+    "output": "../../data/experiments/als/256"
   },
   "model": {
     "name": "als",

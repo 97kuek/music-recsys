@@ -18,8 +18,8 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, mo
     from src.infrastructure.evaluation.listening_benchmark import run_listening_benchmark
     from src.infrastructure.evaluation.tracking import TrackingConfig
     from src.infrastructure.recommenders import create_recommender
-    from src.interfaces.cli.experiment_search import load_study_config
-    from src.interfaces.cli.full_evaluation import run
+    from src.infrastructure.research.search import load_study_config
+    from src.interfaces.cli.evaluate import run
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
@@ -56,7 +56,7 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, mo
     )
     export_path = tmp_path / "deployed"
     output = run(path, export_path=export_path, model_version="integration-v1")
-    from src.infrastructure.models.model_artifacts import load_model
+    from src.infrastructure.models.artifacts import load_model
 
     spec, deployed = load_model(export_path)
     assert spec.version_id == "integration-v1"

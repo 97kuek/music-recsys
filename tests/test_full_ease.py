@@ -68,7 +68,7 @@ def test_ease_matches_constrained_ridge_and_candidate_rules(tmp_path):
 
 def test_ease_cpu_full_validation_is_complete_and_never_opens_test(tmp_path):
     from src.infrastructure.research.configuration import load_settings
-    from src.interfaces.cli.full_evaluation import run
+    from src.interfaces.cli.evaluate import run
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")

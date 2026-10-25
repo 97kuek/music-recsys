@@ -30,6 +30,7 @@ from src.infrastructure.evaluation.tracking import (
     TrackingError,
     TrackingResult,
 )
+from src.infrastructure.provenance import source_hash
 from src.infrastructure.recommenders import AVAILABLE_MODELS, create_recommender
 from src.infrastructure.research.usage import summarize_usage
 from src.paths import SOURCE_ROOT
@@ -141,15 +142,6 @@ def load_config(path: Path) -> BenchmarkConfig:
         )
     except (KeyError, TypeError) as error:
         raise ValueError("invalid benchmark configuration") from error
-
-
-def _source_sha256() -> str:
-    root = SOURCE_ROOT
-    checksum = hashlib.sha256()
-    for path in sorted(root.rglob("*.py")):
-        checksum.update(path.relative_to(root).as_posix().encode("utf-8") + b"\0")
-        checksum.update(path.read_bytes() + b"\0")
-    return checksum.hexdigest()
 
 
 def run_benchmark(
@@ -281,7 +273,7 @@ def _run_benchmark(
         python_version=platform.python_version(),
         package_version=version("music-recsys"),
         platform=platform.platform(),
-        source_sha256=_source_sha256(),
+        source_sha256=source_hash(),
         config_sha256=config_sha256,
         training_seconds=training_seconds,
         evaluation_conditions={

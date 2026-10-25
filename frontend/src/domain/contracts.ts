@@ -13,12 +13,10 @@ export const canPreview = (track: Track) => track.playback_status === 'available
 
 export type Phase = 'profile' | 'listen' | 'evaluate';
 export type Profile = { items: string[]; artists: string[] };
-export type Session = { phase: Phase; period: number; periods: number; finished: boolean; profile: Profile; recommendation: Recommendation | null; actions?: string[]; registered?: boolean; participant_code?: string; consent_version?: string; list_evaluation?: ListEvaluation | null; long_term_consent?: boolean; profile_requires_selection?: boolean; profile_locked?: boolean };
+export type Session = { phase: Phase; period: number; periods: number; finished: boolean; profile: Profile; recommendation: Recommendation | null; actions?: string[]; registered?: boolean; consent_version?: string; list_evaluation?: ListEvaluation | null; profile_locked?: boolean };
 export type CatalogPage = { tracks: Track[]; artists: string[]; total: number };
 export type Playback = { playback_id?: string; url: string; external?: boolean; license_url?: string };
-export type StartCommand = { persist: boolean; allow_text?: boolean; consent_version?: string; participant_code?: string; long_term_consent?: boolean };
-export type PreferenceTrack = { item_id: string; title: string | null; artists: string[]; evidence?: {session_id: string; request_id: string; event_id: string}[] };
-export type Preferences = { method: string; user_settings: Profile; inferred_tracks: PreferenceTrack[]; user_tracks: PreferenceTrack[]; excluded_tracks: PreferenceTrack[]; inferred_artists: {artist:string; liked_item_ids:string[]}[]; excluded_items: string[]; retain_until: string; history: {session_id:string}[] };
+export type StartCommand = { persist: boolean; allow_text?: boolean; consent_version?: string };
 export type RecommendCommand = { version?: string; goal: string; top_k: number; text?: string };
 export function toggleSelection(profile: Profile, field: keyof Profile, value: string): Profile {
   return { ...profile, [field]: profile[field].includes(value) ? profile[field].filter(x => x !== value) : [...profile[field], value].slice(0, field === 'items' ? 30 : 10) };

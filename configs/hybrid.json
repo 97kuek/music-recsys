@@ -1,0 +1,58 @@
+{
+  "extends": "common.json",
+  "experiment": {
+    "name": "music4all-hybrid",
+    "output": "../data/experiments/hybrid/validation"
+  },
+  "model": {
+    "name": "hybrid",
+    "parameters": {}
+  },
+  "pipeline": {
+    "top_m": 100,
+    "retrieval_m": 200,
+    "c": 60.0,
+    "weights": [
+      1.0,
+      1.0
+    ],
+    "tie_tolerance": 1e-12,
+    "lambdas": [
+      1.0,
+      0.8,
+      0.5
+    ],
+    "bpr_seeds": [
+      42,
+      43,
+      44
+    ],
+    "sources": {
+      "ease": {
+        "validation": "../data/experiments/ease/l500",
+        "rationale": "Existing Validation baseline; regularization/coverage tradeoff retained"
+      },
+      "bpr": {
+        "validation": "../data/experiments/bpr/500epoch/f128-s{seed}",
+        "rationale": "Existing Validation complementarity baseline; three paired saved seeds"
+      },
+      "bm25": {
+        "validation": "../data/experiments/bm25/20",
+        "rationale": "Predeclared Validation baseline n20/k1.2/b0.75; not selected on Test"
+      },
+      "content": {
+        "validation": "../data/experiments/content/sensitivity/idf1-log_count",
+        "rationale": "Validation IDF/history-aggregation comparison; not selected on Test"
+      }
+    }
+  },
+  "search": {
+    "stage": "B",
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "max_trials": 18
+  }
+}

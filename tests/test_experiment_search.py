@@ -22,7 +22,7 @@ def fixture_factory(name, interactions, *, parameters=None, seed=0):
 
 
 def test_smoke_required_and_grid_reuses_successes(study):
-    from src.interfaces.cli.experiment_search import run_search, select_best, smoke
+    from src.infrastructure.research.search import run_search, select_best, smoke
 
     config = study()
     with pytest.raises(ValueError, match="Smoke"):
@@ -41,7 +41,7 @@ def test_smoke_required_and_grid_reuses_successes(study):
 
 
 def test_two_parameter_grid_budget_and_resume(study):
-    from src.interfaces.cli.experiment_search import run_search, select_best, smoke
+    from src.infrastructure.research.search import run_search, select_best, smoke
 
     config = study(grid="reverse=[false,true]\noffset=[0,1]", budget=2, stage="B")
     smoke(config, factory=fixture_factory)
@@ -57,7 +57,7 @@ def test_two_parameter_grid_budget_and_resume(study):
 
 
 def test_missing_primary_metric_never_selects(study):
-    from src.interfaces.cli.experiment_search import run_search, select_best, smoke
+    from src.infrastructure.research.search import run_search, select_best, smoke
 
     config = study(objective=False)
     smoke(config, factory=fixture_factory)
@@ -67,7 +67,7 @@ def test_missing_primary_metric_never_selects(study):
 
 
 def test_selection_review_and_lock_are_required_before_test(study):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         freeze_selection,
         review_selection,
         run_final_test,
@@ -94,7 +94,7 @@ def test_selection_review_and_lock_are_required_before_test(study):
 
 
 def test_changed_data_or_selection_cannot_be_reused(study):
-    from src.interfaces.cli.experiment_search import load_study, run_search, select_best, smoke
+    from src.infrastructure.research.search import load_study, run_search, select_best, smoke
 
     config = study()
     smoke(config, factory=fixture_factory)
@@ -108,7 +108,7 @@ def test_changed_data_or_selection_cannot_be_reused(study):
 
 
 def test_failed_model_is_recorded_and_can_retry(study):
-    from src.interfaces.cli.experiment_search import run_search, smoke
+    from src.infrastructure.research.search import run_search, smoke
 
     config = study()
     smoke(config, factory=fixture_factory)
@@ -123,7 +123,7 @@ def test_failed_model_is_recorded_and_can_retry(study):
 
 
 def test_validation_only_inspection_inherits_parameters(study):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         inspect_selected,
         run_search,
         select_best,
@@ -141,7 +141,7 @@ def test_validation_only_inspection_inherits_parameters(study):
 
 
 def test_test_input_cannot_be_used_for_search(study):
-    from src.interfaces.cli.experiment_search import smoke
+    from src.infrastructure.research.search import smoke
 
     config = study()
     raw = json.loads(config.validation_dataset.read_text())
@@ -152,7 +152,7 @@ def test_test_input_cannot_be_used_for_search(study):
 
 
 def test_test_file_change_is_not_silently_reused(study):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         freeze_selection,
         review_selection,
         run_final_test,
@@ -176,7 +176,7 @@ def test_test_file_change_is_not_silently_reused(study):
 
 
 def test_rejected_qualitative_review_returns_to_validation(study):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         review_selection,
         run_search,
         select_best,
@@ -195,8 +195,8 @@ def test_rejected_qualitative_review_returns_to_validation(study):
 
 
 def test_grid_plan_is_bounded_by_budget_without_materializing_combinations(study, monkeypatch):
-    import src.interfaces.cli.experiment_search as search
-    from src.interfaces.cli.experiment_search import run_search, smoke
+    import src.infrastructure.research.search as search
+    from src.infrastructure.research.search import run_search, smoke
 
     original = search._plans
 
@@ -218,7 +218,7 @@ def test_grid_plan_is_bounded_by_budget_without_materializing_combinations(study
 
 
 def test_changed_search_range_requires_search_before_reselection(study):
-    from src.interfaces.cli.experiment_search import load_study, run_search, select_best, smoke
+    from src.infrastructure.research.search import load_study, run_search, select_best, smoke
 
     config = study()
     smoke(config, factory=fixture_factory)
@@ -231,7 +231,7 @@ def test_changed_search_range_requires_search_before_reselection(study):
 
 
 def _locked_study(study):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         freeze_selection,
         review_selection,
         run_search,
@@ -249,7 +249,7 @@ def _locked_study(study):
 
 
 def test_final_artifact_missing_seed_is_not_a_success(study):
-    from src.interfaces.cli.experiment_search import read_json, run_final_test, write_json
+    from src.infrastructure.research.search import read_json, run_final_test, write_json
     from src.interfaces.notebook.search_analysis import final_comparison, workflow_state
 
     config = _locked_study(study)
@@ -264,7 +264,7 @@ def test_final_artifact_missing_seed_is_not_a_success(study):
 
 
 def test_failed_test_retries_only_failed_seeds_and_preserves_attempts(study):
-    from src.interfaces.cli.experiment_search import run_final_test
+    from src.infrastructure.research.search import run_final_test
 
     config = _locked_study(study)
 
@@ -288,7 +288,7 @@ def test_failed_test_retries_only_failed_seeds_and_preserves_attempts(study):
 
 
 def test_missing_test_results_are_not_displayed_as_success(study):
-    from src.interfaces.cli.experiment_search import run_final_test
+    from src.infrastructure.research.search import run_final_test
     from src.interfaces.notebook.search_analysis import workflow_state
 
     config = _locked_study(study)
@@ -301,7 +301,7 @@ def test_missing_test_results_are_not_displayed_as_success(study):
 def test_smoke_is_small_and_separate_from_validation_search(study):
     from dataclasses import replace
 
-    from src.interfaces.cli.experiment_search import read_json, run_search, smoke
+    from src.infrastructure.research.search import read_json, run_search, smoke
 
     config = replace(study(), smoke_users=1, smoke_train_users=1)
     seen = []
@@ -321,7 +321,7 @@ def test_smoke_is_small_and_separate_from_validation_search(study):
 
 
 def test_test_rejects_validation_history_missing_from_requests(study):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         freeze_selection,
         review_selection,
         run_final_test,
@@ -348,7 +348,7 @@ def test_test_rejects_validation_history_missing_from_requests(study):
 def test_stage_c_cannot_change_fixed_parameters(study, tmp_path):
     from dataclasses import replace
 
-    from src.interfaces.cli.experiment_search import run_search, smoke
+    from src.infrastructure.research.search import run_search, smoke
 
     parent = replace(study(), parameters={"offset": 0})
     smoke(parent, factory=fixture_factory)

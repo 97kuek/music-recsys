@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from src.infrastructure.datasets.listening_data import file_sha256
-from src.interfaces.notebook.full_analysis import read_result
+from src.infrastructure.research.results import read_result, verify_artifacts
 
 
 @contextmanager
@@ -40,9 +40,7 @@ def verified_result(trial, evaluation):
         for key, value in result["definitions"].items()
         if key not in {"ranking", "latency"}
     }
-    for artifact in result["artifacts"].values():
-        if file_sha256(trial.output / artifact["path"]) != artifact["sha256"]:
-            raise ValueError("Comparison artifact changed")
+    verify_artifacts(trial.output, result["artifacts"])
     source = dict(
         config=str(trial.path),
         result=str(trial.output / "result.json"),

@@ -31,16 +31,19 @@ class Body(BaseModel):
 
 class Start(Body):
     consent_version: (
-        Literal["local-ui-v2", "local-ui-v3", "local-ui-v4", "local-ui-v5", "local-ui-v6"] | None
+        Literal[
+            "local-ui-v2",
+            "local-ui-v3",
+            "local-ui-v4",
+            "local-ui-v5",
+            "local-ui-v6",
+            "local-ui-v7",
+            "local-ui-v8",
+        ]
+        | None
     ) = None
     persist: bool = False
-    participant_code: str | None = Field(default=None, min_length=1, max_length=64)
     allow_text: bool = False
-    long_term_consent: bool = False
-
-
-class ParticipantCode(Body):
-    code: str = Field(min_length=1, max_length=64)
 
 
 class Profile(Body):
@@ -214,8 +217,6 @@ def create_app(
                 if reply and row["request_id"] == reply["request_id"] and row["kind"] == "like"
             ],
             "list_evaluation": list_evaluation,
-            "long_term_consent": current.long_term_consent,
-            "profile_requires_selection": current.profile_snapshot.get("requires_selection", False),
             "profile_locked": current.assignment.get("input") is not None,
         }
 
@@ -257,12 +258,15 @@ def create_app(
         host = request.url.hostname
         if host not in allowed_hosts:
             return JSONResponse({"detail": "localhost専用です"}, 403)
-        if access and not await run_in_threadpool(
-            access.verify, request.headers.get("cf-access-jwt-assertion", "")
-        ):
-            return JSONResponse(
-                {"detail": "unauthorized"}, 401, headers={"Cache-Control": "no-store"}
+        request.state.access_identity = None
+        if access:
+            request.state.access_identity = await run_in_threadpool(
+                access.identity, request.headers.get("cf-access-jwt-assertion", "")
             )
+            if request.state.access_identity is None:
+                return JSONResponse(
+                    {"detail": "unauthorized"}, 401, headers={"Cache-Control": "no-store"}
+                )
         if request.url.path.startswith("/api/") and api_token:
             if not secrets.compare_digest(
                 request.headers.get("authorization", ""), f"Bearer {api_token}"
@@ -278,10 +282,7 @@ def create_app(
                 return JSONResponse({"detail": "同一画面から操作してください"}, 403)
             if len(await request.body()) > 16384:
                 return JSONResponse({"detail": "入力が大きすぎます"}, 413)
-        entry = request.method == "POST" and request.url.path in {
-            "/api/sessions",
-            "/api/participants/check",
-        }
+        entry = request.method == "POST" and request.url.path == "/api/sessions"
         if entry and not researcher:
             while failed_entries and failed_entries[0] <= monotonic() - 60:
                 failed_entries.popleft()
@@ -316,7 +317,14 @@ def create_app(
 
     def session(request):
         token = request.cookies.get("music_session", "")
-        return token, runtime.sessions.get(token)
+        current = runtime.sessions.get(token)
+        if access:
+            if not current.registered:
+                raise PermissionError("利用説明への同意が必要です")
+            runtime.sessions.participants.bind(
+                current.profile.user_id, request.state.access_identity, now()
+            )
+        return token, current
 
     from src.interfaces.http.control import register_control_routes
 
@@ -396,48 +404,34 @@ def create_app(
             ],
         }
 
-    @app.post("/api/participants/check")
-    def check_code(body: ParticipantCode):
-        with runtime.lock:
-            participant = runtime.sessions.participants.resolve(body.code, now())
-            return {"expires_at": participant["expires_at"]}
-
-    @app.post("/api/participants/code")
-    def rotate_code(request: Request):
-        with runtime.lock:
-            _, current = session(request)
-            if not current.registered:
-                raise ValueError("参加コードがないセッションです")
-            code = runtime.sessions.participants.rotate(current.log.session.participant_id, now())
-            return {"participant_code": code}
-
     @app.post("/api/sessions")
     def start(body: Start, request: Request):
         with runtime.lock:
             if not researcher:
                 if (
-                    body.consent_version not in {"local-ui-v4", "local-ui-v5", "local-ui-v6"}
+                    body.consent_version
+                    not in {
+                        "local-ui-v4",
+                        "local-ui-v5",
+                        "local-ui-v6",
+                        "local-ui-v7",
+                        "local-ui-v8",
+                    }
                     or not body.persist
                 ):
-                    raise ValueError("利用説明を確認し、保存に同意して参加コードを入力してください")
-                if not body.participant_code:
-                    _, previous = session(request)
-                    if not previous.registered:
-                        raise PermissionError("実施者から配布された参加コードを入力してください")
-            token, current, code = runtime.sessions.open_session(
+                    raise ValueError("利用説明を確認し、保存に同意してください")
+            token, current = runtime.sessions.open_session(
                 old_token=request.cookies.get("music_session"),
                 persist=body.persist,
                 allow_text=body.allow_text,
                 consent_version=body.consent_version,
-                participant_code=body.participant_code,
                 retention_days=retention_days,
-                long_term_consent=body.long_term_consent,
+                identity_key=request.state.access_identity,
             )
             response = JSONResponse(
                 {
                     **session_state(current),
                     "persist": current.persist,
-                    **({"participant_code": code} if code else {}),
                 }
             )
             response.set_cookie(
@@ -456,9 +450,10 @@ def create_app(
             token, current = session(request)
             return runtime.sessions.set_profile(token, body.items, body.artists)
 
-    from src.interfaces.http.profiles import register_profile_routes
+    from src.interfaces.http.session_context import register_context_routes
 
-    register_profile_routes(app, runtime, session, researcher=researcher)
+    if researcher:
+        register_context_routes(app, runtime, session)
 
     @app.post("/api/recommendations")
     def recommend(body: Recommend, request: Request):
@@ -605,6 +600,8 @@ def create_app(
     @app.delete("/api/session")
     def delete(request: Request):
         with runtime.lock:
+            if access and request.cookies.get("music_session"):
+                session(request)
             runtime.sessions.delete(request.cookies.get("music_session", ""))
             if runtime.control is not None:
                 runtime.control.expire()

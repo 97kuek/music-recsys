@@ -34,7 +34,7 @@ class FullBPR(FullFactorModel):
         number(memory_budget_mb, "memory_budget_mb", positive=True)
         if type(seed) is not int or seed < 0:
             raise ValueError("seed must be non-negative integer")
-        from src.infrastructure.models.model_artifacts import capture_training
+        from src.infrastructure.models.training import capture_training
 
         capture_training(self, locals())
         started = time.perf_counter()

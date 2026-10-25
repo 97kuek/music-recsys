@@ -5,7 +5,7 @@ import pytest
 
 
 def completed(factory):
-    from src.interfaces.cli.experiment_search import load_study_config, run_search, smoke
+    from src.infrastructure.research.search import load_study_config, run_search, smoke
 
     config = factory(metric=None)
     config.path.write_text(config.path.read_text().replace("neighbors=[1,2]", "neighbors=[1]"))
@@ -16,7 +16,7 @@ def completed(factory):
 
 
 def test_flat_report_preserves_trials_and_separates_figures(listening_study, tmp_path):
-    from src.interfaces.cli.experiment_search import read_json
+    from src.infrastructure.research.search import read_json
     from src.interfaces.notebook.evaluation_report import build_report
 
     config = completed(listening_study)
@@ -47,13 +47,13 @@ def test_flat_report_preserves_trials_and_separates_figures(listening_study, tmp
 
 
 def test_compact_result_can_be_read_and_reused(listening_study):
-    from src.infrastructure.research.experiment_store import compact
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         _verified_trial,
         load_study,
         run_search,
         study_lock,
     )
+    from src.infrastructure.research.store import compact
     from src.interfaces.notebook.search_analysis import trial_curves
 
     config = completed(listening_study)
@@ -74,7 +74,7 @@ def test_compact_result_can_be_read_and_reused(listening_study):
 def test_single_axes_for_each_metric(listening_study):
     import matplotlib.pyplot as plt
 
-    from src.interfaces.cli.experiment_search import load_study
+    from src.infrastructure.research.search import load_study
     from src.interfaces.notebook.evaluation_figures import (
         accuracy_figures,
         diversity_figures,
@@ -97,7 +97,8 @@ def test_single_axes_for_each_metric(listening_study):
 def test_cli_smoke_search_and_status_use_flat_output(listening_study, monkeypatch):
     import sys
 
-    from src.interfaces.cli.experiment_search import load_study, load_study_config, main
+    from src.infrastructure.research.search import load_study, load_study_config
+    from src.interfaces.cli.experiment_search import main
 
     config = listening_study(metric=None)
     config.path.write_text(config.path.read_text().replace("neighbors=[1,2]", "neighbors=[1]"))
@@ -114,19 +115,19 @@ def test_cli_smoke_search_and_status_use_flat_output(listening_study, monkeypatc
 
 
 def test_archive_tampering_and_historical_mutations_are_rejected(listening_study, monkeypatch):
-    import src.interfaces.cli.experiment_search as search
-    from src.infrastructure.research.experiment_store import atomic_json, compact, read_document
-    from src.interfaces.cli.experiment_search import (
+    import src.infrastructure.research.search as search
+    from src.infrastructure.research.search import (
         _verified_trial,
         load_study,
         run_search,
         study_lock,
     )
+    from src.infrastructure.research.store import atomic_json, compact, read_document
 
     config = completed(listening_study)
     with study_lock(config):
         compact(config)
-    monkeypatch.setattr(search, "_source_sha256", lambda: "different-code")
+    monkeypatch.setattr(search, "source_hash", lambda: "different-code")
     study = load_study(config)
     assert study["status"] == "succeeded"
     with pytest.raises(ValueError, match="コード"):

@@ -2,7 +2,7 @@
   "extends": "common.json",
   "experiment": {
     "name": "music4all-popularity-users",
-    "output": "../data/experiments/popularity-users"
+    "output": "../data/experiments/popularity/users"
   },
   "model": {
     "name": "popularity",

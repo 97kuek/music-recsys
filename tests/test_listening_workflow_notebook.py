@@ -22,7 +22,7 @@ def test_v2_notebooks_run_from_selected_artifact(
     import nbformat
     from nbclient import NotebookClient
 
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         freeze_selection,
         review_selection,
         run_final_test,

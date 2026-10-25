@@ -66,6 +66,35 @@ def test_frontend_boundaries_keep_transport_and_react_outside_core():
                 assert not re.search(r"\bfetch\s*\(|import\.meta\.env|localStorage\.", source), path
 
 
+def test_python_modules_have_no_import_cycles():
+    modules = {
+        ".".join(path.relative_to(ROOT).with_suffix("").parts): path
+        for path in (ROOT / "src").rglob("*.py")
+    }
+    graph = {}
+    for module, path in modules.items():
+        imports = set()
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Import):
+                imports.update(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imports.add(node.module)
+                imports.update(f"{node.module}.{alias.name}" for alias in node.names)
+        graph[module] = imports & modules.keys()
+    visited = set()
+
+    def visit(module, active):
+        assert module not in active, f"Circular imports: {(*active, module)}"
+        if module in visited:
+            return
+        for dependency in sorted(graph[module]):
+            visit(dependency, (*active, module))
+        visited.add(module)
+
+    for module in modules:
+        visit(module, ())
+
+
 def test_study_plan_retains_deployed_json_hash_and_assignment():
     schema = StudyPlanPayload(
         protocol_id="研究",
@@ -93,53 +122,50 @@ class MemoryParticipants:
     def __init__(self):
         self.rows = {}
 
-    def add_participant(self, participant_id, code_hash, expires_at):
+    def add_participant(self, participant_id, identity_key, expires_at):
         self.rows[participant_id] = {
             "participant_id": participant_id,
             "expires_at": expires_at.isoformat(),
             "profile": {},
-            "code_hash": code_hash,
+            "identity_key": identity_key,
         }
 
     def participant(self, participant_id, now):
         row = self.rows.get(participant_id)
         return row if row and datetime.fromisoformat(row["expires_at"]) > now else None
 
-    def participant_by_code(self, code_hash, now):
+    def participant_by_identity(self, identity_key, now):
         return next(
             (
                 key
                 for key in self.rows
-                if self.participant(key, now) and self.rows[key]["code_hash"] == code_hash
+                if self.participant(key, now) and self.rows[key]["identity_key"] == identity_key
             ),
             None,
         )
 
-    def update_participant_code(self, participant_id, code_hash, now):
-        self.rows[participant_id]["code_hash"] = code_hash
-
-    def update_participant_profile(self, participant_id, profile, now):
-        self.rows[participant_id]["profile"] = profile
+    def bind_identity(self, participant_id, identity_key, now):
+        self.rows[participant_id]["identity_key"] = identity_key
+        return True
 
 
 def test_participant_actions_work_without_sqlite_or_http():
     store = MemoryParticipants()
     participants = Participants(store)
     now = datetime.now(UTC)
-    participant, code = participants.issue(expires_at=now + timedelta(days=1), now=now)
+    participant = participants.register(
+        expires_at=now + timedelta(days=1), now=now, identity_key="access:synthetic"
+    )
     identity = participant["participant_id"]
-    assert participants.resolve(code.lower().replace("-", " "), now)["participant_id"] == identity
-    replacement = participants.rotate(identity, now)
+    assert participants.for_identity("access:synthetic", now)["participant_id"] == identity
+    assert (
+        participants.register(
+            expires_at=now + timedelta(days=30), now=now, identity_key="access:synthetic"
+        )["expires_at"]
+        == participant["expires_at"]
+    )
     with pytest.raises(PermissionError):
-        participants.resolve(code, now)
-    assert participants.resolve(replacement, now)["participant_id"] == identity
-    participants.save_profile(identity, {"selected_item_ids": ["a"]}, "catalog", now)
-    assert participants.get(identity, now)["profile"] == {
-        "catalog_key": "catalog",
-        "selected_item_ids": ["a"],
-    }
-    with pytest.raises(PermissionError):
-        participants.resolve(replacement, now + timedelta(days=2))
+        participants.get(identity, now + timedelta(days=2))
 
 
 def test_recommendation_session_uses_injected_model_media_and_repository():

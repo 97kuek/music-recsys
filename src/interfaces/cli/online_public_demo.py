@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 from src.infrastructure.datasets.listening_data import file_sha256
-from src.infrastructure.models.model_artifacts import load_model
+from src.infrastructure.models.artifacts import load_model
 
 
 def export(config_path, output):

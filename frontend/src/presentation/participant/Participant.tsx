@@ -1,5 +1,4 @@
 import { ListEvaluation } from './ListEvaluation';
-import { SavedPreferences } from './SavedPreferences';
 import { useParticipantSession } from './useParticipantSession';
 import { canPreview, type Status } from '../../domain/contracts';
 import { Player } from '../player/Player';
@@ -15,8 +14,6 @@ export function Participant({ status }: { status: Status }) {
     profileLocked,
     setExpanded,
     phase,
-    recoveryCode,
-    registered,
     active,
     finished,
     period,
@@ -31,7 +28,7 @@ export function Participant({ status }: { status: Status }) {
     setIndex,
     rating,
     setRating,
-    discovery, setDiscovery, discovered, setDiscovered, evaluated, longTermConsent, requestRefresh, refreshPending,
+    discovery, setDiscovery, discovered, setDiscovered, evaluated, requestRefresh, refreshPending,
     busy,
     message,
     goal,
@@ -46,7 +43,6 @@ export function Participant({ status }: { status: Status }) {
     recommend,
     start,
     logout,
-    rotateCode,
     beginListening,
     feedback,
     finishPeriod,
@@ -54,7 +50,7 @@ export function Participant({ status }: { status: Status }) {
     toggle,
   } = useParticipantSession(status);
   return <div className="participant app-shell">
-    <header><a className="brand" href="/" aria-label="music-recsys"><img src="/favicon.svg" width="28" height="28" alt="" /> music-recsys</a><div className="header-actions">{active && registered && longTermConsent && <SavedPreferences onDelete={remove} />}<Information status={status} code={recoveryCode} onCode={registered ? rotateCode : undefined} onDelete={active ? remove : undefined} />{active && <button className="icon-button" aria-label="退室する" title="退室する" disabled={busy} onClick={logout}><MediaIcon name="exit" /></button>}</div></header>
+    <header><a className="brand" href="/" aria-label="music-recsys"><img src="/favicon.svg" width="28" height="28" alt="" /> music-recsys</a><div className="header-actions"><Information status={status} onDelete={active ? remove : undefined} />{active && <button className="icon-button" aria-label="退室する" title="退室する" disabled={busy} onClick={logout}><MediaIcon name="exit" /></button>}</div></header>
     <main>
       {message && <div className="notice" role="status" aria-live="polite">{message}</div>}
       {!status.ready && <p className="notice">ただいま準備中です。</p>}

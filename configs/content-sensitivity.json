@@ -1,0 +1,34 @@
+{
+  "extends": "content.json",
+  "experiment": {
+    "name": "music4all-content-sensitivity",
+    "output": "../data/experiments/content/sensitivity"
+  },
+  "search": {
+    "stage": "B",
+    "seeds": [
+      0
+    ],
+    "max_trials": 4,
+    "publication": true,
+    "conditions": [
+      {
+        "use_idf": true,
+        "aggregation": "binary"
+      },
+      {
+        "use_idf": true,
+        "aggregation": "log_count"
+      },
+      {
+        "use_idf": false,
+        "aggregation": "binary"
+      },
+      {
+        "use_idf": false,
+        "aggregation": "log_count"
+      }
+    ],
+    "controls": []
+  }
+}

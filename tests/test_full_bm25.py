@@ -20,7 +20,7 @@ def test_bm25_matches_implicit_weighting_and_export(tmp_path):
     from implicit.nearest_neighbours import bm25_weight
 
     from src.domain.recommendation.contracts import RecommendationRequest
-    from src.infrastructure.models.model_artifacts import export_model, load_model
+    from src.infrastructure.models.artifacts import export_model, load_model
     from src.infrastructure.recommenders.full_bm25 import FullBM25
 
     path = tmp_path / "learning.parquet"

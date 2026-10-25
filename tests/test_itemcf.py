@@ -61,7 +61,7 @@ def test_cold_user_and_unknown_items_use_explicit_popularity_fallback():
         {"neighbors": 0},
         {"neighbors": True},
         {"neighbors": 1.5},
-        {"similarity": "pearson"},
+        {"similarity": "unknown"},
         {"unknown": 1},
     ],
 )
@@ -115,7 +115,7 @@ def test_inspection_exposes_itemcf_scores_and_history_evidence():
 def test_real_itemcf_grid_selects_and_retrains_locked_parameters(study):
     from dataclasses import replace
 
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         freeze_selection,
         inspect_selected,
         review_selection,

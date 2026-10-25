@@ -261,17 +261,6 @@ def _metric(metric: str) -> None:
         raise ValueError("select ndcg or recall")
 
 
-def condition_rows(reports: Reports) -> list[dict]:
-    return [
-        {
-            "run": label,
-            **raw["metadata"],
-            "details": "available" if "runs" in raw else "aggregate_only",
-        }
-        for label, raw in reports.items()
-    ]
-
-
 def performance_rows(
     reports: Reports, *, metric: str, bootstrap: BootstrapConfig = BootstrapConfig()
 ) -> list[dict]:

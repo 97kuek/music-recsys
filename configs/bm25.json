@@ -2,7 +2,7 @@
   "extends": "common.json",
   "experiment": {
     "name": "music4all-bm25",
-    "output": "../data/experiments/bm25"
+    "output": "../data/experiments/bm25/20"
   },
   "model": {
     "name": "bm25",

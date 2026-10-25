@@ -54,7 +54,7 @@ def test_notebook_structure_and_no_implicit_legacy_inputs(name):
 
 def test_analysis_setup_loads_settings_without_evaluating(listening_study, monkeypatch):
     import src.infrastructure.evaluation.benchmark as benchmark
-    import src.interfaces.cli.experiment_search as search
+    import src.infrastructure.research.search as search
     import src.interfaces.notebook.search_analysis as analysis
 
     config = listening_study()
@@ -79,7 +79,7 @@ def test_01_missing_input_does_not_fall_back(listening_study, monkeypatch):
     )
     monkeypatch.setenv("MUSIC_RECSYS_EXPERIMENT_CONFIG", str(path))
     with pytest.raises(FileNotFoundError, match="未準備"):
-        _run_notebook_cells("01_data.ipynb", 4, path)
+        _run_notebook_cells("01_data.ipynb", 6, path)
 
 
 def test_03_missing_selection_does_not_fall_back(listening_study, monkeypatch):

@@ -4,7 +4,6 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
-from participant_support import issue_code
 
 from src.interfaces.cli.online_prepare import demo
 from src.interfaces.http.server import create_app
@@ -39,18 +38,16 @@ def test_assignment_restart_frozen_profile_analysis_and_deletion(bundle, tmp_pat
     path = study_file(tmp_path)
     database = tmp_path / "sessions.sqlite"
     app = create_app(bundle, database, study_path=path)
-    code = issue_code(app, 2)
     with TestClient(app, headers={"X-Music-App": "1"}) as client:
         start = client.post(
             "/api/sessions",
             json=dict(
                 persist=True,
-                consent_version="local-ui-v5",
-                long_term_consent=True,
-                participant_code=code,
+                consent_version="local-ui-v7",
             ),
         )
         start.raise_for_status()
+        cookie = client.cookies.get("music_session")
         client.put("/api/profile", json={"items": ["sample-00"]}).raise_for_status()
         client.post("/api/session/progress", json={"phase": "listen"}).raise_for_status()
         first_request = None
@@ -94,23 +91,12 @@ def test_assignment_restart_frozen_profile_analysis_and_deletion(bundle, tmp_pat
         )
     restarted = create_app(bundle, database, study_path=path)
     with TestClient(restarted, headers={"X-Music-App": "1"}) as client:
-        denied = client.post(
-            "/api/sessions",
-            json=dict(
-                persist=True,
-                consent_version="local-ui-v5",
-                long_term_consent=False,
-                participant_code=code,
-            ),
-        )
-        assert denied.status_code == 400
+        client.cookies.set("music_session", cookie)
         new = client.post(
             "/api/sessions",
             json=dict(
                 persist=True,
-                consent_version="local-ui-v5",
-                long_term_consent=True,
-                participant_code=code,
+                consent_version="local-ui-v7",
             ),
         )
         new.raise_for_status()
@@ -128,7 +114,7 @@ def test_assignment_restart_frozen_profile_analysis_and_deletion(bundle, tmp_pat
             report = result.json()["experiments"][0]
             assert report["participants"] == 1 and report["session_count"] == 2
             assert first_request in {r["request_id"] for r in report["lists"]}
-            assert "code_hash" not in result.text and code not in result.text
+            assert "code_hash" not in result.text
             assert "selected_item_ids" not in result.text
             for table in ("lists", "assignments", "paired_differences", "outcomes"):
                 exported = admin.get(f"/api/online-analysis/export?format=csv&table={table}")

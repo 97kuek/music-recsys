@@ -19,7 +19,7 @@ class FullEASE(FullFactorModel):
         memory_budget_mb=22528,
         progress=print,
     ):
-        from src.infrastructure.models.model_artifacts import capture_training
+        from src.infrastructure.models.training import capture_training
 
         number(regularization, "regularization", positive=True)
         number(memory_budget_mb, "memory_budget_mb", positive=True)
@@ -32,13 +32,22 @@ class FullEASE(FullFactorModel):
         n = len(self.items)
         dtype = np.float32 if use_gpu else np.float64
         sparse_bytes = sum(a.nbytes for a in (matrix.data, matrix.indices, matrix.indptr))
-        # GPU: two dense matrices; CPU reference: four, plus sparse/block arrays and reserve.
-        self.estimated_buffer_bytes = int(
-            (2 if use_gpu else 4) * n * n * np.dtype(dtype).itemsize
-            + 2 * sparse_bytes
-            + 32 * n * min(block_size, n)
-            + (1024**3 if use_gpu else 0)
-        )
+        dense_bytes = n * n * np.dtype(dtype).itemsize
+        block_bytes = 32 * n * min(block_size, n)
+        if use_gpu:
+            # Only device allocations consume VRAM. CSR data is cast to float32;
+            # the transpose is freed before the second dense matrix is allocated.
+            gpu_sparse_bytes = (
+                matrix.nnz * (np.dtype(np.float32).itemsize + matrix.indices.dtype.itemsize)
+                + matrix.indptr.nbytes
+            )
+            self.buffer_estimates = dict(
+                gram=dense_bytes + 2 * gpu_sparse_bytes + block_bytes + 1024**3,
+                inverse=2 * dense_bytes + gpu_sparse_bytes + block_bytes + 1024**3,
+            )
+            self.estimated_buffer_bytes = int(max(self.buffer_estimates.values()))
+        else:
+            self.estimated_buffer_bytes = int(4 * dense_bytes + 2 * sparse_bytes + block_bytes)
         if self.estimated_buffer_bytes > memory_budget_mb * 1024**2:
             raise ValueError("EASE arrays exceed memory_budget_mb before dense allocation")
         if use_gpu:
@@ -62,6 +71,7 @@ class FullEASE(FullFactorModel):
             input_transform="binary positive learning user-item pairs",
             reference="https://arxiv.org/abs/1905.03375",
             estimated_buffer_bytes=self.estimated_buffer_bytes,
+            **({"device_buffer_estimates": self.buffer_estimates} if use_gpu else {}),
             random_computation=False,
         )
         self.training_seconds = time.perf_counter() - started

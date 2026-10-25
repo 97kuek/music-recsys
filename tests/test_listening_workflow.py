@@ -6,7 +6,7 @@ from listening_workflow_support import update_manifest_file
 
 
 def prepared(factory):
-    from src.interfaces.cli.experiment_search import run_search, select_best, smoke
+    from src.infrastructure.research.search import run_search, select_best, smoke
 
     config = factory()
     assert smoke(config)["status"] == "succeeded"
@@ -15,7 +15,7 @@ def prepared(factory):
 
 
 def test_v2_grid_uses_graded_objective_and_validation_only(listening_study):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         context,
         inspect_selected,
         run_search,
@@ -44,7 +44,7 @@ def test_v2_grid_uses_graded_objective_and_validation_only(listening_study):
 
 
 def test_v2_requires_task_for_objective_and_never_selects_unset_metric(listening_study):
-    from src.interfaces.cli.experiment_search import run_search, select_best, smoke
+    from src.infrastructure.research.search import run_search, select_best, smoke
 
     with pytest.raises(ValueError, match="task"):
         listening_study(task=None)
@@ -58,7 +58,7 @@ def test_v2_requires_task_for_objective_and_never_selects_unset_metric(listening
 
 
 def test_changing_gain_condition_is_a_different_experiment(listening_study):
-    from src.interfaces.cli.experiment_search import load_study, smoke
+    from src.infrastructure.research.search import load_study, smoke
 
     smoke(listening_study())
     with pytest.raises(ValueError, match="条件"):
@@ -66,7 +66,7 @@ def test_changing_gain_condition_is_a_different_experiment(listening_study):
 
 
 def test_validation_views_reuse_learning_data_but_reject_changed_artifacts(listening_study):
-    from src.interfaces.cli.experiment_search import context
+    from src.infrastructure.research.search import context
 
     config = listening_study()
     first, _ = context(config)
@@ -79,7 +79,7 @@ def test_validation_views_reuse_learning_data_but_reject_changed_artifacts(liste
 
 
 def test_v2_selection_review_lock_test_and_reuse(listening_study):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         freeze_selection,
         review_selection,
         run_final_test,
@@ -96,7 +96,7 @@ def test_v2_selection_review_lock_test_and_reuse(listening_study):
 
 
 def test_v2_test_source_mismatch_and_incomplete_training_are_rejected(listening_study):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         freeze_selection,
         review_selection,
         run_final_test,
@@ -114,7 +114,7 @@ def test_v2_test_source_mismatch_and_incomplete_training_are_rejected(listening_
 
 
 def test_v2_modified_observations_cannot_reuse_final_test(listening_study):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         freeze_selection,
         review_selection,
         run_final_test,
@@ -134,7 +134,7 @@ def test_v2_test_must_include_validation_learning_facts(listening_study):
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         freeze_selection,
         review_selection,
         run_final_test,

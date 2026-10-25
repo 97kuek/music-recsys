@@ -12,7 +12,7 @@ from time import perf_counter
 
 from src.domain.recommendation.profiles import InitialProfile
 from src.infrastructure.datasets.listening_data import file_sha256
-from src.infrastructure.models.model_artifacts import load_model
+from src.infrastructure.models.artifacts import load_model
 
 AUDIO = {".wav", ".mp3", ".flac", ".ogg", ".m4a"}
 

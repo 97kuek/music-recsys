@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
-from src.domain.study.participants import CodeCollisionError
+from src.domain.study.participants import IdentityCollisionError
 
 
 class LocalStore:
@@ -295,61 +295,48 @@ class LocalStore:
                     temporary.unlink(missing_ok=True)
         return target
 
-    def add_participant(self, participant_id, code_hash, expires_at):
+    def add_participant(self, participant_id, identity_key, expires_at):
         with self.connect() as db:
             try:
                 db.execute(
                     "INSERT INTO participants VALUES (?,?,?,?)",
-                    (participant_id, code_hash, expires_at.isoformat(), "{}"),
+                    (participant_id, identity_key, expires_at.isoformat(), "{}"),
                 )
             except sqlite3.IntegrityError as error:
-                raise CodeCollisionError("参加コードが重複しています") from error
+                raise IdentityCollisionError("認証IDが既に登録されています") from error
 
     def participant(self, participant_id, now):
         with self.connect() as db:
             row = db.execute(
-                "SELECT participant_id, expires, profile FROM participants WHERE participant_id=? AND expires>?",
+                "SELECT participant_id, expires FROM participants WHERE participant_id=? AND expires>?",
                 (participant_id, now.isoformat()),
             ).fetchone()
-        return (
-            dict(participant_id=row[0], expires_at=row[1], profile=json.loads(row[2]))
-            if row
-            else None
-        )
+        return dict(participant_id=row[0], expires_at=row[1]) if row else None
 
-    def participant_by_code(self, code_hash, now):
+    def participant_by_identity(self, identity_key, now):
         with self.connect() as db:
             row = db.execute(
                 "SELECT participant_id FROM participants WHERE code_hash=? AND expires>?",
-                (code_hash, now.isoformat()),
+                (identity_key, now.isoformat()),
             ).fetchone()
         return row[0] if row else None
 
-    def update_participant_code(self, participant_id, code_hash, now):
+    def bind_identity(self, participant_id, identity_key, now):
         with self.connect() as db:
-            try:
-                db.execute(
-                    "UPDATE participants SET code_hash=? WHERE participant_id=? AND expires>?",
-                    (code_hash, participant_id, now.isoformat()),
-                )
-            except sqlite3.IntegrityError as error:
-                raise CodeCollisionError("参加コードが重複しています") from error
-
-    def update_participant_profile(self, participant_id, profile, now):
-        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT code_hash FROM participants WHERE participant_id=? AND expires>?",
+                (participant_id, now.isoformat()),
+            ).fetchone()
+            if row is None or (row[0].startswith("access:") and row[0] != identity_key):
+                return False
+            existing = db.execute(
+                "SELECT participant_id FROM participants WHERE code_hash=?", (identity_key,)
+            ).fetchone()
+            if existing and existing[0] != participant_id:
+                return False
             db.execute(
-                "UPDATE participants SET profile=? WHERE participant_id=? AND expires>?",
-                (json.dumps(profile), participant_id, now.isoformat()),
+                "UPDATE participants SET code_hash=? WHERE participant_id=?",
+                (identity_key, participant_id),
             )
-
-    def participant_history(self, participant_id, now):
-        with self.connect() as db:
-            rows = db.execute(
-                "SELECT payload FROM sessions WHERE expires>?", (now.isoformat(),)
-            ).fetchall()
-        return [
-            p
-            for (raw,) in rows
-            for p in (json.loads(raw),)
-            if p["session"]["participant_id"] == participant_id and p.get("long_term_consent")
-        ]
+            return True

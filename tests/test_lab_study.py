@@ -4,13 +4,15 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from participant_support import invited_start
+from participant_support import start_session
 
 from src.domain.study.events import InteractionEvent
 from src.infrastructure.datasets.listening_data import file_sha256
 from src.interfaces.cli.online_media import prepare
 from src.interfaces.cli.online_prepare import demo
 from src.interfaces.http.server import create_app
+
+pytestmark = pytest.mark.usefixtures("participant_retention")
 
 
 @pytest.fixture(scope="module")
@@ -21,7 +23,7 @@ def bundle(tmp_path_factory):
 def test_profile_and_client_measurements_persist_only_with_consent(bundle, tmp_path):
     app = create_app(bundle, tmp_path / "log.sqlite", model_version="demo-itemcf")
     with TestClient(app, headers={"X-Music-App": "1"}) as client:
-        invited_start(client).raise_for_status()
+        start_session(client).raise_for_status()
         client.put("/api/profile", json={"items": ["sample-00"], "artists": []}).raise_for_status()
         reply = client.post("/api/recommendations", json={"goal": "discover"}).json()
         item = reply["tracks"][0]["item_id"]

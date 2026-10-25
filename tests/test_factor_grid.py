@@ -9,8 +9,8 @@ from src.infrastructure.research.configuration import load_settings
 
 @pytest.mark.parametrize("model_name", ["als", "bpr"])
 def test_factor_grid_end_to_end_and_comparison_guards(tmp_path, model_name):
-    from src.interfaces.cli.experiment_search import load_study_config
-    from src.interfaces.cli.full_evaluation import run
+    from src.infrastructure.research.search import load_study_config
+    from src.interfaces.cli.evaluate import run
     from src.interfaces.cli.grid import run_grid
     from src.interfaces.notebook.full_analysis import curves
 
@@ -18,7 +18,7 @@ def test_factor_grid_end_to_end_and_comparison_guards(tmp_path, model_name):
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    config_path = "configs/bpr-30epoch/seed0.json" if model_name == "bpr" else "configs/als.json"
+    config_path = "configs/bpr-30epoch.json" if model_name == "bpr" else "configs/als.json"
     raw = load_settings(Path(config_path))
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
@@ -27,7 +27,8 @@ def test_factor_grid_end_to_end_and_comparison_guards(tmp_path, model_name):
         output=str(tmp_path / "als"),
     )
     raw["model"]["parameters"].pop("use_gpu", None)
-    raw["search"]["grid"]["factors"] = [32, 64, 128]
+    raw["model"]["parameters"]["iterations"] = 30 if model_name == "bpr" else 20
+    raw["search"] = dict(stage="A", seeds=[0], max_trials=3, grid=dict(factors=[32, 64, 128]))
     path = tmp_path / "als.json"
     path.write_text(json.dumps(raw))
     baselines = []
@@ -72,7 +73,7 @@ def test_factor_grid_end_to_end_and_comparison_guards(tmp_path, model_name):
     saved_path.write_text(json.dumps(saved))
     with pytest.raises(ValueError, match="conditions differ"):
         run_grid(path, compare=baselines)
-    saved_path = tmp_path / "als-32" / "config.json"
+    saved_path = tmp_path / "als" / "32" / "config.json"
     saved = json.loads(saved_path.read_text())
     saved["source_sha256"] = "different-implementation"
     saved_path.write_text(json.dumps(saved))

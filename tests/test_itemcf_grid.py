@@ -8,7 +8,7 @@ from src.infrastructure.research.configuration import load_settings
 
 def test_grid_expands_conditions_and_reuses_completed_outputs(tmp_path, monkeypatch):
     import src.interfaces.cli.grid as grid
-    from src.interfaces.cli.experiment_search import load_study_config
+    from src.infrastructure.research.search import load_study_config
 
     raw = load_settings(Path("configs/itemcf.json"))
     raw["experiment"].update(
@@ -38,6 +38,14 @@ def test_grid_expands_conditions_and_reuses_completed_outputs(tmp_path, monkeypa
         (s, n) for s in ("cosine", "jaccard") for n in (20, 50, 100)
     }
     assert len({output for _, output, _ in calls}) == 6
+    assert {
+        output.relative_to(tmp_path / "data/experiments/itemcf").as_posix()
+        for _, output, _ in calls
+    } == {
+        f"{similarity}/{neighbors}"
+        for similarity in ("cosine", "jaccard")
+        for neighbors in (20, 50, 100)
+    }
     assert len({cache for _, _, cache in calls}) == 1
     grid.run_grid(path)
     assert len(calls) == 6 and len(verified) == 6

@@ -15,7 +15,7 @@ class FullBM25(FullFactorModel):
         from implicit.nearest_neighbours import bm25_weight
         from scipy.sparse import csr_matrix
 
-        from src.infrastructure.models.model_artifacts import capture_training
+        from src.infrastructure.models.training import capture_training
         from src.infrastructure.recommenders.factors import integer, number
 
         integer(neighbors, "neighbors")
@@ -72,6 +72,16 @@ class FullBM25(FullFactorModel):
             training_values="play_count",
             inference_values="binary history",
         )
+        if use_gpu:
+            from src.infrastructure.recommenders.gpu_runtime import gpu_metadata
+
+            self.execution.update(
+                gpu_metadata(),
+                training_device="cpu weighting / cuda neighbor products",
+                scoring_device="cuda",
+                random_computation=False,
+                bitwise_reproducible=False,
+            )
 
     def rank(self, user, history, task, top_k=20):
         return FullItemCF.rank(self, history, task, top_k)

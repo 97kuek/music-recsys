@@ -279,14 +279,20 @@ def validation_rows(data, config):
     return pd.DataFrame(rows)
 
 
-def observation_distribution(config):
+def observation_distribution(config, *, phase="validation"):
     """ペアの生行をNotebookへ展開せず、主評価窓の観測ヒストグラムを集計する。"""
     import duckdb
     import pandas as pd
 
     from src.infrastructure.datasets.listening_data import read_bundle
 
-    _, paths = read_bundle(config.validation_dataset)
+    if phase not in {"validation", "test"}:
+        raise ValueError("phase must be validation or test")
+    manifest, paths = read_bundle(
+        config.test_dataset if phase == "test" else config.validation_dataset
+    )
+    if manifest["phase"] != phase:
+        raise ValueError("Observation phase differs from requested phase")
     rows = []
     with duckdb.connect(config={"memory_limit": "2GB", "threads": 2}) as connection:
         connection.read_parquet(str(paths["observations"])).create_view("observations")
@@ -297,41 +303,17 @@ def observation_distribution(config):
                 count(*) pairs FROM observations WHERE window_days=? GROUP BY task,bin""",
                 [config.evaluation.primary_window_days],
             ).fetchall()
+            counts = {(task, bin): count for task, bin, count in result}
             rows.extend(
                 {
-                    "phase": "validation",
+                    "phase": phase,
                     "window_days": config.evaluation.primary_window_days,
                     "task": task,
                     "observation": name,
                     "bin": bin,
-                    "pairs": count,
+                    "pairs": counts.get((task, bin), 0),
                 }
-                for task, bin, count in result
+                for task in sorted({task for task, _, _ in result})
+                for bin in ("1", "2", "3–4", "5–9", "10–19", "20+")
             )
     return pd.DataFrame(rows)
-
-
-def plot_observations(frame):
-    import matplotlib.pyplot as plt
-
-    if frame.empty:
-        return None
-    bins = ["1", "2", "3–4", "5–9", "10–19", "20+"]
-    fig, axes = plt.subplots(1, 2, figsize=(11, 3.5))
-    for ax, metric in zip(axes, ("evaluation_play_count", "evaluation_active_days"), strict=True):
-        for index, task in enumerate(("new", "repeat")):
-            rows = frame[(frame.observation == metric) & (frame.task == task)].set_index("bin")
-            counts = rows.pairs.reindex(bins, fill_value=0)
-            ax.bar(
-                [i + (index - 0.5) * 0.35 for i in range(len(bins))], counts, width=0.35, label=task
-            )
-        ax.set_xticks(range(len(bins)), bins)
-        ax.set(
-            title="Play count" if metric == "evaluation_play_count" else "Active days",
-            xlabel="Observed value",
-            ylabel="User-track pairs",
-        )
-        ax.title.set_fontsize(10)
-        ax.legend()
-    fig.tight_layout()
-    return fig

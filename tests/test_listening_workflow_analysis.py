@@ -32,7 +32,7 @@ def test_v2_curves_keep_task_window_gain_and_user_uncertainty(listening_study):
 
 
 def test_v2_final_comparison_does_not_mix_protocol_or_gain(listening_study):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         freeze_selection,
         review_selection,
         run_final_test,
@@ -75,7 +75,7 @@ def test_v2_final_comparison_does_not_mix_protocol_or_gain(listening_study):
 
 
 def test_repeat_inspection_counts_eligible_history_and_explains_seen_candidates(listening_study):
-    from src.interfaces.cli.experiment_search import inspect_selected
+    from src.infrastructure.research.search import inspect_selected
     from src.interfaces.notebook.recommendation_inspection import (
         inspect_recommendation,
         request_options,

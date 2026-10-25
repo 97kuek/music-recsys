@@ -1,0 +1,38 @@
+{
+  "extends": "common.json",
+  "experiment": {
+    "name": "music4all-ease-sensitivity",
+    "output": "../data/experiments/ease/sensitivity"
+  },
+  "model": {
+    "name": "ease",
+    "parameters": {
+      "regularization": 500.0,
+      "use_gpu": true,
+      "block_size": 256,
+      "memory_budget_mb": 22528
+    }
+  },
+  "search": {
+    "stage": "B",
+    "seeds": [
+      0
+    ],
+    "max_trials": 2,
+    "conditions": [
+      {
+        "regularization": 100.0
+      },
+      {
+        "regularization": 2000.0
+      }
+    ],
+    "controls": [
+      {
+        "output": "../data/experiments/ease/l500",
+        "parameters": {},
+        "seed": 0
+      }
+    ]
+  }
+}

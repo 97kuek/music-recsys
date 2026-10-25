@@ -1,14 +1,13 @@
 """HTTP・配布検証から共有するcomposition root。具象Adapterをここで組み立てる。"""
 
 import json
-from datetime import datetime
 from pathlib import Path
 
 from src.application.study.runtime import Runtime
 from src.domain.recommendation.models import ModelSpec
 from src.infrastructure.datasets.listening_data import file_sha256
-from src.infrastructure.media.playback import AudioAsset, LocalPlayback
-from src.infrastructure.models.model_artifacts import load_model
+from src.infrastructure.media.playback import AudioAsset, LocalPlayback, parse_expiry
+from src.infrastructure.models.artifacts import load_model
 from src.infrastructure.persistence.sessions import LocalStore
 from src.infrastructure.recommenders.tag_seed import TagSeedRecommender
 
@@ -59,7 +58,7 @@ def create_runtime(config_path, *, database, study=None, scope=None):
         assets[item] = AudioAsset(
             audio_path,
             meta["license_ref"],
-            datetime.fromisoformat(meta["expires_at"]),
+            parse_expiry(meta["expires_at"]),
             meta["sample"],
         )
     playback = LocalPlayback(assets)

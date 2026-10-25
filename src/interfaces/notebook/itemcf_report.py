@@ -1,15 +1,14 @@
 """全件Gridの保存結果を比較 / 選択やTest評価は実行しない。"""
 
 import argparse
-import itertools
 import json
 from dataclasses import asdict
 from pathlib import Path
 
-from src.infrastructure.research.experiment_store import atomic_json
+from src.infrastructure.research.results import read_result
+from src.infrastructure.research.search import load_study_config
+from src.infrastructure.research.store import atomic_json
 from src.interfaces.cli.comparison import metric_rows, staged_report, verified_result
-from src.interfaces.cli.experiment_search import load_study_config
-from src.interfaces.notebook.full_analysis import read_result
 
 
 def comparison_curves(frame, output):
@@ -85,17 +84,16 @@ def build_grid_report(config_path):
     import matplotlib.pyplot as plt
     import pandas as pd
 
+    from src.infrastructure.research.grid import grid_variants as variants
     from src.interfaces.notebook.evaluation_figures import ACCURACY_NAMES
 
     config = load_study_config(config_path)
     rows = []
     sources = []
     reference = None
-    for similarity, neighbors in itertools.product(
-        config.grid["similarity"], config.grid["neighbors"]
-    ):
-        path = config.path.parent / "itemcf" / f"{similarity}-{neighbors}.json"
+    for path, _ in variants(config):
         trial = load_study_config(path)
+        similarity, neighbors = trial.parameters["similarity"], trial.parameters["neighbors"]
         result, saved, identity, source = verified_result(trial, config.evaluation)
         if reference is None:
             reference = identity

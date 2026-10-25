@@ -13,9 +13,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from src.infrastructure.datasets.listening_data import file_sha256
-from src.infrastructure.research.experiment_store import atomic_json
-from src.interfaces.cli.experiment_search import load_study_config, study_lock
-from src.interfaces.cli.full_evaluation import run
+from src.infrastructure.research.search import load_study_config, study_lock
+from src.infrastructure.research.store import atomic_json
+from src.interfaces.cli.evaluate import run
 from src.paths import PROJECT_ROOT
 
 
@@ -50,12 +50,19 @@ def conditions(config):
             if key in parameters:
                 name += f"-{short}{parameters[key]:g}"
         name += f"-s{seed}"
+        directory = name
+        if (
+            config.model == "bpr"
+            and len(config.grid["iterations"]) == 1
+            and config.output.name == f"{parameters['iterations']}epoch"
+        ):
+            directory = f"f{parameters['factors']}-s{seed}"
         yield (
-            name,
+            directory,
             replace(
                 config,
                 name=f"{config.name}-{name}",
-                output=config.output / name,
+                output=config.output / directory,
                 parameters={**config.parameters, **parameters},
                 grid={},
                 seeds=(seed,),
@@ -66,12 +73,12 @@ def conditions(config):
 
 
 def verify(trial):
-    from src.infrastructure.evaluation.benchmark import _source_sha256
-    from src.infrastructure.models.model_artifacts import load_model
+    from src.infrastructure.models.artifacts import load_model
+    from src.infrastructure.provenance import source_hash
     from src.interfaces.cli.comparison import verified_result
 
     result, saved, _, _ = verified_result(trial, trial.evaluation)
-    if saved["source_sha256"] != _source_sha256():
+    if saved["source_sha256"] != source_hash():
         raise ValueError("completed condition source changed; use a new study output")
     if saved["dependency_lock_sha256"] != file_sha256(PROJECT_ROOT / "uv.lock"):
         raise ValueError("completed condition dependency lock changed")
@@ -164,14 +171,14 @@ def summarize(config, finished):
 
 
 def run_study(path, *, minimum_free_gb=5):
-    from src.infrastructure.evaluation.benchmark import _source_sha256
+    from src.infrastructure.provenance import source_hash
 
     config = load_study_config(path)
     planned = list(conditions(config))
     identity = dict(
         format="music-recsys-factor-study-config-v1",
         settings=json.loads(json.dumps(asdict(config), default=str)),
-        source_sha256=_source_sha256(),
+        source_sha256=source_hash(),
         dependency_lock_sha256=file_sha256(PROJECT_ROOT / "uv.lock"),
         manifest_sha256=file_sha256(config.validation_dataset / "manifest.json"),
         features_sha256=file_sha256(config.features),

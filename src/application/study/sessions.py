@@ -60,16 +60,7 @@ class SessionService:
         *,
         consent_version=None,
         participant=None,
-        long_term_consent=False,
     ):
-        if consent_version == "local-ui-v6" and not long_term_consent:
-            raise ValueError("この説明版では長期嗜好の保存・再利用を含む同意が必要です")
-        if long_term_consent and (
-            not persist
-            or participant is None
-            or consent_version not in {"local-ui-v5", "local-ui-v6"}
-        ):
-            raise ValueError("長期嗜好には参加者登録と保存・再利用への同意が必要です")
         current = self.clock()
         self.expire()
         if len(self.active) >= 100:
@@ -93,38 +84,12 @@ class SessionService:
                 persist and allow_text,
             )
         )
-        profile = participant["profile"] if participant else {}
-        if consent_version in {"local-ui-v5", "local-ui-v6"} and not long_term_consent:
-            profile = {}
-        if profile.get("catalog_key") != self.resume_context["config_sha256"]:
-            profile = {}
         session = Session(
             log,
             persist,
-            InitialProfile(
-                participant_id,
-                tuple(profile.get("selected_item_ids", ())),
-                tuple(profile.get("selected_artist_ids", ())),
-            ),
+            InitialProfile(participant_id),
             registered=participant is not None,
-            long_term_consent=long_term_consent,
         )
-        if long_term_consent:
-            from src.application.study.preferences import PreferenceService
-
-            preferences = PreferenceService(self).for_participant(participant_id)
-            liked = {row["item_id"] for row in preferences["inferred_tracks"]}
-            seeds = set(session.profile.selected_item_ids) | liked
-            # Preserve the existing UI limit without arbitrarily choosing a preference ranking.
-            if len(seeds) <= 30:
-                session.profile = replace(session.profile, selected_item_ids=tuple(sorted(seeds)))
-            session.profile_snapshot = {
-                "method": preferences["method"],
-                "user_settings": preferences["user_settings"],
-                "inferred_tracks": preferences["inferred_tracks"],
-                "captured_at": current.isoformat(),
-                "requires_selection": len(seeds) > 30,
-            }
         if self.study:
             if self.study.design:
                 if not persist or participant is None:
@@ -156,17 +121,12 @@ class SessionService:
     def _use_frozen_input(self, session):
         inputs = session.assignment.get("input")
         if inputs is not None:
-            if inputs.get("long_term_consent") and not session.long_term_consent:
-                raise ValueError(
-                    "固定した比較入力の再利用には長期嗜好の保存・再利用への同意が必要です"
-                )
             profile = inputs["profile"]
             session.profile = InitialProfile(
                 session.profile.user_id,
                 tuple(profile["selected_item_ids"]),
                 tuple(profile["selected_artist_ids"]),
             )
-            session.profile_snapshot = inputs["profile_snapshot"]
 
     def freeze_comparison_input(self, session):
         if self.study and self.study.design:
@@ -175,8 +135,6 @@ class SessionService:
                 session.profile.user_id,
                 {
                     "profile": asdict(session.profile),
-                    "profile_snapshot": session.profile_snapshot,
-                    "long_term_consent": session.long_term_consent,
                 },
                 self.clock(),
             )
@@ -254,62 +212,55 @@ class SessionService:
         persist=False,
         allow_text=False,
         consent_version=None,
-        participant_code=None,
         retention_days=None,
-        long_term_consent=False,
+        identity_key=None,
     ):
         old = old_token
-        participant, code = None, None
-        if consent_version == "local-ui-v6" and not long_term_consent:
-            raise ValueError("この説明版では長期嗜好の保存・再利用を含む同意が必要です")
-        if long_term_consent and (
-            consent_version not in {"local-ui-v5", "local-ui-v6"} or not persist
-        ):
-            raise ValueError("長期嗜好には新しい説明版と保存同意が必要です")
-        if consent_version in {"local-ui-v4", "local-ui-v5", "local-ui-v6"}:
+        participant = None
+        self.expire()
+        if consent_version in {
+            "local-ui-v4",
+            "local-ui-v5",
+            "local-ui-v6",
+            "local-ui-v7",
+            "local-ui-v8",
+        }:
             if not persist:
                 raise ValueError("この説明版ではログ保存への同意が必要です")
-            if participant_code:
-                participant = self.participants.resolve(participant_code, self.clock())
-            elif old:
-                stored = self.store.get(token_key(old), self.clock())
-                if stored and stored.get("registered"):
-                    participant = self.participants.get(
-                        stored["session"]["participant_id"], self.clock()
-                    )
             if old:
                 try:
                     current = self.get(old)
                 except PermissionError:
                     pass
                 else:
-                    if (
-                        current.registered
-                        and not current.finished
-                        and participant
-                        and participant["participant_id"] == current.log.session.participant_id
-                    ):
-                        return old, current, None
+                    if current.registered:
+                        if identity_key:
+                            try:
+                                self.participants.bind(
+                                    current.profile.user_id, identity_key, self.clock()
+                                )
+                            except PermissionError:
+                                pass
+                            else:
+                                participant = self.participants.get(
+                                    current.profile.user_id, self.clock()
+                                )
+                        else:
+                            participant = self.participants.get(
+                                current.profile.user_id, self.clock()
+                            )
+                        if participant and not current.finished:
+                            return old, current
+            if participant is None and identity_key:
+                participant = self.participants.for_identity(identity_key, self.clock())
             if participant is None:
                 if retention_days is None:
                     raise ValueError("サーバー管理者が保存期間を設定してから開始してください")
-                participant, code = self.participants.issue(
-                    expires_at=self.clock() + timedelta(days=retention_days), now=self.clock()
+                participant = self.participants.register(
+                    expires_at=self.clock() + timedelta(days=retention_days),
+                    now=self.clock(),
+                    identity_key=identity_key,
                 )
-            if consent_version in {"local-ui-v5", "local-ui-v6"} and long_term_consent:
-                previous = participant["profile"]
-                permission = previous.get("long_term_permission") or {
-                    "version": "long-term-v1",
-                    "granted_at": self.clock().isoformat(),
-                    "retain_until": participant["expires_at"],
-                }
-                permission = {**permission, "consent_version": consent_version}
-                self.store.update_participant_profile(
-                    participant["participant_id"],
-                    {**previous, "long_term_permission": permission},
-                    self.clock(),
-                )
-                participant = self.participants.get(participant["participant_id"], self.clock())
         elif old:
             self.delete(old)
         resumed = self.resume_participant(participant["participant_id"]) if participant else None
@@ -321,9 +272,8 @@ class SessionService:
                 allow_text,
                 consent_version=consent_version,
                 participant=participant,
-                long_term_consent=long_term_consent,
             )
-        return token, current, code
+        return token, current
 
     def set_profile(self, token, items, artists):
         current = self.get(token)
@@ -341,20 +291,29 @@ class SessionService:
         if set(items) - self.catalog.tracks.keys() or set(artists) - self.catalog.artists.keys():
             raise ValueError("選択した曲・アーティストがありません")
         current.profile = InitialProfile(current.profile.user_id, tuple(items), tuple(artists))
-        if current.long_term_consent:
-            current.profile_snapshot.update(confirmed_items=items, confirmed_artists=artists)
         self.save(token, current)
-        if current.registered and (
-            current.long_term_consent
-            or current.log.session.consent_version not in {"local-ui-v5", "local-ui-v6"}
-        ):
-            self.participants.save_profile(
-                current.profile.user_id,
-                {"selected_item_ids": items, "selected_artist_ids": artists},
-                self.resume_context["config_sha256"],
-                self.clock(),
-            )
         return {"selected_count": len(items), "artist_count": len(artists)}
+
+    def set_context(self, token, choices, text):
+        session = self.get(token)
+        if session.finished:
+            raise ValueError("終了済みです")
+        if len(set(choices)) != len(choices) or set(choices) - {
+            "calmer",
+            "more_energy",
+            "different_style",
+        }:
+            raise ValueError("unknown session request")
+        if text and not session.log.session.allow_request_text:
+            raise PermissionError("自由文保存への別同意が必要です")
+        session.context = {
+            "choices": choices,
+            "text": text or None,
+            "recorded_at": self.clock().isoformat(),
+            "interpreted": False,
+        }
+        self.save(token, session)
+        return session.context
 
     def progress(self, token, phase, kind="enter"):
         session = self.get(token)

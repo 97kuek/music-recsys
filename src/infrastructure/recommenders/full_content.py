@@ -30,7 +30,7 @@ class FullContent(FullFactorModel):
         from scipy.sparse import csr_matrix
 
         from src.domain.recommendation.features import validate_features
-        from src.infrastructure.models.model_artifacts import capture_training
+        from src.infrastructure.models.training import capture_training
 
         if type(use_idf) is not bool or type(use_gpu) is not bool:
             raise ValueError("use_idf and use_gpu must be boolean")
@@ -71,9 +71,16 @@ class FullContent(FullFactorModel):
         )
         self._gpu = None
         if use_gpu:
-            from src.infrastructure.recommenders.gpu_runtime import require_idle_gpu
+            from src.infrastructure.recommenders.gpu_runtime import gpu_metadata, require_idle_gpu
 
             progress(f"GPU preflight: {require_idle_gpu()}")
+            self.execution.update(
+                gpu_metadata(),
+                training_device="cpu",
+                scoring_device="cuda",
+                random_computation=False,
+                bitwise_reproducible=False,
+            )
         progress(
             f"Content: {len(self.items):,} items, {len(terms):,} tags, sparse profiles per batch"
         )

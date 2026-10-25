@@ -4,7 +4,7 @@ import html
 from pathlib import Path
 
 from src.infrastructure.research.configuration import load_settings
-from src.interfaces.cli.experiment_search import load_study_config
+from src.infrastructure.research.search import load_study_config
 
 
 class ExperimentConfigPicker:
@@ -49,9 +49,13 @@ class ExperimentConfigPicker:
     def refresh(self, button=None):
         options = [("未選択", None)]
         for path in sorted([*self.directory.rglob("*.json"), *self.directory.glob("*.toml")]):
-            if not self.show_trials.value and path.parent.name in {"itemcf", "bpr", "als"}:
-                if path.parent.name != "als" or path.stem not in {"256", "512"}:
-                    continue
+            relative = path.relative_to(self.directory)
+            generated = len(relative.parts) > 1 and (
+                relative.parts[0] == "itemcf"
+                or (relative.parts[0] == "als" and path.stem not in {"256", "512"})
+            )
+            if not self.show_trials.value and generated:
+                continue
             try:
                 raw = load_settings(path)
             except (OSError, ValueError):

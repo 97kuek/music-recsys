@@ -44,7 +44,7 @@ def make_study(root):
         )
 
     def config(*, metric="graded_ndcg", task="repeat", day_weight=1.0, window=90):
-        from src.interfaces.cli.experiment_search import load_study_config
+        from src.infrastructure.research.search import load_study_config
 
         path = root / "study.toml"
         path.write_text(

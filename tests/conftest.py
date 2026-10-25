@@ -114,7 +114,7 @@ def study(tmp_path):
             f"max_trials={budget}\n[search.grid]\n{grid}\n"
             + ('[selection]\nmetric="ndcg"\nk=10\ndirection="maximize"\n' if objective else "")
         )
-        from src.interfaces.cli.experiment_search import load_study_config
+        from src.infrastructure.research.search import load_study_config
 
         return load_study_config(config)
 
@@ -126,3 +126,9 @@ def listening_study(tmp_path):
     from listening_workflow_support import make_study
 
     return make_study(tmp_path)
+
+
+@pytest.fixture
+def participant_retention(monkeypatch):
+    """Synthetic HTTP fixtures only; production retention remains explicit."""
+    monkeypatch.setenv("MUSIC_RECSYS_RETENTION_DAYS", "90")

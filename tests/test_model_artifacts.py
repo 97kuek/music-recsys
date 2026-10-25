@@ -21,7 +21,7 @@ from src.domain.recommendation.contracts import RecommendationRequest
 from src.domain.recommendation.models import FixedStrategy
 from src.domain.recommendation.profiles import InitialProfile
 from src.domain.study.events import SessionLog, StudySession
-from src.infrastructure.models.model_artifacts import export_model, load_model
+from src.infrastructure.models.artifacts import export_model, load_model
 from src.infrastructure.recommenders.als import als_solve
 from src.infrastructure.recommenders.full_als import FullALS
 from src.infrastructure.recommenders.full_bpr import FullBPR

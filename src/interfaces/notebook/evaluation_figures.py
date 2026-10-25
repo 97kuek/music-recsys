@@ -80,130 +80,136 @@ def factor_figures(frame, model, window_days):
 
 
 def accuracy_figures(frame):
-    import matplotlib.pyplot as plt
+    from src.interfaces.notebook.scientific_plots import axes, finish_k, metric_label, plot_k
 
     figures = {}
     for (task, metric), rows in frame.groupby(["task", "metric"], sort=False):
         if not rows["mean"].notna().any():
             continue
-        name, title = ACCURACY_NAMES[(task, metric)]
-        fig, ax = plt.subplots(figsize=(6, 3.6))
+        name, _ = ACCURACY_NAMES[(task, metric)]
+        ylabel, scale = metric_label(metric, task)
+        fig, ax = axes()
         groups = rows.groupby("experiment", sort=False) if "experiment" in rows else [(None, rows)]
-        for label, values in groups:
-            values = values.sort_values("k")
-            line = ax.plot(
-                values.k, values["mean"], marker="o", markersize=3, linewidth=0.8, label=label
-            )[0]
-            ci = values.dropna(subset=["ci_low", "ci_high"])
-            ax.fill_between(
-                ci.k.to_numpy(float),
-                ci.ci_low.to_numpy(float),
-                ci.ci_high.to_numpy(float),
-                color=line.get_color(),
-                alpha=0.12,
-            )
-        upper = rows[["mean", "ci_high"]].max().max()
-        upper = min(1.0, float(upper) * 1.1) if upper > 0 else 1.0
-        ax.set(
-            title=title,
-            xlabel="Recommended tracks (K)",
-            ylabel="Score",
-            ylim=(0, upper),
-            xticks=list(range(2, 21, 2)),
-        )
-        if "experiment" in rows:
-            ax.legend(fontsize=8)
-        fig.tight_layout()
+        for index, (label, values) in enumerate(groups):
+            plot_k(ax, values, "mean", index=index, label=label, scale=scale, interval=True)
+        finish_k(ax, rows.k, ylabel)
         figures[name] = fig
     return figures
 
 
-def diversity_figures(frame):
-    import matplotlib.pyplot as plt
+def diversity_figures(frame, *, separate_tasks=False):
+    from src.interfaces.notebook.scientific_plots import axes, finish_k, metric_label, plot_k
 
     figures = {}
+    if separate_tasks:
+        for task, rows in frame.groupby("task", sort=False):
+            for name, fig in diversity_figures(rows).items():
+                figures[f"{name}_{task}"] = fig
+        return figures
     fields = ["experiment", "task"] if "experiment" in frame else ["task"]
-    for metric, name, title in [
-        ("ild", "ild", "ILD"),
-        ("catalog_coverage", "coverage", "Catalog Coverage"),
-        ("novelty", "novelty", "Novelty"),
+    for metric, name in [
+        ("ild", "ild"),
+        ("catalog_coverage", "coverage"),
+        ("novelty", "novelty"),
     ]:
         if not frame[metric].notna().any():
             continue
-        fig, ax = plt.subplots(figsize=(6, 3.6))
-        for label, group in frame.groupby(fields, sort=False):
-            group = group.sort_values("k")
+        ylabel, scale = metric_label(metric)
+        fig, ax = axes()
+        for index, (label, group) in enumerate(frame.groupby(fields, sort=False)):
             if group[metric].notna().any():
-                ax.plot(
-                    group.k,
-                    group[metric],
-                    marker="o",
-                    markersize=3,
-                    linewidth=0.8,
-                    label=" / ".join(label) if isinstance(label, tuple) else label,
-                )
-        if ax.lines:
-            ax.legend(fontsize=8)
-        ax.set(title=title, xlabel="K", xticks=list(range(2, 21, 2)))
-        fig.tight_layout()
+                # With one task, the filename/caption identifies the task.
+                if "experiment" in frame and frame.task.nunique() == 1:
+                    label = label[0]
+                plot_k(ax, group, metric, index=index, label=label, scale=scale)
+        finish_k(ax, frame.k, ylabel)
         figures[name] = fig
     return figures
 
 
 def efficiency_figures(frame):
-    import matplotlib.pyplot as plt
+    from src.interfaces.notebook.scientific_plots import STYLES, axes, label_text
 
     figures = {}
-    for metric, name, title, unit, scale in [
-        ("latency_mean", "latency", "Latency", "ms / request", 1000),
-        ("input_tokens", "input_tokens", "Input Tokens", "tokens / run", 1),
-        ("output_tokens", "output_tokens", "Output Tokens", "tokens / run", 1),
-        ("api_cost", "api_cost", "API Cost", "USD / run", 1),
-        ("llm_calls", "llm_calls", "LLM Calls", "calls / run", 1),
-        ("tool_calls", "tool_calls", "Tool Calls", "calls / run", 1),
+    for metric, name, unit, scale in [
+        ("latency_mean", "latency", "Ranking time (ms / recommendation)", 1000),
+        ("input_tokens", "input_tokens", "Input tokens per run", 1),
+        ("output_tokens", "output_tokens", "Output tokens per run", 1),
+        ("api_cost", "api_cost", "API cost (USD / run)", 1),
+        ("llm_calls", "llm_calls", "LLM calls per run", 1),
+        ("tool_calls", "tool_calls", "Tool calls per run", 1),
     ]:
         valid = frame.dropna(subset=[metric])
         if valid.empty:
             continue
-        fig, ax = plt.subplots(figsize=(6, max(2.8, len(valid) * 0.5)))
+        fig, ax = axes(figsize=(6.4, max(2.8, len(valid) * 0.5)))
         label = "experiment" if "experiment" in frame else "model"
-        ax.barh(valid[label], valid[metric] * scale)
-        ax.set(title=title, xlabel=unit)
-        fig.tight_layout()
+        ax.barh(
+            [label_text(v) for v in valid[label]],
+            valid[metric] * scale,
+            color=[STYLES[i % len(STYLES)]["color"] for i in range(len(valid))],
+        )
+        ax.set(xlabel=unit, xlim=(0, None))
+        ax.grid(False)
+        ax.grid(axis="x", color="0.9", linewidth=0.6)
         figures[name] = fig
     return figures
 
 
 def observation_figures(frame):
-    import matplotlib.pyplot as plt
+    from matplotlib.ticker import MaxNLocator
+
+    from src.interfaces.notebook.scientific_plots import STYLES, axes, label_text
 
     figures = {}
     if frame.empty:
         return figures
+    for column in ("window_days", "phase"):
+        if column in frame and frame[column].nunique() > 1:
+            raise ValueError("Plot one observation window and phase at a time")
     bins = ["1", "2", "3–4", "5–9", "10–19", "20+"]
-    for metric, name, title in [
-        ("evaluation_play_count", "play_count", "Play Count"),
-        ("evaluation_active_days", "active_days", "Active Days"),
+    for metric, name in [
+        ("evaluation_play_count", "play_count"),
+        ("evaluation_active_days", "active_days"),
     ]:
         if not frame.loc[frame.observation == metric, "pairs"].notna().any():
             continue
-        fig, ax = plt.subplots(figsize=(6, 3.6))
+        groups = []
         for index, task in enumerate(("new", "repeat")):
             rows = frame[(frame.observation == metric) & (frame.task == task)].set_index("bin")
-            counts = rows.pairs.reindex(bins, fill_value=0)
+            if rows.empty:
+                continue
+            counts = rows.pairs.reindex(bins)
+            if counts.isna().any():
+                raise ValueError("Observation bins must be measured; missing is not zero")
+            total = counts.sum()
+            if total == 0:
+                continue  # A proportion with denominator zero is undefined.
+            groups.append((index, task, counts, total))
+        if not groups:
+            continue
+        fig, ax = axes()
+        for index, task, counts, total in groups:
             ax.bar(
-                [i + (index - 0.5) * 0.35 for i in range(len(bins))], counts, width=0.35, label=task
+                [i + (index - 0.5) * 0.36 for i in range(len(bins))],
+                counts / total * 100,
+                width=0.36,
+                label=f"{label_text(task)} ($n$ = {int(total):,})",
+                color=STYLES[index]["color"],
+                hatch="" if index == 0 else "///",
+                edgecolor="white",
+                linewidth=0.5,
             )
         ax.set_xticks(range(len(bins)), bins)
         ax.set(
-            title=title,
-            xlabel="Plays per user-track"
+            xlabel="Plays per user–track pair (binned)"
             if name == "play_count"
-            else "Listening days per user-track",
-            ylabel="User-track pairs",
+            else "Listening days per user–track pair (binned)",
+            ylabel="User–track pairs within each task (%)",
+            ylim=(0, None),
         )
-        ax.legend()
-        fig.tight_layout()
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=6))
+        ax.legend(frameon=False, fontsize=9)
         figures[name] = fig
     return figures
 
@@ -219,8 +225,9 @@ def show_figures(figures):
 
 def accuracy_heatmaps(frame, day_weight):
     """各指標の K × 評価期間 / 各セルは実測した整数Kのみ。"""
-    import matplotlib.pyplot as plt
     import numpy as np
+
+    from src.interfaces.notebook.scientific_plots import axes, metric_label
 
     figures = {}
     for (task, metric), rows in frame.groupby(["task", "metric"], sort=False):
@@ -229,23 +236,30 @@ def accuracy_heatmaps(frame, day_weight):
         if not rows["mean"].notna().any():
             continue
         values = rows.pivot(index="window_days", columns="k", values="mean").sort_index()
-        name, title = ACCURACY_NAMES[task, metric]
-        fig, ax = plt.subplots(figsize=(9, 3))
-        data = values.to_numpy(float)
+        name, _ = ACCURACY_NAMES[task, metric]
+        ylabel, scale = metric_label(metric, task)
+        fig, ax = axes(figsize=(7.2, 2.8))
+        ax.grid(False)
+        data = values.to_numpy(float) * scale
         finite = data[np.isfinite(data)]
         vmax = max(float(finite.max()), 1e-9) if finite.size else 1.0
-        picture = ax.imshow(data, aspect="auto", vmin=0, vmax=vmax, cmap="viridis")
+        picture = ax.imshow(
+            np.ma.masked_invalid(data),
+            aspect="auto",
+            vmin=0,
+            vmax=vmax,
+            cmap="viridis",
+            interpolation="nearest",
+        )
         ax.set(
             xticks=range(len(values.columns)),
             xticklabels=values.columns,
             yticks=range(len(values.index)),
             yticklabels=values.index,
-            xlabel="Recommended tracks (K)",
-            ylabel="Evaluation days",
-            title=title,
+            xlabel=r"Recommendation cutoff, $K$",
+            ylabel="Observation window (days)",
         )
-        fig.colorbar(picture, ax=ax, label="Score")
-        fig.tight_layout()
+        fig.colorbar(picture, ax=ax, label=ylabel)
         figures[name + "_heatmap"] = fig
     return figures
 

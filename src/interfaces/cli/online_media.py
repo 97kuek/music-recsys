@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from src.infrastructure.datasets.listening_data import file_sha256
+from src.infrastructure.media.playback import parse_expiry
 from src.interfaces.cli.online_audit import AUDIO
 
 
@@ -16,13 +17,12 @@ def prepare(config_path, metadata_path, audio_root, permission_path, output, *, 
     if output.exists():
         raise FileExistsError(output)
     permission = json.loads(permission_path.read_text())
-    expiry = datetime.fromisoformat(permission["expires_at"])
+    expiry = parse_expiry(permission["expires_at"])
     if (
         permission.get("web_preview") is not True
         or permission.get("access_scope") != "restricted-study"
         or not permission.get("evidence_ref")
-        or expiry.utcoffset() is None
-        or expiry <= datetime.now(UTC)
+        or (expiry is not None and expiry <= datetime.now(UTC))
     ):
         raise ValueError("explicit current restricted-study web permission required")
     allowed = permission["item_ids"]

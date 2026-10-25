@@ -3,7 +3,7 @@ set -euo pipefail
 umask 077
 root="$(cd "$(dirname "$0")/.." && pwd)"
 action="${1:-start}"
-case "$action" in start|start-remote|start-share|start-pages|share-link|issue-codes|researcher|stop|status|logs|migrate-state|sessions|export) ;; *) echo 'Usage: bash deploy/mac.sh [start|start-remote|start-share|start-pages|share-link|issue-codes COUNT|researcher|stop|status|logs|migrate-state|sessions|export SESSION_ID]' >&2; exit 2;; esac
+case "$action" in start|start-remote|start-share|start-pages|share-link|researcher|stop|status|logs|migrate-state|sessions|export) ;; *) echo 'Usage: bash deploy/mac.sh [start|start-remote|start-share|start-pages|share-link|researcher|stop|status|logs|migrate-state|sessions|export SESSION_ID]' >&2; exit 2;; esac
 if [ "$action" = start-pages ]; then
   exec bash "$root/deploy/pages.sh"
 fi
@@ -50,7 +50,7 @@ case "$action" in
       echo 'MUSIC_RECSYS_SHARE_URLへ固定のhttps://WORKER.ACCOUNT.workers.devを設定してください。' >&2; exit 1
     fi
     if [[ ! "${MUSIC_RECSYS_TUNNEL_URL:-}" =~ ^https://[a-z0-9-]+\.(ngrok-free\.app|ngrok-free\.dev|ngrok\.app)$ ]] || ! command -v ngrok >/dev/null; then
-      echo 'ngrokの導入と無料アカウントの固定dev domain設定が必要です。docs/sharing.mdを確認してください。' >&2; exit 1
+      echo 'ngrokの導入と無料アカウントの固定dev domain設定が必要です。docs/ui.mdを確認してください。' >&2; exit 1
     fi
     export MUSIC_RECSYS_ALLOWED_ORIGINS="$MUSIC_RECSYS_SHARE_URL"
     # ngrok forwards its own hostname; Origin and the Access audience remain the shared URL.
@@ -59,12 +59,6 @@ case "$action" in
     echo "配布する固定リンク: $MUSIC_RECSYS_SHARE_URL/"
     echo 'このターミナルを終了すると遠隔接続が止まります。固定リンクには休止案内が表示されます。'
     exec ngrok http http://127.0.0.1:8765 --url "$MUSIC_RECSYS_TUNNEL_URL" --inspect=false
-    ;;
-  issue-codes)
-    if [ "$#" -ne 2 ] || [[ ! "$2" =~ ^[1-5]$ ]] || [ -z "${MUSIC_RECSYS_RETENTION_DAYS:-}" ]; then
-      echo 'MUSIC_RECSYS_RETENTION_DAYSを設定し、bash deploy/mac.sh issue-codes COUNT（1〜5人）を実行してください。' >&2; exit 2
-    fi
-    "${compose[@]}" exec -T app python -m src.interfaces.cli.online_logs --database /state/sessions.sqlite issue-codes --count "$2" --retention-days "$MUSIC_RECSYS_RETENTION_DAYS"
     ;;
   migrate-state)
     if [ -z "$legacy_state" ]; then echo '移行対象の旧ログはありません。'; exit 0; fi

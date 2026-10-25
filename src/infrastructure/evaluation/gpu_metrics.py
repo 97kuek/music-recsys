@@ -118,25 +118,14 @@ class GPUAccuracy:
 class GPUDiversity:
     def __init__(self, features, items, item_users, n_users, ks):
         import cupy as cp
-        from cupyx.scipy.sparse import csr_matrix
-        from scipy.sparse import coo_matrix
 
-        from src.domain.recommendation.features import unit_vector
+        from src.infrastructure.evaluation.features import FeaturePrefixes
 
         self.cp, self.ks = cp, ks
-        tags = {tag: i for i, tag in enumerate(sorted({t for v in features.values() for t in v}))}
-        rows, cols, data, present, nonzero = [], [], [], [], []
-        for index, item in enumerate(items):
-            vector = unit_vector(features.get(item, {}))
-            present.append(item in features)
-            nonzero.append(bool(vector))
-            for tag, value in vector.items():
-                rows.append(index)
-                cols.append(tags[tag])
-                data.append(value)
-        matrix = coo_matrix((data, (rows, cols)), shape=(len(items), max(1, len(tags)))).tocsr()
-        self.features = csr_matrix(matrix)
-        self.present, self.nonzero = cp.asarray(present), cp.asarray(nonzero)
+        self.prefixes = FeaturePrefixes(features, items, cp)
+        self.features = self.prefixes.matrix
+        self.present = cp.asarray([item in features for item in items])
+        self.nonzero = self.prefixes.valid
         self.novelty = -cp.log2(cp.asarray([(item_users[i] + 1) / (n_users + 2) for i in items]))
         self.groups = defaultdict(
             lambda: dict(
@@ -155,12 +144,8 @@ class GPUDiversity:
         valid = rankings >= 0
         lengths = valid.sum(axis=1)
         safe = cp.maximum(rankings, 0)
-        unique = cp.unique(safe)
-        vectors = self.features[unique]
-        gram = (vectors @ vectors.T).toarray()
-        indices = cp.searchsorted(unique, safe)
-        distances = 1 - cp.clip(gram[indices[:, :, None], indices[:, None, :]], 0, 1)
-        pair_prefix = cp.cumsum(cp.triu(distances, k=1).sum(axis=1), axis=1)
+        prefix_values, _ = self.prefixes.calculate(rankings[:, None, :])
+        prefix_values = prefix_values[:, 0]
         missing = cp.cumsum(~self.present[safe], axis=1)
         zero = cp.cumsum(self.present[safe] & ~self.nonzero[safe], axis=1)
         novelty = cp.cumsum(self.novelty[safe] * valid, axis=1)
@@ -174,9 +159,7 @@ class GPUDiversity:
             has_missing = missing[row_ids, last] > 0
             has_zero = zero[row_ids, last] > 0
             ild_valid = (n >= 2) & ~has_missing & ~has_zero
-            group["ild_sum"] += cp.sum(
-                cp.where(ild_valid, pair_prefix[row_ids, last] / cp.maximum(n * (n - 1) / 2, 1), 0)
-            )
+            group["ild_sum"] += cp.sum(cp.where(ild_valid, prefix_values[row_ids, last], 0))
             group["ild_count"] += ild_valid.sum()
             group["novelty_sum"] += cp.sum(
                 cp.where(n > 0, novelty[row_ids, last] / cp.maximum(n, 1), 0)

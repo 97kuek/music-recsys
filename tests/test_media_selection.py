@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from src.bootstrap import create_runtime
+from src.interfaces.cli.online_bundle import package, verify
 from src.interfaces.cli.online_media import prepare
 from src.interfaces.cli.online_prepare import demo
 
@@ -58,4 +59,52 @@ def test_invalid_selection_never_publishes_partial_media(media, tmp_path, items)
     output = tmp_path / "study"
     with pytest.raises(ValueError, match="selected item IDs"):
         prepare(*media, output, item_ids=items)
+    assert not output.exists()
+
+
+def test_no_expiry_survives_media_packaging_and_runtime_relocation(media, tmp_path):
+    permission = media[3]
+    record = json.loads(permission.read_text())
+    record["expires_at"] = None
+    permission.write_text(json.dumps(record))
+    selected = ["sample-00", "sample-01"]
+    prepared = prepare(*media, tmp_path / "study", item_ids=selected)
+    config = package(prepared, tmp_path / "relocated")
+    verify(config.parent)
+    runtime = create_runtime(config, database=tmp_path / "state.sqlite")
+    saved = json.loads(config.read_text())
+    assert json.loads((config.parent / "permission.json").read_text())["expires_at"] is None
+    assert all(entry["expires_at"] is None for entry in saved["audio"].values())
+    for item in selected:
+        assert runtime.catalog.track(item)["playback_status"] == "available"
+
+
+@pytest.mark.parametrize(
+    "expiry", ["missing", "", "2030-01-01T00:00:00", "2000-01-01T00:00:00+00:00"]
+)
+def test_missing_invalid_or_expired_permission_never_publishes_media(media, tmp_path, expiry):
+    permission = media[3]
+    record = json.loads(permission.read_text())
+    if expiry == "missing":
+        del record["expires_at"]
+    else:
+        record["expires_at"] = expiry
+    permission.write_text(json.dumps(record))
+    output = tmp_path / "study"
+    with pytest.raises((KeyError, ValueError)):
+        prepare(*media, output, item_ids=["sample-00", "sample-01"])
+    assert not output.exists()
+
+
+@pytest.mark.parametrize(
+    "changed", [{"web_preview": False}, {"access_scope": "public"}, {"evidence_ref": ""}]
+)
+def test_no_expiry_still_requires_recorded_restricted_study_permission(media, tmp_path, changed):
+    permission = media[3]
+    record = json.loads(permission.read_text())
+    record.update(expires_at=None, **changed)
+    permission.write_text(json.dumps(record))
+    output = tmp_path / "study"
+    with pytest.raises(ValueError, match="permission"):
+        prepare(*media, output, item_ids=["sample-00", "sample-01"])
     assert not output.exists()

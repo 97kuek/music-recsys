@@ -67,10 +67,6 @@ class PlaybackService:
         if event.kind == "play":
             session.heard.add(event.item_id)
         self.sessions.save(token, session)
-        if event.kind == "like" and session.long_term_consent:
-            from src.application.study.preferences import PreferenceService
-
-            PreferenceService(self.sessions).for_participant(session.profile.user_id)
 
     def bind_preview(self, token, item_id):
         current = self.sessions.get(token)

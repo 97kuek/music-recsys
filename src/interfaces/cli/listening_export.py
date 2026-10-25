@@ -8,7 +8,7 @@ from pathlib import Path
 
 from src.domain.datasets import canonical_json
 from src.infrastructure.datasets.listening_data import file_sha256, parquet_schemas, validate_bundle
-from src.infrastructure.evaluation.benchmark import _source_sha256
+from src.infrastructure.provenance import source_hash
 from src.paths import PROJECT_ROOT
 
 
@@ -265,7 +265,7 @@ def export_listening_phase(
         "files": refs,
         "exclusions": exclusions,
         "exclusion_order": ["cold_user", "cold_item"],
-        "source_sha256": _source_sha256(),
+        "source_sha256": source_hash(),
         "dependency_lock_sha256": file_sha256(lock),
         "timestamp_interpretation": temporal.timestamp_interpretation,
     }

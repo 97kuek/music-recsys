@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 
-@pytest.mark.parametrize("similarity", ["cosine", "jaccard"])
+@pytest.mark.parametrize("similarity", ["cosine", "jaccard", "pearson"])
 @pytest.mark.parametrize("neighbors", [1, 3, 50])
 def test_full_itemcf_matches_reference(tmp_path, similarity, neighbors):
     import pyarrow as pa

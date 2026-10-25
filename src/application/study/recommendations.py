@@ -118,7 +118,6 @@ class RecommendationActions:
             "list_number": 1,
             "adjustment_index": 0,
             "parent_request_id": None,
-            "profile_snapshot": deepcopy(session.profile_snapshot),
             "session_context": deepcopy(session.context),
             "condition": self.study.conditions[session.order[session.period]].model_dump()
             if self.study

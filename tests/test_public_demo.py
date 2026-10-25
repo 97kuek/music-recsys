@@ -4,7 +4,7 @@ import os
 import pytest
 
 from src.domain.recommendation.profiles import InitialProfile
-from src.infrastructure.models.model_artifacts import load_model
+from src.infrastructure.models.artifacts import load_model
 from src.interfaces.cli.online_prepare import demo
 from src.interfaces.cli.online_public_demo import export
 

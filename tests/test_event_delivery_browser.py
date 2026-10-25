@@ -5,15 +5,12 @@ import socket
 import subprocess
 import sys
 import time
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
 import pytest
 from playwright.sync_api import sync_playwright
 
-from src.application.study.participants import Participants
-from src.infrastructure.persistence.sessions import LocalStore
 from src.interfaces.cli.online_prepare import demo
 
 pytestmark = pytest.mark.skipif(
@@ -24,14 +21,6 @@ pytestmark = pytest.mark.skipif(
 
 class LiveApp(str):
     database: Path
-
-
-def browser_code(app):
-    now = datetime.now(UTC)
-    _, code = Participants(LocalStore(app.database)).issue(
-        expires_at=now + timedelta(days=1), now=now
-    )
-    return code
 
 
 @pytest.fixture(scope="module")
@@ -88,8 +77,7 @@ def live_app(tmp_path_factory):
 def begin_playback(page, app):
     page.goto("/")
     page.get_by_role("heading", name="はじめに", exact=True).wait_for()
-    page.get_by_label("参加コード", exact=True).fill(browser_code(app))
-    page.get_by_role("button", name="同意して始める・再開する", exact=True).click()
+    page.get_by_role("button", name="同意して始める", exact=True).click()
     page.locator(".select-song").first.click()
     page.get_by_role("button", name="選択して次へ", exact=True).click()
     page.locator(".recommendations .track-open").first.click()

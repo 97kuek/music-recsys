@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from src.infrastructure.research.configuration import load_settings
-from src.interfaces.cli.experiment_search import load_study_config
+from src.infrastructure.research.search import load_study_config
 from src.interfaces.cli.factor_study import conditions, run_study
 
 
@@ -19,7 +19,7 @@ def small_study(tmp_path, model="bpr"):
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(tmp_path / "test-must-not-be-opened"),
         features=str(bundle / "features.json"),
-        output=str(tmp_path / "study"),
+        output=str(tmp_path / ("1epoch" if model == "bpr" else "study")),
     )
     raw["model"]["parameters"]["use_gpu"] = False
     raw["search"].update(grid={"factors": [3], "iterations": [1]}, seeds=[7, 8], max_trials=2)
@@ -35,17 +35,35 @@ def small_study(tmp_path, model="bpr"):
 
 
 def test_studies_separate_epochs_and_share_factors_seeds_and_inputs():
-    configs = [load_study_config(f"configs/bpr-{epoch}epoch.json") for epoch in (30, 100, 200)]
+    configs = [load_study_config(f"configs/bpr-{epoch}epoch.json") for epoch in (30, 100, 200, 500)]
     assert configs[0].evaluation == configs[1].evaluation
     assert configs[0].validation_dataset == configs[1].validation_dataset
     assert configs[0].features == configs[1].features
-    for config, epoch in zip(configs, (30, 100, 200), strict=True):
+    for config, epoch in zip(configs, (30, 100, 200, 500), strict=True):
+        assert config.output.parts[-2:] == ("bpr", f"{epoch}epoch")
         planned = list(conditions(config))
         assert len(planned) == len({name for name, _ in planned}) == 12
+        assert {name for name, _ in planned} == {
+            f"f{factors}-s{seed}" for factors in (32, 64, 128, 256) for seed in (42, 43, 44)
+        }
+        assert all(
+            trial.name == f"{config.name}-f{trial.parameters['factors']}-e{epoch}-s{trial.seeds[0]}"
+            for _, trial in planned
+        )
         assert {trial.seeds for _, trial in planned} == {(42,), (43,), (44,)}
         assert {trial.parameters["iterations"] for _, trial in planned} == {epoch}
         assert {trial.parameters["factors"] for _, trial in planned} == {32, 64, 128, 256}
         assert all(not trial.grid and trial.model == "bpr" for _, trial in planned)
+
+
+def test_mixed_epoch_study_keeps_distinct_condition_directories():
+    from dataclasses import replace
+
+    config = load_study_config("configs/bpr-30epoch.json")
+    config = replace(config, grid={**config.grid, "iterations": [30, 100]}, max_trials=24)
+    planned = list(conditions(config))
+    assert len(planned) == len({trial.output for _, trial in planned}) == 24
+    assert all(f"-e{trial.parameters['iterations']}-" in name for name, trial in planned)
 
 
 @pytest.mark.parametrize("model", ["bpr", "als"])

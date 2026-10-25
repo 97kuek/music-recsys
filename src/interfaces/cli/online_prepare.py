@@ -10,7 +10,7 @@ import numpy as np
 
 from src.domain.datasets import canonical_json
 from src.infrastructure.datasets.listening_data import file_sha256
-from src.infrastructure.models.model_artifacts import export_model
+from src.infrastructure.models.artifacts import export_model
 from src.infrastructure.recommenders.full_als import FullALS
 from src.infrastructure.recommenders.full_bpr import FullBPR
 from src.infrastructure.recommenders.full_itemcf import FullItemCF

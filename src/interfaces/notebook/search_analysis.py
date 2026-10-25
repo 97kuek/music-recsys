@@ -5,7 +5,7 @@ import shlex
 from collections import defaultdict
 from statistics import fmean
 
-from src.interfaces.cli.experiment_search import (
+from src.infrastructure.research.search import (
     _read_sealed,
     _verified_trial,
     context,
@@ -59,7 +59,8 @@ def validation_overview(config):
 
 
 def workflow_state(config):
-    from src.interfaces.notebook.full_analysis import is_full, read_result
+    from src.infrastructure.research.results import read_result
+    from src.interfaces.notebook.full_analysis import is_full
 
     if is_full(config):
         if not (config.output / "result.json").exists():
@@ -302,7 +303,7 @@ def plot_search(config):
     return fig
 
 
-def parameter_sensitivity(config):
+def sensitivity(config):
     """最良設定（未選択指標なら最初の成功設定）を基準に他の変数を固定する。"""
     import pandas as pd
 
@@ -554,31 +555,6 @@ def plot_final(frame):
     return fig
 
 
-def ground_truth_rows(profile):
-    import pandas as pd
-
-    rows = []
-    for label, window in profile.get("windows", {}).items():
-        for category, data in window["categories"].items():
-            rows.append(
-                {
-                    "scope": "full-event reference",
-                    "window": label,
-                    "window_days": window["days"],
-                    "category": category,
-                    "users_with_truth": data["users_with_positive_pairs"],
-                    "pairs": data["pairs"],
-                    "play_count_median": data["play_count_quantiles"]["0.5"],
-                    "active_days_median": data["active_days_quantiles"]["0.5"],
-                    "multiday_fraction": data["threshold_counts"]["active_days"]["2"]
-                    / data["pairs"]
-                    if data["pairs"]
-                    else None,
-                }
-            )
-    return pd.DataFrame(rows)
-
-
 def tradeoff_points(config):
     """全設定の同じK=10を集計する。欠損は測定済みseedだけの平均で埋めない。"""
     import pandas as pd
@@ -624,50 +600,3 @@ def tradeoff_points(config):
     frame.attrs["accuracy_metric"] = metric
     frame.attrs["evaluation_label"] = _evaluation_label(config)
     return frame
-
-
-def plot_tradeoffs(frame, *, phase="Validation"):
-    import matplotlib.pyplot as plt
-
-    if frame.empty:
-        return None
-    rows = frame
-    fig, axes = plt.subplots(1, 3, figsize=(12, 3.5))
-    for ax, metric in zip(axes, ("ild", "novelty", "catalog_coverage"), strict=True):
-        accuracy = "accuracy" if "accuracy" in rows else "ndcg"
-        accuracy_label = frame.attrs.get("accuracy_metric", "ndcg")
-        values = rows.dropna(
-            subset=[metric] if metric == "catalog_coverage" else [metric, accuracy]
-        )
-        if values.empty:
-            ax.text(0.5, 0.5, "Unmeasured", ha="center", transform=ax.transAxes)
-        else:
-            if metric == "catalog_coverage":
-                ax.bar(range(len(values)), values[metric], color="#267d85")
-                ax.set_xticks(range(len(values)), values.setting_id)
-            else:
-                ax.scatter(values[metric], values[accuracy], color="#267d85")
-                for (x, y), points in values.groupby([metric, accuracy]):
-                    ax.annotate(
-                        ", ".join(points.setting_id),
-                        (x, y),
-                        fontsize=8,
-                        xytext=(3, 3),
-                        textcoords="offset points",
-                    )
-                ax.margins(x=0.2, y=0.2)
-        if metric == "catalog_coverage":
-            ax.set(
-                title="Coverage@10",
-                xlabel="Parameter setting",
-                ylabel="Catalog coverage",
-            )
-        else:
-            ax.set(
-                title=f"{metric}@10",
-                xlabel=metric,
-                ylabel=f"{accuracy_label}@10",
-            )
-        ax.title.set_fontsize(10)
-    fig.tight_layout()
-    return fig

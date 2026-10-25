@@ -27,12 +27,10 @@ ROOT_FILES = (
     "deploy/pages/package.json",
     "deploy/pages/wrangler.jsonc",
     "deploy/pages/gateway.mjs",
-    "deploy/pages/gateway.test.mjs",
     "deploy/pages/functions/api/[[path]].js",
     "deploy/share/worker.mjs",
     "deploy/share/wrangler.jsonc",
-    "deploy/share/worker.test.mjs",
-    "docs/app-architecture.md",
+    "docs/ui.md",
     "frontend/package.json",
     "frontend/package-lock.json",
     "frontend/index.html",
@@ -56,9 +54,8 @@ def archive(root, bundle, output, *, version):
         ("src", {".py"}),
         ("frontend/src", {".ts", ".tsx", ".css", ".svg"}),
         ("frontend/scripts", {".mjs"}),
-        ("frontend/tests", {".mjs"}),
         ("frontend/public", {".svg", ".webmanifest"}),
-        ("docs", {".md", ".svg", ".html"}),
+        ("docs", {".md"}),
     ):
         files.extend(
             (p, str(p.relative_to(root)))

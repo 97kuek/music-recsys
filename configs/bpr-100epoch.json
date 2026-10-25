@@ -2,7 +2,7 @@
   "extends": "bpr-30epoch.json",
   "experiment": {
     "name": "music4all-bpr-100epoch",
-    "output": "../data/experiments/bpr-100epoch"
+    "output": "../data/experiments/bpr/100epoch"
   },
   "search": {
     "grid": {

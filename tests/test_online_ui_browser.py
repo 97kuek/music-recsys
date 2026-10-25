@@ -4,7 +4,6 @@ import os
 
 import pytest
 from playwright.sync_api import expect, sync_playwright
-from test_event_delivery_browser import browser_code
 from test_event_delivery_browser import live_app as lifecycle_app
 
 live_app = lifecycle_app
@@ -20,7 +19,7 @@ def test_open_page_shows_backend_outage_and_can_reconnect(live_app):
         page = browser.new_page(base_url=live_app)
         page.clock.install()
         page.goto("/")
-        expect(page.get_by_label("参加コード", exact=True)).to_be_visible()
+        expect(page.get_by_role("button", name="同意して始める", exact=True)).to_be_visible()
         page.route(
             "**/api/status",
             lambda route: route.fulfill(status=503, json={"detail": "Mac offline"}),
@@ -29,12 +28,12 @@ def test_open_page_shows_backend_outage_and_can_reconnect(live_app):
         expect(page.get_by_text("現在接続できません", exact=True)).to_be_visible()
         page.unroute("**/api/status")
         page.get_by_role("button", name="接続を再確認", exact=True).click()
-        expect(page.get_by_label("参加コード", exact=True)).to_be_visible()
+        expect(page.get_by_role("button", name="同意して始める", exact=True)).to_be_visible()
         browser.close()
 
 
 @pytest.mark.parametrize("width,height", [(1440, 1000), (390, 844), (320, 568)])
-def test_list_feedback_playback_and_saved_preferences(live_app, width, height):
+def test_list_feedback_playback_and_fresh_session(live_app, width, height):
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
@@ -44,11 +43,7 @@ def test_list_feedback_playback_and_saved_preferences(live_app, width, height):
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto("/")
-        code_input = page.get_by_label("参加コード", exact=True)
-        expect(code_input).to_be_visible()
-        assert code_input.evaluate(
-            "el => { const s=getComputedStyle(el); return s.borderTopStyle==='solid' && s.borderTopWidth==='1px' && s.boxShadow==='none' && s.appearance==='none'; }"
-        )
+        expect(page.get_by_label("参加コード", exact=True)).to_have_count(0)
         assert context.request.get("/api/session/state").status == 401
         page.get_by_role("button", name="このアプリについて", exact=True).click()
         help_dialog = page.get_by_role("dialog", name="このアプリについて")
@@ -60,10 +55,7 @@ def test_list_feedback_playback_and_saved_preferences(live_app, width, height):
         )
         page.get_by_role("button", name="説明を閉じる", exact=True).click()
         expect(page.get_by_role("button", name="初めて利用する", exact=True)).to_have_count(0)
-        participant_code = browser_code(live_app)
-        assert len(participant_code) == 4 and participant_code.isdigit()
-        code_input.fill(participant_code)
-        page.get_by_role("button", name="同意して始める・再開する", exact=True).click()
+        page.get_by_role("button", name="同意して始める", exact=True).click()
         page.locator(".select-song").first.click()
         page.get_by_role("button", name="選択して次へ", exact=True).click()
         expect(page.locator(".recommendations .song-row")).to_have_count(5)
@@ -103,28 +95,15 @@ def test_list_feedback_playback_and_saved_preferences(live_app, width, height):
         assert len(evaluations) == 1 and evaluations[0]["rating"] == 4
         assert evaluations[0]["discovery_status"] == "selected"
         first_session = context.request.get("/api/session/state").json()["session_id"]
-        page.get_by_role("button", name="保存した好み", exact=True).click()
-        expect(page.get_by_role("dialog", name="保存した好み")).to_be_visible()
-        page.get_by_role("button", name="閉じる", exact=True).click()
+        expect(page.get_by_role("button", name="保存した好み", exact=True)).to_have_count(0)
         page.get_by_role("button", name="もう一度", exact=True).click()
         page.locator(".select-song").first.wait_for()
         state = context.request.get("/api/session/state").json()
         assert state["session_id"] != first_session
-        assert len(state["profile"]["items"]) >= 2
-        page.get_by_role("button", name="保存した好み", exact=True).click()
-        choices = page.locator(".saved-preferences fieldset").first.locator(
-            'input[type="checkbox"]'
-        )
-        choices.nth(1).uncheck()
-        page.get_by_role("button", name="変更を保存", exact=True).click()
-        expect(
-            page.get_by_role("status").filter(has_text="次のセッション用に保存しました")
-        ).to_be_visible()
-        assert (
-            len(context.request.get("/api/profile/long-term").json()["user_settings"]["items"]) == 1
-        )
-        assert len(context.request.get("/api/session/state").json()["profile"]["items"]) >= 2
-        page.get_by_role("button", name="プロフィールと全参加データを削除", exact=True).click()
+        assert state["profile"]["items"] == []
+        assert context.request.get("/api/profile/long-term").status == 404
+        page.get_by_role("button", name="このアプリについて", exact=True).click()
+        page.get_by_role("button", name="参加データを削除", exact=True).click()
         expect(page.get_by_role("heading", name="はじめに", exact=True)).to_be_visible()
         assert context.request.get("/api/session/state").status == 401
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
@@ -133,7 +112,7 @@ def test_list_feedback_playback_and_saved_preferences(live_app, width, height):
         browser.close()
 
 
-def test_participant_code_resumes_from_another_browser(live_app):
+def test_consent_retries_and_local_browser_identity_is_separate(live_app):
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         first = browser.new_context(base_url=live_app)
@@ -144,29 +123,26 @@ def test_participant_code_resumes_from_another_browser(live_app):
             lambda route: route.fulfill(status=503, json={"detail": "一時的に開始できません"}),
             times=1,
         )
-        code = browser_code(live_app)
-        page.get_by_label("参加コード", exact=True).fill(code)
-        page.get_by_role("button", name="同意して始める・再開する", exact=True).click()
+        page.get_by_role("button", name="同意して始める", exact=True).click()
         expect(page.get_by_role("alert")).to_contain_text("一時的に開始できません")
-        page.get_by_role("button", name="同意して始める・再開する", exact=True).click()
+        page.get_by_role("button", name="同意して始める", exact=True).click()
         expect(page.get_by_role("heading", name="曲を選択", exact=True)).to_be_visible()
         original = first.request.get("/api/session/state").json()
+        page.reload()
+        expect(page.get_by_role("heading", name="曲を選択", exact=True)).to_be_visible()
+        assert (
+            first.request.get("/api/session/state").json()["session_id"] == original["session_id"]
+        )
         returning = browser.new_context(base_url=live_app)
         revisit = returning.new_page()
         revisit.goto("/")
-        revisit.get_by_label("参加コード", exact=True).fill("invalid")
-        revisit.get_by_role("button", name="同意して始める・再開する", exact=True).click()
-        expect(revisit.get_by_role("alert")).to_contain_text("参加コードを確認してください")
-        revisit.get_by_label("参加コード", exact=True).fill(code)
-        revisit.get_by_role("button", name="同意して始める・再開する", exact=True).click()
+        expect(revisit.get_by_label("参加コード", exact=True)).to_have_count(0)
+        revisit.get_by_role("button", name="同意して始める", exact=True).click()
         expect(revisit.get_by_role("heading", name="曲を選択", exact=True)).to_be_visible()
         assert (
             returning.request.get("/api/session/state").json()["session_id"]
-            == original["session_id"]
+            != original["session_id"]
         )
-        # Code login rotates the session credential; the previous browser cannot keep writing.
-        assert first.request.get("/api/session/state").status == 401
-        assert returning.request.delete("/api/session", headers={"X-Music-App": "1"}).ok
         returning.close()
         first.close()
         browser.close()

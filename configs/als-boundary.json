@@ -1,0 +1,57 @@
+{
+  "extends": "common.json",
+  "experiment": {
+    "name": "music4all-als-boundary",
+    "output": "../data/experiments/als/sensitivity/alpha-boundary"
+  },
+  "model": {
+    "name": "als",
+    "parameters": {
+      "factors": 256,
+      "iterations": 20,
+      "alpha": 0.1,
+      "regularization": 0.1,
+      "confidence_transform": "log1p",
+      "memory_budget_mb": 4096,
+      "use_gpu": true,
+      "cg_steps": 20
+    }
+  },
+  "search": {
+    "stage": "B",
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "max_trials": 3,
+    "conditions": [
+      {
+        "alpha": 0.1
+      }
+    ],
+    "controls": [
+      {
+        "output": "../data/experiments/als/sensitivity/f256-e20-a1-r0.1-s42",
+        "parameters": {
+          "alpha": 1.0
+        },
+        "seed": 42
+      },
+      {
+        "output": "../data/experiments/als/sensitivity/f256-e20-a1-r0.1-s43",
+        "parameters": {
+          "alpha": 1.0
+        },
+        "seed": 43
+      },
+      {
+        "output": "../data/experiments/als/sensitivity/f256-e20-a1-r0.1-s44",
+        "parameters": {
+          "alpha": 1.0
+        },
+        "seed": 44
+      }
+    ]
+  }
+}

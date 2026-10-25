@@ -1,7 +1,8 @@
 """全件結果の読込み / 個別イベントや全候補をメモリへ展開しない。"""
 
 import json
-from dataclasses import asdict
+
+from src.infrastructure.research.results import read_result
 
 
 def is_full(config):
@@ -13,24 +14,44 @@ def is_full(config):
     )
 
 
-def read_result(config):
-    from src.infrastructure.datasets.listening_data import file_sha256, read_bundle
-
-    saved = json.loads((config.output / "config.json").read_text(encoding="utf-8"))
-    if saved["settings"] != json.loads(json.dumps(asdict(config), default=str)):
-        raise ValueError("保存結果と現在の設定が異なります")
-    manifest, _ = read_bundle(config.validation_dataset)
-    if saved["manifest"] != manifest or saved["features_sha256"] != file_sha256(config.features):
-        raise ValueError("保存結果と現在の入力が異なります")
-    return json.loads((config.output / "result.json").read_text(encoding="utf-8"))
-
-
 def curves(config):
     import pandas as pd
 
     document = read_result(config)
+    if document.get("format") == "music-recsys-hybrid-comparison-v1":
+        from src.infrastructure.research.results import verify_artifacts
+
+        verify_artifacts(config.output, document["artifacts"])
+        frame = pd.read_csv(config.output / "metrics.csv")
+        accuracy = frame[frame.aspect == "accuracy"].copy()
+        accuracy["model"] = accuracy["condition"]
+        accuracy["experiment"] = accuracy["condition"]
+        for metric in ("ild", "catalog_coverage", "novelty"):
+            values = frame[(frame.aspect == "diversity") & (frame.metric == metric)][
+                ["condition", "task", "k", "mean", "n_evaluated", "n_excluded"]
+            ].rename(
+                columns={
+                    "task": "diversity_task",
+                    "mean": metric,
+                    "n_evaluated": metric + "_evaluated",
+                    "n_excluded": metric + "_excluded",
+                }
+            )
+            accuracy["diversity_task"] = accuracy.task.replace(
+                {"discovery": "new", "retention_proxy": "new"}
+            )
+            accuracy = accuracy.merge(values, on=["condition", "diversity_task", "k"], how="left")
+        costs = frame[frame.aspect == "efficiency"].pivot(
+            index="condition", columns="metric", values="mean"
+        )
+        accuracy = accuracy.merge(costs, on="condition", how="left")
+        accuracy.attrs["primary"] = {
+            "window_days": config.evaluation.primary_window_days,
+            "day_weight": config.evaluation.primary_day_weight,
+        }
+        return accuracy
     if document.get("format") == "music-recsys-grid-comparison-v1":
-        from src.interfaces.cli.experiment_search import load_study_config
+        from src.infrastructure.research.search import load_study_config
 
         parts = []
         from src.infrastructure.datasets.listening_data import file_sha256

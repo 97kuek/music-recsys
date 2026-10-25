@@ -2,7 +2,7 @@
   "extends": "common.json",
   "experiment": {
     "name": "music4all-als-sensitivity",
-    "output": "../data/experiments/als-sensitivity"
+    "output": "../data/experiments/als/sensitivity"
   },
   "model": {
     "name": "als",

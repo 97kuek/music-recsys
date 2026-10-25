@@ -7,12 +7,14 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
-from participant_support import invited_start, issue_code
+from participant_support import start_session
 
 from src.infrastructure.auth.access import AccessVerifier
 from src.interfaces.cli.online_bundle import inventory, package, verify
 from src.interfaces.cli.online_prepare import demo
 from src.interfaces.http.server import create_app
+
+pytestmark = pytest.mark.usefixtures("participant_retention")
 
 
 @pytest.fixture(scope="module")
@@ -39,7 +41,7 @@ def test_portable_relocation_and_allowlisted_files(bundle, tmp_path):
     results = []
     for app in (original_app, new_app):
         with TestClient(app, headers={"X-Music-App": "1"}) as c:
-            invited_start(c).raise_for_status()
+            start_session(c).raise_for_status()
             c.put("/api/profile", json={"items": ["sample-00"]}).raise_for_status()
             response = c.post("/api/recommendations", json={})
             response.raise_for_status()
@@ -121,7 +123,11 @@ def test_remote_auth_covers_ui_api_and_audio(bundle, tmp_path, monkeypatch):
     monkeypatch.setenv("OTOLAB_ALLOWED_ORIGINS", "https://otolab.example")
     monkeypatch.setenv("OTOLAB_ALLOWED_HOSTS", "otolab.example")
     # Token暗号検証は上のテスト。ここはHTTP認可境界を検証する
-    monkeypatch.setattr(AccessVerifier, "verify", lambda self, token: token == "test-valid")
+    monkeypatch.setattr(
+        AccessVerifier,
+        "identity",
+        lambda self, token: "access:test-user" if token == "test-valid" else None,
+    )
     app = create_app(bundle, tmp_path / "log.sqlite", model_version="demo-itemcf")
     with TestClient(app, base_url="https://otolab.example") as c:
         for path in ["/", "/api/status", "/api/audio/unknown", "/healthz"]:
@@ -136,7 +142,6 @@ def test_remote_auth_covers_ui_api_and_audio(bundle, tmp_path, monkeypatch):
             json={
                 "persist": True,
                 "consent_version": "local-ui-v4",
-                "participant_code": issue_code(app),
             },
             headers=headers,
         )

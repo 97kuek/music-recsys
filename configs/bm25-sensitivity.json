@@ -1,0 +1,41 @@
+{
+  "extends": "common.json",
+  "experiment": {
+    "name": "music4all-bm25-sensitivity",
+    "output": "../data/experiments/bm25/sensitivity"
+  },
+  "model": {
+    "name": "bm25",
+    "parameters": {
+      "neighbors": 20,
+      "k1": 1.2,
+      "b": 0.75,
+      "use_gpu": true
+    }
+  },
+  "search": {
+    "stage": "B",
+    "seeds": [
+      0
+    ],
+    "max_trials": 3,
+    "conditions": [
+      {
+        "b": 0.0
+      },
+      {
+        "b": 0.5
+      },
+      {
+        "b": 1.0
+      }
+    ],
+    "controls": [
+      {
+        "output": "../data/experiments/bm25/20",
+        "parameters": {},
+        "seed": 0
+      }
+    ]
+  }
+}

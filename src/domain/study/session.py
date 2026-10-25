@@ -25,8 +25,8 @@ class Session:
     phase: str = "profile"
     funnel: list = field(default_factory=list)
     replies: dict = field(default_factory=dict)
-    long_term_consent: bool = False
-    profile_snapshot: dict = field(default_factory=dict)
+    # Preserve retired fields only when round-tripping an existing saved session.
+    retired_metadata: dict = field(default_factory=dict)
     context: dict = field(default_factory=dict)
     assignment: dict = field(default_factory=dict)
     control_states: dict = field(default_factory=dict)

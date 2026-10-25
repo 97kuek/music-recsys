@@ -16,4 +16,4 @@
 .venv/bin/python -m src.interfaces.cli.experiment_search --config tests/fixtures/configs/workflow-suite-popularity.toml smoke
 ```
 
-以後は[検証手順](../../../docs/experiment-workflow.md)に従う
+以後は[検証手順](../../../README.md#実行と確認)に従う

@@ -23,6 +23,7 @@
 - 推薦モデルにValidation/Testの正解・未来の観測を渡さない
 - 同じ実験JSONをCLIとNotebookで共有する
 - 共通条件は`configs/common.json`へ集約し、GPU・比較・一括実行のためだけに設定や出力先を増やさない
+- 実験結果は`data/experiments/<手法>/<条件>/`へ集約する / BPRはepoch別、ItemCFは類似度→近傍数、ALSは因子数・感度分析別、Popularityは集計方法別に置き、手法名を付けた条件フォルダを直下へ並べない
 - 保存済み入力・分割・結果は上書きしない / 明示された形式移行では評価値・出典を保持
 - 全件評価の個別推薦・スコアはParquetへ保存し、JSONへの巨大な重複展開を避ける
 - 標準出力は実験直下のconfig.json・result.json・metrics.csv・run.log・PNG / index.htmlや設定の二重コピーを作らない

@@ -4,15 +4,30 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from src.domain.catalog import PlaybackAvailability
+from src.domain.catalog import PlaybackAvailability, aware_time
+
+
+def parse_expiry(value: str | None) -> datetime | None:
+    """明示的なnullは期限なし、文字列はタイムゾーン付きの期限として読む。"""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("expiry must be a timezone-aware ISO timestamp or explicit null")
+    expiry = datetime.fromisoformat(value)
+    aware_time(expiry)
+    return expiry
 
 
 @dataclass(frozen=True)
 class AudioAsset:
     path: Path
     license_ref: str
-    expires_at: datetime
+    expires_at: datetime | None
     sample: bool
+
+    def __post_init__(self):
+        if self.expires_at is not None:
+            aware_time(self.expires_at)
 
 
 class LocalPlayback:
@@ -27,7 +42,9 @@ class LocalPlayback:
         if asset is not None:
             status = (
                 "available"
-                if asset.license_ref and asset.expires_at > now and asset.path.is_file()
+                if asset.license_ref
+                and (asset.expires_at is None or asset.expires_at > now)
+                and asset.path.is_file()
                 else "unavailable"
             )
         return PlaybackAvailability(context, status, now, now + timedelta(seconds=30))

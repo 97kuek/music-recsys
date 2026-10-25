@@ -1,89 +1,34 @@
 # music-recsys
 
-- [日本語](README.md)
-- Public URL: [music-recsys-app.pages.dev](https://music-recsys-app.pages.dev/) (offline notice; Mac and Access setup pending). [Sharing setup](docs/pages-sharing.md) / [Mac preview](docs/mac-preview.md)
-- A research repository for comparing music recommenders and future LLM/Agent strategy selection
-- Python 3.12, uv, and Parquet for offline evaluation; React, TypeScript, and FastAPI for the listening MVP
-- Research-only LangGraph execution and optional LangSmith tracing connect to FastAPI; participant UI and live API calls remain disconnected. Music4All ID mapping and web preview permissions require verification
+Music recommendation research with Python 3.12, uv, Parquet, GPU evaluation, and a React/FastAPI listening app
 
-- Backend and UI separate domain rules, use cases, adapters and presentation; tests enforce dependency direction
-
-## Start
-
-```bash
-uv sync --locked --group data --group models --group notebook --group tracking
-.venv/bin/python -m src.interfaces.cli.lab_data
-.venv/bin/python -m src.interfaces.cli.full_evaluation --config configs/popularity-plays.json
-.venv/bin/jupyter lab --no-browser --ip=127.0.0.1 --port=8888
-```
-
-- Standard lab workflow: `lab_data → Parquet → CLI evaluation → Notebook inspection`; Docker, sudo, and a persistent database are optional
-- Explicitly select and load the same experiment JSON in each Notebook; nothing is selected by default
-- Compare all training-observed users at K=2–20 across accuracy, sustained preference, diversity/discovery, and efficiency
-- Keep Validation comparison separate from final Test evaluation; do not automatically adopt a model or primary metric
-- Check host-side `nvidia-smi` before training and prefer an available GPU for supported workloads
+The standard workflow is `lab_data → Parquet → CLI evaluation → saved-result notebooks`
+Docker, sudo, and a resident database are not required for offline research
 
 ## Documentation
 
-| Topic | Document, currently in Japanese |
-| --- | --- |
-| Recommenders, shared API, and future LLM/Agent orchestration | [Recommendation architecture](docs/architecture.md) |
-| Optional Decisions, LangGraph and LangSmith adapters; synthetic rehearsal | [LLM/Agent foundation](docs/llm-agent-evaluation.md) |
-| Phase 2–4 responsibilities, contract reuse, and missing components | [Recommendation extension design](docs/recommendation-design.md) |
-| Five-person exploratory assignment, researcher analysis, CSV/JSON exports | [Online comparison protocol](docs/online-comparison.md) |
-| Modules, Notebook/CLI execution, outputs, and development | [Code and execution workflow](docs/experiment-workflow.md) |
-| Data sources, checksums, and delivery status | [Data sources](docs/data-sources.md) |
-| UI/API, storage capacity, Mac Docker, and Tunnel/Access | [Application architecture](docs/app-architecture.md) |
-| Events, consent, storage, administration, deletion, and participant comparisons | [Online evaluation](docs/online-study.md) |
-| Online formulas, numerators/denominators, missing data, and analysis CLI | [Online metrics](docs/online-metrics.md) |
-| Listening, optional list evaluation, and future Reactive Agent screens | [Online UI/UX](docs/online-ux.md) |
-| Returning participants, preference consent, review, edits, and deletion | [Persistent preferences](docs/participant-profile.md) |
-| Candidates, ground truth, Recall/NDCG, diversity, efficiency, and missing values | [Offline evaluation metrics](docs/listening-evaluation.md) |
-| Four phases: standalone, multi-stage, LLM selection, Reactive Agent; open decisions | [Research plan](docs/research-plan.md) |
-| Existing observations and hypotheses | [Discussion](docs/discussion.md) |
+- [Overview, commands, sources, and retention](README.md)
+- [Architecture and recommendation pipeline](docs/architecture.md)
+- [Offline and online evaluation](docs/evaluation.md)
+- [Participant UI and Mac operations](docs/ui.md)
+- [Open tasks and decisions](docs/todo.md)
+- [Results, figures, and limitations](docs/discussion.md)
 
-## Notebooks
+The five Markdown files in `docs/` each stay within 200 lines
+Exact metrics, source hashes, and historical processing versions remain in their immutable experiment artifacts
 
-| Notebook | Purpose |
-| --- | --- |
-| [00_lab_start](notebooks/00_lab_start.ipynb) | Input readiness, status, and explicit evaluation launch |
-| [01_data](notebooks/01_data.ipynb) | Temporal splits, population, and listening distributions |
-| [02_analysis](notebooks/02_analysis.ipynb) | Saved results across four evaluation aspects; explicit selection/freezing |
-| [03_recommendation](notebooks/03_recommendation.ipynb) | Inspect recommendations and explanations for selected small-scale conditions |
+## Evaluation boundaries
 
-## Application and data protection
+- Include every learning-observed user, report K=2–20 and all four evaluation aspects
+- Separate new discovery and repeat listening, Validation exploration and final Test
+- Never pass future observations to recommendation models or choose parameters from Test maxima
+- Keep unmeasured values null and distinguish measured zero
+- Check the host GPU before long runs; retain backend, solver, precision, seed, and timings
+- Choose the same experiment JSON explicitly in CLI and notebooks
 
-- The lab server trains and evaluates offline; the Mac runs FastAPI in Docker. Remote sharing uses React on Pages and Functions forwarding to a Quick Tunnel
-- Extract the Mac ZIP and run `bash deploy/mac.sh start` for local use; fixed remote sharing uses `start-pages`, a pages.dev URL, and Access; see [Pages sharing](docs/pages-sharing.md)
-- Training data and evaluation results stay in the lab; source archives, serving models, selected track metadata/audio, and participant logs belong on the Mac; transfer is pending
-- See [online evaluation](docs/online-study.md) for consent, retention, and resuming; see [application architecture](docs/app-architecture.md) for storage budgets and transfer
-- Do not expose lab servers or open public ports; verify authenticated remote access on the Mac
-- Raw data, audio, models, individual results, logs, and credentials stay outside Git; follow [AGENTS.md](AGENTS.md)
-
-## Architecture diagrams
-
-- Standalone SVG diagrams distinguish current behavior from future proposals; open an image to zoom
-- The diagrams are labeled in Japanese; see the [interactive HTML](docs/architecture.html) for node details and [documentation](#documentation) for Mermaid diagrams and specifications; frameworks and fusion methods shown are not adopted decisions
-
-### UI, API, database, and deployment
-
-See [Pages sharing](docs/pages-sharing.md) for the selected deployment. The diagram below shows the alternative Worker/ngrok deployment
-
-![Alternative Worker/ngrok deployment serving the app from the Mac](docs/diagrams/app.svg)
-
-### Research batches and Notebooks
-
-![lab_data produces Parquet; the CLI trains models and evaluates Validation; Notebooks inspect saved results](docs/diagrams/batch.svg)
-
-### Future LLM and Agent orchestration
-
-![Fixed selection, one-shot Decisions selection, and a Reactive Agent triggered by an explicit user request; execution frameworks remain undecided](docs/diagrams/agent.svg)
-
-### Future multi-stage recommendation
-
-![Proposed shared candidate constraints, retrieval, fusion, reranking, permissions, and presentation; methods and composition remain undecided](docs/diagrams/ranking.svg)
+Use [the overview](README.md) for setup and commands, and [UI operations](docs/ui.md) for the listening app
 
 ## License
 
-- Original code and documentation use the [MIT License](LICENSE); see [NOTICE](NOTICE) for scope and third-party material
-- Datasets, audio, images, trained artifacts, and participant logs are excluded and remain subject to their own terms
+Original code and documentation are [MIT licensed](LICENSE); see [NOTICE](NOTICE)
+Datasets, audio, models, and participant logs retain their own conditions

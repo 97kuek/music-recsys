@@ -6,7 +6,7 @@
 !src/**
 src/**/__pycache__/
 src/**/*.pyc
-src/webapp/static/
+src/interfaces/http/static/
 !frontend/
 !frontend/package.json
 !frontend/package-lock.json

@@ -1,5 +1,6 @@
 """Cloudflare Access JWTの検証。メール・JWTを研究ログへ保存しない。"""
 
+import hashlib
 import re
 
 import jwt
@@ -13,12 +14,12 @@ class AccessVerifier:
         self.audience = audience
         self.keys = jwt.PyJWKClient(f"{self.issuer}/cdn-cgi/access/certs", timeout=5)
 
-    def verify(self, token):
+    def identity(self, token):
         if not token or len(token) > 16384:
-            return False
+            return None
         try:
             key = self.keys.get_signing_key_from_jwt(token)
-            jwt.decode(
+            claims = jwt.decode(
                 token,
                 key.key,
                 algorithms=["RS256"],
@@ -27,5 +28,11 @@ class AccessVerifier:
                 options={"require": ["exp", "iat", "iss", "aud", "sub"]},
             )
         except (jwt.PyJWTError, ValueError):
-            return False
-        return True
+            return None
+        subject = claims["sub"]
+        if not isinstance(subject, str) or not subject or len(subject) > 1024:
+            return None
+        return "access:" + hashlib.sha256(f"{self.issuer}\n{subject}".encode()).hexdigest()
+
+    def verify(self, token):
+        return self.identity(token) is not None

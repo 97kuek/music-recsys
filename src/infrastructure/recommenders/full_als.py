@@ -37,7 +37,7 @@ class FullALS(FullFactorModel):
             raise ValueError("seed must be non-negative integer")
         if confidence_transform not in {"linear", "log1p"}:
             raise ValueError("confidence_transform must be linear or log1p")
-        from src.infrastructure.models.model_artifacts import capture_training
+        from src.infrastructure.models.training import capture_training
 
         capture_training(self, locals())
         started = time.perf_counter()
@@ -133,6 +133,8 @@ class FullALS(FullFactorModel):
         from src.infrastructure.recommenders.gpu_runtime import gpu_metadata
 
         self.execution = dict(
+            backend="implicit CUDA ALS",
+            dtype="float32",
             solver="implicit GPU conjugate gradient float32",
             cg_steps=cg_steps,
             implicit=implicit.__version__,

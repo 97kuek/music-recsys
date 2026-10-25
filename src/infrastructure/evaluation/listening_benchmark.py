@@ -16,8 +16,8 @@ from pathlib import Path
 from src.domain.evaluation.listening_metrics import PreparedListeningResponse
 from src.domain.recommendation.contracts import RecommendationResponse
 from src.infrastructure.datasets.listening_data import file_sha256, read_user_observations
-from src.infrastructure.evaluation.benchmark import _source_sha256
 from src.infrastructure.evaluation.tracking import ExperimentRun, TrackingConfig, TrackingResult
+from src.infrastructure.provenance import source_hash
 from src.infrastructure.research.search_metrics import quantile
 from src.infrastructure.research.usage import summarize_usage
 from src.paths import PROJECT_ROOT
@@ -160,7 +160,7 @@ def run_listening_benchmark(
         "seed": seed,
         "model_parameters": model_parameters or {},
         "training_seconds": training_seconds,
-        "source_sha256": _source_sha256(),
+        "source_sha256": source_hash(),
         "dependency_lock_sha256": file_sha256(lock),
         "config_sha256": config_sha256,
         "python_version": platform.python_version(),

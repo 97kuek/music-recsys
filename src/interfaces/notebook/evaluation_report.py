@@ -14,13 +14,13 @@ def build_report(config_path, output=None, *, migrate=False):
     import matplotlib.pyplot as plt
     import pandas as pd
 
-    from src.infrastructure.research.experiment_store import atomic_json, compact, read_value
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         context,
         load_study,
         load_study_config,
         study_lock,
     )
+    from src.infrastructure.research.store import atomic_json, compact, read_value
     from src.interfaces.notebook.evaluation_figures import (
         accuracy_figures,
         diversity_figures,

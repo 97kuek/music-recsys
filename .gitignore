@@ -41,9 +41,10 @@ node_modules/
 /configs/itemcf/
 /configs/als/*.json
 !/configs/als/256.json
-
-/configs/bpr-30epoch/seed0/
 !/configs/als/512.json
+!/configs/als/1024.json
+!/configs/als/256-bridge.json
+!/configs/als/512-bridge.json
 
 # ローカル確認用の合成デモ生成物
 /frontend/public/demo/

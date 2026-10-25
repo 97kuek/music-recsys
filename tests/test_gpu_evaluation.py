@@ -9,6 +9,40 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+@pytest.mark.parametrize("basis", ["play_count", "user_count"])
+def test_gpu_popularity_matches_reference_with_ties_and_empty_candidates(tmp_path, basis):
+    import cupy as cp
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from src.infrastructure.evaluation.gpu_evaluation import GPURanker
+    from src.infrastructure.recommenders.full_popularity import FullPopularity
+
+    path = tmp_path / "learning.parquet"
+    pq.write_table(
+        pa.Table.from_pylist(
+            [
+                dict(user_id="u", item_id="a", play_count=10),
+                dict(user_id="u", item_id="b", play_count=1),
+                dict(user_id="v", item_id="b", play_count=1),
+                dict(user_id="v", item_id="c", play_count=1),
+                dict(user_id="w", item_id="c", play_count=1),
+            ]
+        ),
+        path,
+    )
+    model = FullPopularity(path, basis=basis)
+    histories = [set(), {"a"}, {"a", "b", "c"}]
+    rankings, counts, _ = GPURanker(model).rank(["new", "u", "v"], histories)
+    order = sorted(model.items, key=lambda i: (-model.scores[model.index[i]], i))
+    for task in ("new", "repeat"):
+        for row, history in enumerate(histories):
+            expected = [i for i in order if (i in history) == (task == "repeat")]
+            actual = [model.items[i] for i in cp.asnumpy(rankings[task][row]) if i >= 0]
+            assert actual == expected
+            assert counts[task][row] == len(expected)
+
+
 def test_gpu_rank_accuracy_diversity_matches_cpu():
     import cupy as cp
 
@@ -29,7 +63,23 @@ def test_gpu_rank_accuracy_diversity_matches_cpu():
     model.item_factors = np.array([[1, 0], [1, 1], [1, 1], [0, 1], [0, 0]], dtype=np.float32)
     users = list(model.users)
     histories = [{"a", "b"}, {"c"}, set(model.items)]
-    rankings, counts, _ = GPURanker(model).rank(users, histories)
+    ranker = GPURanker(model)
+    rankings, counts, _ = ranker.rank(users, histories)
+    candidates, candidate_counts, raw, _ = ranker.candidates(users, histories, top_m=100)
+    for task in ("new", "repeat"):
+        np.testing.assert_array_equal(
+            cp.asnumpy(candidates[task][:, :20]), cp.asnumpy(rankings[task])
+        )
+        np.testing.assert_array_equal(candidate_counts[task], counts[task])
+        for u, indices, scores in zip(
+            users, cp.asnumpy(candidates[task]), cp.asnumpy(raw[task]), strict=True
+        ):
+            valid = indices >= 0
+            expected = model.item_factors[indices[valid]] @ model.user_factors[model.users[u]]
+            np.testing.assert_allclose(scores[valid], expected, atol=1e-7)
+            assert np.isnan(scores[~valid]).all()
+    with pytest.raises(ValueError, match="top_m"):
+        ranker.candidates(users, histories, top_m=0)
     config = SimpleNamespace(
         ks=tuple(range(2, 21)),
         window_days=(30, 90, 180),
@@ -87,7 +137,48 @@ def test_gpu_rank_accuracy_diversity_matches_cpu():
     )
 
 
-@pytest.mark.parametrize("model_name", ["als", "bpr", "content", "bm25", "ease"])
+def test_gpu_ild_wide_sparse_features_match_independent_dense_pair_reference():
+    import cupy as cp
+
+    from src.domain.recommendation.features import unit_vector
+    from src.infrastructure.evaluation.gpu_metrics import GPUDiversity
+
+    rng = np.random.default_rng(5626)
+    items = [f"i{i:04}" for i in range(300)]
+    features = {
+        item: {f"t{t}": float(rng.integers(1, 30)) for t in rng.choice(600, 8, replace=False)}
+        for item in items
+    }
+    features["unranked"] = {f"t{i:06}": 1.0 for i in range(168048)}
+    features[items[0]] = {}
+    del features[items[1]]
+    rankings = np.stack([rng.choice(len(items), 20, replace=False) for _ in range(128)])
+    rankings[0, 2:] = -1
+    rankings[1] = -1
+    rankings[2, 1:] = -1
+    ks = list(range(2, 21))
+    gpu = GPUDiversity(features, items, dict.fromkeys(items, 1), 128, ks)
+    gpu.add("new", cp.asarray(rankings), np.sum(rankings >= 0, axis=1))
+    result = gpu.finish(dict(new=len(items)))
+    vectors = np.zeros((len(items), 600), dtype=float)
+    for i, item in enumerate(items):
+        for tag, value in unit_vector(features.get(item, {})).items():
+            vectors[i, int(tag[1:])] = value
+    for row in result:
+        values = []
+        for ranked in rankings[:, : row["k"]]:
+            ids = ranked[ranked >= 0]
+            if len(ids) < 2 or not np.all(np.linalg.norm(vectors[ids], axis=1) > 0):
+                continue
+            gram = vectors[ids] @ vectors[ids].T
+            values.append(
+                np.triu(1 - np.clip(gram, 0, 1), k=1).sum() / (len(ids) * (len(ids) - 1) / 2)
+            )
+        assert row["ild_evaluated"] == len(values)
+        assert row["ild"] == pytest.approx(np.mean(values), abs=1e-12)
+
+
+@pytest.mark.parametrize("model_name", ["als", "bpr", "content", "bm25", "ease", "itemcf"])
 def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name):
     import json
     import runpy
@@ -105,17 +196,18 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
         full_bpr,
         full_content,
         full_ease,
+        full_itemcf,
     )
     from src.infrastructure.research.configuration import load_settings
-    from src.interfaces.cli.experiment_search import load_study_config
-    from src.interfaces.cli.full_evaluation import run
+    from src.infrastructure.research.search import load_study_config
+    from src.interfaces.cli.evaluate import run
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
     config_path = (
-        "configs/bpr-30epoch/seed0.json" if model_name == "bpr" else f"configs/{model_name}.json"
+        "configs/bpr-30epoch.json" if model_name == "bpr" else f"configs/{model_name}.json"
     )
     raw = load_settings(Path(config_path))
     raw["experiment"].update(
@@ -126,6 +218,8 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
     )
     if model_name in {"als", "bpr"}:
         raw["model"]["parameters"].update(factors=4, iterations=2, use_gpu=True)
+    if model_name == "itemcf":
+        raw["model"]["parameters"] = dict(neighbors=3, similarity="cosine")
     raw["search"] = dict(stage="A", seeds=[0], max_trials=1)
     path = tmp_path / "config.json"
     path.write_text(json.dumps(raw))
@@ -135,6 +229,7 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
         "content": (full_content, "FullContent"),
         "bm25": (full_bm25, "FullBM25"),
         "ease": (full_ease, "FullEASE"),
+        "itemcf": (full_itemcf, "FullItemCF"),
     }[model_name]
     original = getattr(module, name)
     captured = []
@@ -145,7 +240,7 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
         return model
 
     monkeypatch.setattr(module, name, train)
-    output = run(path)
+    output = run(path, gpu_itemcf=model_name == "itemcf")
     actual = json.loads((output / "result.json").read_text(encoding="utf-8"))
     saved = json.loads((output / "config.json").read_text(encoding="utf-8"))
     assert saved["execution"]["evaluation_device"] == "cuda"
@@ -172,8 +267,8 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
         {r[0]: r[2] for r in ranked},
         popularity,
         {i: j for j, i in enumerate(popularity)},
-        captured[0],
-        None,
+        captured[0] if model_name != "itemcf" else None,
+        captured[0] if model_name == "itemcf" else None,
         lambda _: None,
     )
     for gpu_rows, cpu_rows in [(actual["accuracy"], rows), (actual["diversity"], diversity)]:
@@ -185,3 +280,55 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
                     assert a[key] == pytest.approx(b[key], abs=1e-10)
                 else:
                     assert a[key] == b[key]
+
+
+@pytest.mark.parametrize("similarity", ["cosine", "jaccard", "pearson"])
+def test_gpu_itemcf_neighbors_ranking_and_cache_match_cpu(tmp_path, similarity):
+    import cupy as cp
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from src.infrastructure.evaluation.gpu_evaluation import GPURanker
+    from src.infrastructure.recommenders.full_itemcf import FullItemCF
+
+    rng = np.random.default_rng(73)
+    records, histories = [], []
+    for u in range(12):
+        history = sorted(rng.choice([f"i{i:02}" for i in range(18)], 8, replace=False))
+        histories.append(set(history))
+        records.extend(
+            dict(user_id=f"u{u:02}", item_id=i, play_count=int(rng.integers(1, 8))) for i in history
+        )
+    path = tmp_path / "learning.parquet"
+    pq.write_table(pa.Table.from_pylist(records), path)
+    cpu = FullItemCF(path, neighbors=3, similarity=similarity, progress=lambda _: None)
+    gpu = FullItemCF(
+        path,
+        neighbors=3,
+        similarity=similarity,
+        use_gpu=True,
+        cache_dir=tmp_path / "cache",
+        progress=lambda _: None,
+    )
+    np.testing.assert_array_equal(gpu.targets, cpu.targets)
+    np.testing.assert_allclose(gpu.weights, cpu.weights, atol=1e-15, rtol=1e-15)
+    users = list(gpu.users)
+    ranked, counts, _ = GPURanker(gpu).rank(users, histories)
+    for task in ("new", "repeat"):
+        for index, history in enumerate(histories):
+            actual = [gpu.items[i] for i in cp.asnumpy(ranked[task][index]) if i >= 0]
+            assert actual == cpu.rank(history, task)
+            assert counts[task][index] == (
+                len(history) if task == "repeat" else len(gpu.items) - len(history)
+            )
+    cached = FullItemCF(
+        path,
+        neighbors=1,
+        similarity=similarity,
+        use_gpu=True,
+        cache_dir=tmp_path / "cache",
+        progress=lambda _: None,
+    )
+    assert cached.cache_hit and not gpu.cache_hit
+    np.testing.assert_array_equal(cached.targets, gpu.targets[:, :1])
+    np.testing.assert_allclose(cached.weights, gpu.weights[:, :1])

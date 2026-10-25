@@ -15,8 +15,9 @@ def user_rows(path):
 
 
 class DetailWriter:
-    def __init__(self, path):
+    def __init__(self, path, *, schema=None, compression_level=None):
         self.path, self.rows, self.writer = path, [], None
+        self.schema, self.compression_level = schema, compression_level
 
     def add(self, row):
         self.rows.append(row)
@@ -28,13 +29,24 @@ class DetailWriter:
         import pyarrow.parquet as pq
 
         if self.rows:
-            table = pa.Table.from_pylist(self.rows)
+            table = pa.Table.from_pylist(self.rows, schema=self.schema)
             if self.writer is None:
-                self.writer = pq.ParquetWriter(self.path, table.schema, compression="zstd")
+                self.writer = pq.ParquetWriter(
+                    self.path,
+                    table.schema,
+                    compression="zstd",
+                    compression_level=self.compression_level,
+                )
             self.writer.write_table(table)
             self.rows.clear()
 
     def close(self):
         self.flush()
+        if self.writer is None and self.schema is not None:
+            import pyarrow.parquet as pq
+
+            self.writer = pq.ParquetWriter(
+                self.path, self.schema, compression="zstd", compression_level=self.compression_level
+            )
         if self.writer is not None:
             self.writer.close()

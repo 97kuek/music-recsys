@@ -11,7 +11,7 @@ from test_experiment_search import fixture_factory
 
 
 def test_state_guides_smoke_selection_and_review(study):
-    from src.interfaces.cli.experiment_search import run_search, select_best, smoke
+    from src.infrastructure.research.search import run_search, select_best, smoke
     from src.interfaces.notebook.search_analysis import workflow_state
 
     config = study()
@@ -33,7 +33,7 @@ def test_state_guides_smoke_selection_and_review(study):
     ],
 )
 def test_grid_plots_actual_trials(study, grid, stage, kind):
-    from src.interfaces.cli.experiment_search import run_search, smoke
+    from src.infrastructure.research.search import run_search, smoke
     from src.interfaces.notebook.search_analysis import plot_search, search_table
 
     config = study(grid=grid, stage=stage)
@@ -47,7 +47,7 @@ def test_grid_plots_actual_trials(study, grid, stage, kind):
 
 
 def test_selected_curves_include_all_k_and_real_uncertainty(study):
-    from src.interfaces.cli.experiment_search import run_search, select_best, smoke
+    from src.infrastructure.research.search import run_search, select_best, smoke
     from src.interfaces.notebook.search_analysis import selected_curves
 
     config = study()
@@ -63,7 +63,7 @@ def test_selected_curves_include_all_k_and_real_uncertainty(study):
 
 
 def test_mismatch_is_visible_instead_of_normal_state(study):
-    from src.interfaces.cli.experiment_search import run_search, smoke
+    from src.infrastructure.research.search import run_search, smoke
     from src.interfaces.notebook.search_analysis import workflow_state
 
     config = study()
@@ -76,15 +76,15 @@ def test_mismatch_is_visible_instead_of_normal_state(study):
 
 
 def test_three_parameter_sensitivity_holds_other_parameters_fixed(study):
-    from src.interfaces.cli.experiment_search import run_search, smoke
-    from src.interfaces.notebook.search_analysis import parameter_sensitivity, plot_sensitivity
+    from src.infrastructure.research.search import run_search, smoke
+    from src.interfaces.notebook.search_analysis import plot_sensitivity, sensitivity
 
     config = study(
         grid="reverse=[false,true]\noffset=[0,1]\nunused=[1,2]", stage="B", budget=20, seeds="[0]"
     )
     smoke(config, factory=fixture_factory)
     run_search(config, factory=fixture_factory)
-    frame = parameter_sensitivity(config)
+    frame = sensitivity(config)
     assert set(frame.varied_parameter) == {"reverse", "offset", "unused"}
     for name, group in frame.groupby("varied_parameter"):
         assert len(group) == 2

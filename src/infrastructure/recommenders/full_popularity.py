@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from src.infrastructure.models.model_artifacts import capture_training
+from src.infrastructure.models.training import capture_training
 from src.infrastructure.recommenders.popularity import validate_basis
 
 
@@ -18,6 +18,7 @@ class FullPopularity:
                 [str(learning_path)],
             ).fetchall()
         self.items = np.asarray([row[0] for row in rows], dtype=str)
+        self.index = {item: index for index, item in enumerate(self.items)}
         self.plays = np.asarray([row[1] for row in rows], dtype=np.float64)
         self.scores = np.asarray(
             [row[1 if basis == "play_count" else 2] for row in rows], dtype=np.float64

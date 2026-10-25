@@ -10,7 +10,14 @@ import numpy as np
 
 class FullItemCF:
     def __init__(
-        self, learning_path, *, neighbors=50, similarity="cosine", progress=print, cache_dir=None
+        self,
+        learning_path,
+        *,
+        neighbors=50,
+        similarity="cosine",
+        progress=print,
+        cache_dir=None,
+        use_gpu=False,
     ):
         import duckdb
         import pyarrow.parquet as pq
@@ -18,12 +25,19 @@ class FullItemCF:
 
         if type(neighbors) is not int or neighbors < 1:
             raise ValueError("neighbors must be a positive integer")
-        if similarity not in {"cosine", "jaccard"}:
-            raise ValueError("similarity must be cosine or jaccard")
-        from src.infrastructure.models.model_artifacts import capture_training
+        if similarity not in {"cosine", "jaccard", "pearson"}:
+            raise ValueError("similarity must be cosine, jaccard or pearson")
+        if type(use_gpu) is not bool:
+            raise ValueError("use_gpu must be boolean")
+        from src.infrastructure.models.training import capture_training
 
         capture_training(self, locals())
         self.neighbors, self.similarity = neighbors, similarity
+        if use_gpu:
+            from src.infrastructure.recommenders.itemcf_gpu import fit
+
+            fit(self, learning_path, cache_dir=cache_dir, progress=progress)
+            return
         from src.infrastructure.datasets.listening_data import file_sha256
 
         identity = {
@@ -102,6 +116,14 @@ class FullItemCF:
                     else users_per_item[item] + users_per_item[candidates] - shared
                 )
                 weights = shared / denom
+                if similarity == "pearson":
+                    from src.infrastructure.recommenders.binary_similarity import pearson
+
+                    weights = pearson(
+                        shared, users_per_item[item], users_per_item[candidates], matrix.shape[0]
+                    )
+                    positive = weights > 0
+                    candidates, weights = candidates[positive], weights[positive]
                 order = np.lexsort((candidates, -weights))[:width]
                 count = len(order)
                 self.targets[item, :count] = candidates[order]
@@ -144,3 +166,12 @@ class FullItemCF:
         candidates = np.flatnonzero(allowed)
         order = np.lexsort((candidates, -self.plays[candidates], -scores[candidates]))[:top_k]
         return self.items[candidates[order]].tolist()
+
+    def gpu_score_batch(self, user_ids):
+        import cupy as cp
+        from cupyx.scipy.sparse import csr_matrix
+
+        if self._gpu is None:
+            self._gpu = (csr_matrix(self.histories), csr_matrix(self.neighbor_matrix))
+        histories, neighbors = self._gpu
+        return (histories[cp.asarray(user_ids)] @ neighbors).toarray()

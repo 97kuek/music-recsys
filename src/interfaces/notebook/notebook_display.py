@@ -126,8 +126,8 @@ def show_factor_overview(config):
     """Display the selected factor model before the remaining evaluation aspects."""
     import pandas as pd
 
+    from src.infrastructure.research.results import read_result
     from src.interfaces.notebook.evaluation_figures import factor_figures, show_figures
-    from src.interfaces.notebook.full_analysis import read_result
 
     report = read_result(config)
     print("選択モデル内の比較 / Binary NDCG → Recall → Repeat Recall → Latency → 学習時間")

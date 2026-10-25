@@ -1,0 +1,58 @@
+{
+  "extends": "common.json",
+  "experiment": {
+    "name": "music4all-bpr-sensitivity",
+    "output": "../data/experiments/bpr/sensitivity"
+  },
+  "model": {
+    "name": "bpr",
+    "parameters": {
+      "factors": 128,
+      "iterations": 500,
+      "learning_rate": 0.01,
+      "regularization": 0.01,
+      "use_gpu": true,
+      "memory_budget_mb": 4096
+    }
+  },
+  "search": {
+    "stage": "B",
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "max_trials": 12,
+    "conditions": [
+      {
+        "learning_rate": 0.003
+      },
+      {
+        "learning_rate": 0.03
+      },
+      {
+        "regularization": 0.001
+      },
+      {
+        "regularization": 0.1
+      }
+    ],
+    "controls": [
+      {
+        "output": "../data/experiments/bpr/500epoch/f128-s42",
+        "parameters": {},
+        "seed": 42
+      },
+      {
+        "output": "../data/experiments/bpr/500epoch/f128-s43",
+        "parameters": {},
+        "seed": 43
+      },
+      {
+        "output": "../data/experiments/bpr/500epoch/f128-s44",
+        "parameters": {},
+        "seed": 44
+      }
+    ]
+  }
+}

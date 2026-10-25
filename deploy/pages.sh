@@ -9,7 +9,7 @@ if [[ ! "${MUSIC_RECSYS_PAGES_URL:-}" =~ ^https://[a-z0-9-]+\.pages\.dev$ ]]; th
   echo 'MUSIC_RECSYS_PAGES_URLへ固定のhttps://PROJECT.pages.devを設定してください。' >&2; exit 1
 fi
 if [[ ! "${MUSIC_RECSYS_PUBLISH_TOKEN:-}" =~ ^[0-9a-f]{64}$ ]] || ! command -v cloudflared >/dev/null; then
-  echo 'cloudflaredと非公開の64桁hex登録トークンが必要です。docs/pages-sharing.mdを確認してください。' >&2; exit 1
+  echo 'cloudflaredと非公開の64桁hex登録トークンが必要です。docs/ui.mdを確認してください。' >&2; exit 1
 fi
 export MUSIC_RECSYS_ALLOWED_ORIGINS="$MUSIC_RECSYS_PAGES_URL"
 export MUSIC_RECSYS_ALLOWED_HOSTS="${MUSIC_RECSYS_PAGES_URL#https://}"

@@ -57,6 +57,36 @@ def test_picker_empty_directory(tmp_path):
         picker.require_loaded()
 
 
+def test_picker_hides_nested_generated_conditions_until_requested(tmp_path):
+    import json
+
+    from src.infrastructure.research.configuration import load_settings
+
+    raw = load_settings("configs/popularity-plays.json")
+    generated = [
+        "itemcf/cosine/20.json",
+        "itemcf/jaccard/100.json",
+        "als/32.json",
+    ]
+    visible = [
+        "bpr-500epoch.json",
+        "als/256.json",
+        "als/512.json",
+        "bm25/50.json",
+    ]
+    for name in [*generated, *visible]:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(raw))
+    picker = ExperimentConfigPicker(tmp_path)
+    values = {value for _, value in picker.dropdown.options if value}
+    assert values == {str(tmp_path / name) for name in visible}
+    picker.show_trials.value = True
+    values = {value for _, value in picker.dropdown.options if value}
+    assert values == {str(tmp_path / name) for name in [*generated, *visible]}
+    assert picker.dropdown.value is None
+
+
 @pytest.mark.parametrize("name", ["00_lab_start", "01_data", "02_analysis", "03_recommendation"])
 def test_notebooks_do_not_use_environment_as_selection(name, monkeypatch):
     from test_notebook import _run_notebook_cells

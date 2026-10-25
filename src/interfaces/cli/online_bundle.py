@@ -9,7 +9,7 @@ from pathlib import Path
 from src.bootstrap import create_runtime
 from src.infrastructure.config.study import read_study_plan
 from src.infrastructure.datasets.listening_data import file_sha256
-from src.infrastructure.models.model_artifacts import load_model
+from src.infrastructure.models.artifacts import load_model
 
 
 def inventory(config_path):

@@ -98,7 +98,7 @@ def test_binary_search_report_itself_retains_feature_identity(study):
     from dataclasses import replace
 
     from src.infrastructure.datasets.features import write_features
-    from src.interfaces.cli.experiment_search import load_study, run_search, smoke
+    from src.infrastructure.research.search import load_study, run_search, smoke
     from src.interfaces.notebook.experiment_analysis import load_reports
 
     first = model_config(study(), "content")

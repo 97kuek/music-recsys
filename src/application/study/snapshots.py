@@ -24,8 +24,9 @@ def restore_session(payload, *, context, study, now):
             tuple(profile["selected_artist_ids"]),
         ),
         registered=payload.get("registered", False),
-        long_term_consent=payload.get("long_term_consent", False),
-        profile_snapshot=payload.get("profile_snapshot", {}),
+        retired_metadata={
+            key: payload[key] for key in ("long_term_consent", "profile_snapshot") if key in payload
+        },
         context=payload.get("session_context", {}),
         assignment=payload.get("assignment", {}),
         control_states=payload.get("control_states", {}),
@@ -61,8 +62,6 @@ def session_snapshot(session, *, context, mode, study, now):
     payload.update(
         mode=mode,
         registered=session.registered,
-        long_term_consent=session.long_term_consent,
-        profile_snapshot=session.profile_snapshot,
         session_context=session.context,
         assignment=session.assignment,
         control_states=session.control_states,
@@ -88,4 +87,5 @@ def session_snapshot(session, *, context, mode, study, now):
             "phase": session.phase,
         },
     )
+    payload.update(session.retired_metadata)
     return payload

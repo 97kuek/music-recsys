@@ -5,7 +5,6 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from participant_support import invitation
 
 from src.application.study.sessions import token_key
 from src.interfaces.cli.online_prepare import demo
@@ -22,13 +21,12 @@ def app_for(bundle, database, monkeypatch, **kwargs):
     return create_app(bundle, database, model_version="demo-itemcf", **kwargs)
 
 
-def start(client, code=None):
+def start(client):
     response = client.post(
         "/api/sessions",
         json={
             "persist": True,
             "consent_version": "local-ui-v4",
-            **({"participant_code": code} if code else invitation(client)),
         },
     )
     response.raise_for_status()
@@ -51,19 +49,19 @@ def test_registration_requires_explicit_retention_and_consent(bundle, tmp_path, 
             client.post(
                 "/api/sessions", json={"consent_version": "local-ui-v4", "persist": True}
             ).status_code
-            == 401
+            == 400
         )
         with app.state.runtime.sessions.store.connect() as db:
             assert db.execute("SELECT count(*) FROM participants").fetchone()[0] == 0
             assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 0
 
 
-def test_restart_and_code_recover_original_session_and_events(bundle, tmp_path, monkeypatch):
+def test_restart_and_cookie_recover_original_session_and_events(bundle, tmp_path, monkeypatch):
     database = tmp_path / "log.sqlite"
     app = app_for(bundle, database, monkeypatch)
     with TestClient(app, headers={"X-Music-App": "1"}) as c:
         first = start(c)
-        code, session_id = c.issued_code, first.json()["session_id"]
+        session_id = first.json()["session_id"]
         cookie = c.cookies.get("music_session")
         original = payload(app, cookie)
         participant_id = original["session"]["participant_id"]
@@ -95,7 +93,7 @@ def test_restart_and_code_recover_original_session_and_events(bundle, tmp_path, 
             "/api/events", json={**event, "event_id": "like-once", "kind": "like"}
         ).raise_for_status()
         with app.state.runtime.sessions.store.connect() as db:
-            assert code != db.execute("SELECT code_hash FROM participants").fetchone()[0]
+            assert cookie != db.execute("SELECT code_hash FROM participants").fetchone()[0]
         assert cookie not in json.dumps(payload(app, cookie))
     # Restart more than 24 hours later using the same persisted database.
     future = datetime.now(UTC) + timedelta(days=2)
@@ -112,22 +110,22 @@ def test_restart_and_code_recover_original_session_and_events(bundle, tmp_path, 
         c.post("/api/events", json=event).raise_for_status()
         assert len(c.get("/api/session/export").json()["events"]) == 2
         assert start(c).json()["session_id"] == session_id  # Double submission is idempotent.
-    # A different browser supplies the code; the previous cookie is invalidated.
+    # The same local cookie preserves the session after a process restart.
     with TestClient(app, headers={"X-Music-App": "1"}) as other:
-        resumed = start(other, code).json()
+        other.cookies.set("music_session", cookie, domain="testserver.local")
+        resumed = start(other).json()
         assert resumed["session_id"] == session_id and resumed["recommendation"] == reply
         new_cookie = other.cookies.get("music_session")
         data = payload(app, new_cookie)
         assert data["session"]["participant_id"] == participant_id
         assert data["session"]["retain_until"] == expiry
-        assert app.state.runtime.sessions.store.get(token_key(cookie), future) is None
         assert "demo-itemcf" not in json.dumps(resumed)
         other.post("/api/session/progress", json={"phase": "evaluate"}).raise_for_status()
         other.post("/api/session/finish", json={}).raise_for_status()
-        # Another visit receives a new session ID while retaining the participant/profile.
+        # A completed session retains its identity, but seeds are not reused in a new session.
         next_session = start(other).json()
         assert next_session["session_id"] != session_id
-        assert next_session["profile"]["items"] == ["sample-00"]
+        assert next_session["profile"]["items"] == []
         assert (
             payload(app, other.cookies.get("music_session"))["session"]["participant_id"]
             == participant_id
@@ -136,33 +134,23 @@ def test_restart_and_code_recover_original_session_and_events(bundle, tmp_path, 
             assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 2
 
 
-def test_rotate_logout_and_withdraw_all_sessions(bundle, tmp_path, monkeypatch):
+def test_local_logout_and_owner_deletion(bundle, tmp_path, monkeypatch):
     app = app_for(bundle, tmp_path / "log.sqlite", monkeypatch)
     with TestClient(app, headers={"X-Music-App": "1"}) as c:
         first = start(c).json()
-        old_code = c.issued_code
-        rotated = c.post("/api/participants/code").json()["participant_code"]
-        assert c.post("/api/participants/check", json={"code": old_code}).status_code == 401
-        assert (
-            c.post(
-                "/api/participants/check", json={"code": rotated.lower().replace("-", "")}
-            ).status_code
-            == 200
-        )
-        managed = app.state.runtime.sessions.store.export_session(
-            first["session_id"], datetime.now(UTC)
-        )
+        store = app.state.runtime.sessions.store
+        managed = store.export_session(first["session_id"], datetime.now(UTC))
         c.post("/api/session/logout").raise_for_status()
         assert not c.cookies.get("music_session")
         assert managed.exists()
-        again = start(c, rotated).json()
+        again = start(c).json()
         assert again["session_id"] != first["session_id"]
         c.delete("/api/session").raise_for_status()
-        assert not managed.exists()
-        assert c.post("/api/participants/check", json={"code": rotated}).status_code == 401
-        with app.state.runtime.sessions.store.connect() as db:
-            assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 0
-            assert db.execute("SELECT count(*) FROM participants").fetchone()[0] == 0
+        # Local mode has no external identity: a cleared cookie starts a separate participant.
+        assert managed.exists()
+        with store.connect() as db:
+            assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 1
+            assert db.execute("SELECT count(*) FROM participants").fetchone()[0] == 1
 
 
 def test_expiry_purges_identity_profile_and_logs(bundle, tmp_path, monkeypatch):
@@ -178,7 +166,6 @@ def test_expiry_purges_identity_profile_and_logs(bundle, tmp_path, monkeypatch):
         monkeypatch.setattr("src.interfaces.http.server.now", lambda: future)
         assert c.get("/api/session/state").status_code == 401
         assert not managed.exists()
-        assert c.post("/api/participants/check", json={"code": c.issued_code}).status_code == 401
         with app.state.runtime.sessions.store.connect() as db:
             assert db.execute("SELECT count(*) FROM participants").fetchone()[0] == 0
 

@@ -9,9 +9,6 @@ export function useParticipantSession(status: Status) {
   const [profileLocked, setProfileLocked] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [phase, setPhase] = useState<Phase>('profile');
-  const [recoveryCode, setRecoveryCode] = useState<string>();
-  const [consentVersion, setConsentVersion] = useState('local-ui-v6');
-  const [registered, setRegistered] = useState(false);
   const [active, setActive] = useState(false);
   const [finished, setFinished] = useState(false);
   const [period, setPeriod] = useState(1);
@@ -26,7 +23,6 @@ export function useParticipantSession(status: Status) {
   const [discovery, setDiscovery] = useState<ListEvaluation['discovery_status']>('unanswered');
   const [discovered, setDiscovered] = useState<string[]>([]);
   const [evaluated, setEvaluated] = useState(false);
-  const [longTermConsent, setLongTermConsent] = useState(false);
   const [refreshPending, setRefreshPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -47,18 +43,15 @@ export function useParticipantSession(status: Status) {
   const emit = async (event: EventInput): Promise<void> => { await service.emit(event); };
   const stop = async () => { await player.current?.stop(); await service.flushEvents(); };
   const apply = (state: Session) => {
-    setRegistered(state.registered || false); setActive(true); setFinished(state.finished); setPhase(state.phase);
+    setActive(true); setFinished(state.finished); setPhase(state.phase);
     setPeriod(state.period); setPeriods(state.periods); setProfile(state.profile);
     setProfileLocked(state.profile_locked || false);
     setResult(state.recommendation || undefined); setIndex(0); setRating(undefined); setActions(state.actions || []);
-    setLongTermConsent(state.long_term_consent || false);
-    setConsentVersion(state.consent_version || 'local-ui-v6');
     setEvaluated(!!state.list_evaluation);
     setRating(state.list_evaluation?.rating ?? undefined);
     setDiscovery(state.list_evaluation?.discovery_status || 'unanswered');
     setDiscovered(state.list_evaluation?.discovery_item_ids || []);
     if (state.list_evaluation && state.recommendation) closedLists.current.add(state.recommendation.request_id);
-    if (state.profile_requires_selection) setMessage('保存された好みが30曲を超えています。「保存した好み」で今後使う曲を選んでください');
   };
   useEffect(() => {
     service.forgetLegacyProfile(status.catalog_key);
@@ -145,14 +138,12 @@ export function useParticipantSession(status: Status) {
     setResult(reply); setIndex(0); setActions([]); setExpanded(false);
     setRating(undefined); setDiscovery('unanswered'); setDiscovered([]); setEvaluated(false);
   };
-  const start = (code?: string, reuse?: boolean) => run(async () => {
-    const state = await service.start({ persist: status.logging_mode !== 'browser-memory', consent_version: reuse === undefined ? consentVersion : 'local-ui-v6', long_term_consent: status.logging_mode !== 'browser-memory' && (reuse ?? longTermConsent), ...(code ? {participant_code:code} : {}) });
-    if (code) setRecoveryCode(code);
+  const start = () => run(async () => {
+    const state = await service.start({ persist: status.logging_mode !== 'browser-memory', consent_version: 'local-ui-v8' });
     apply(state);
   });
-  const reset = () => { setActive(false); setFinished(false); setRegistered(false); setRecoveryCode(undefined); setResult(undefined); setProfile({ items: [], artists: [] }); setTracks([]); setOffset(0); setPhase('profile'); };
+  const reset = () => { setActive(false); setFinished(false); setResult(undefined); setProfile({ items: [], artists: [] }); setTracks([]); setOffset(0); setPhase('profile'); };
   const logout = () => run(async () => { await stop(); await service.logout(); reset(); });
-  const rotateCode = () => run(async () => { const reply = await service.rotateCode(); setRecoveryCode(reply.participant_code); setMessage('参加コードを再発行しました。以前のコードは利用できません'); });
   const beginListening = () => run(() => recommend(profile));
   const feedback = (kind: string, track: Track) => run(async () => {
     if (!result) return;
@@ -190,8 +181,6 @@ export function useParticipantSession(status: Status) {
     profileLocked,
     setExpanded,
     phase,
-    recoveryCode,
-    registered,
     active,
     finished,
     period,
@@ -206,7 +195,7 @@ export function useParticipantSession(status: Status) {
     setIndex,
     rating,
     setRating,
-    discovery, setDiscovery, discovered, setDiscovered, evaluated, longTermConsent, requestRefresh, refreshPending,
+    discovery, setDiscovery, discovered, setDiscovered, evaluated, requestRefresh, refreshPending,
     busy,
     message,
     goal,
@@ -221,7 +210,6 @@ export function useParticipantSession(status: Status) {
     recommend,
     start,
     logout,
-    rotateCode,
     beginListening,
     feedback,
     finishPeriod,

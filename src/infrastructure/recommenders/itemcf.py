@@ -20,8 +20,8 @@ class ItemCFRecommender:
     ) -> None:
         if type(neighbors) is not int or neighbors < 1:
             raise ValueError("neighbors must be a positive integer")
-        if similarity not in {"cosine", "jaccard"}:
-            raise ValueError("similarity must be cosine or jaccard")
+        if similarity not in {"cosine", "jaccard", "pearson"}:
+            raise ValueError("similarity must be cosine, jaccard or pearson")
         self.neighbors, self.similarity = neighbors, similarity
         self._counts = Counter()
         user_items, item_users = defaultdict(set), defaultdict(set)
@@ -36,6 +36,12 @@ class ItemCFRecommender:
             shared = Counter(other for user in users for other in user_items[user] if other != item)
 
             def weight(other, overlap):
+                if similarity == "pearson":
+                    from src.infrastructure.recommenders.binary_similarity import pearson
+
+                    return float(
+                        pearson(overlap, len(users), len(item_users[other]), len(user_items))
+                    )
                 denominator = (
                     math.sqrt(len(users) * len(item_users[other]))
                     if similarity == "cosine"
@@ -43,9 +49,10 @@ class ItemCFRecommender:
                 )
                 return overlap / denominator
 
+            candidates = ((other, weight(other, count)) for other, count in shared.items())
             nearest = heapq.nsmallest(
                 neighbors,
-                ((other, weight(other, count)) for other, count in shared.items()),
+                (pair for pair in candidates if pair[1] > 0),
                 key=lambda pair: (-pair[1], pair[0]),
             )
             self._neighbors[item] = dict(nearest)

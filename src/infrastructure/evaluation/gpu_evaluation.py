@@ -13,49 +13,74 @@ class GPURanker:
         import cupy as cp
 
         self.cp, self.model = cp, model
-        self.order_cpu = np.lexsort((np.arange(len(model.items)), -model.plays))
+        self.popularity = hasattr(model, "scores")
+        self.order_cpu = np.lexsort(
+            (np.arange(len(model.items)), -model.scores if self.popularity else -model.plays)
+        )
         self.inverse = np.empty(len(model.items), dtype=np.int32)
         self.inverse[self.order_cpu] = np.arange(len(model.items))
         self.order = cp.asarray(self.order_cpu)
-        if not hasattr(model, "gpu_score_batch"):
+        if self.popularity:
+            self.scores = cp.asarray(model.scores[self.order_cpu])
+        elif not hasattr(model, "gpu_score_batch"):
             self.users = cp.asarray(model.user_factors)
             self.items = cp.asarray(model.item_factors[self.order_cpu])
 
-    def rank(self, users, histories):
+    def candidates(self, users, histories, *, top_m=100, observed=None):
+        if type(top_m) is not int or top_m < 1:
+            raise ValueError("top_m must be a positive integer")
         cp, model = self.cp, self.model
         started = time.perf_counter()
-        user_ids = np.asarray([model.users[u] for u in users])
-        scores = (
-            model.gpu_score_batch(user_ids)[:, self.order]
-            if hasattr(model, "gpu_score_batch")
-            else self.users[cp.asarray(user_ids)] @ self.items.T
-        )
+        if self.popularity:
+            scores = cp.broadcast_to(self.scores, (len(users), len(model.items)))
+        else:
+            user_ids = np.asarray([model.users[u] for u in users])
+            scores = (
+                model.gpu_score_batch(user_ids)[:, self.order]
+                if hasattr(model, "gpu_score_batch")
+                else self.users[cp.asarray(user_ids)] @ self.items.T
+            )
         if hasattr(model, "active_users"):
             scores[cp.asarray(~model.active_users[user_ids])] = 0
-        observed = cp.zeros(scores.shape, dtype=bool)
-        rows, columns = [], []
-        for row, history in enumerate(histories):
-            rows.extend([row] * len(history))
-            columns.extend(self.inverse[model.index[i]] for i in history)
-        if rows:
-            observed[cp.asarray(rows), cp.asarray(columns)] = True
-        rankings, counts = {}, {}
+        if observed is None:
+            observed = cp.zeros(scores.shape, dtype=bool)
+            rows, columns = [], []
+            for row, history in enumerate(histories):
+                rows.extend([row] * len(history))
+                columns.extend(self.inverse[model.index[i]] for i in history)
+            if rows:
+                observed[cp.asarray(rows), cp.asarray(columns)] = True
+        elif observed.shape != scores.shape or observed.dtype != cp.bool_:
+            raise ValueError("Shared history mask must match the ranked item order")
+        rankings, counts, raw_scores = {}, {}, {}
         for task in ("new", "repeat"):
             allowed = ~observed if task == "new" else observed
             masked = cp.where(allowed, scores, -cp.inf)
             # CuPy argsort is stable: prior popularity/ID order resolves score ties.
-            selected = cp.argsort(-masked, axis=1)[:, : min(20, len(model.items))]
+            selected = cp.argsort(-masked, axis=1)[:, : min(top_m, len(model.items))]
             count = np.asarray(
                 [len(h) if task == "repeat" else len(model.items) - len(h) for h in histories]
             )
-            result = cp.full((len(users), 20), -1, dtype=cp.int32)
+            result = cp.full((len(users), top_m), -1, dtype=cp.int32)
             ranked = self.order[selected]
             result[:, : ranked.shape[1]] = cp.where(
                 cp.arange(ranked.shape[1])[None, :] < cp.asarray(count)[:, None], ranked, -1
             )
-            rankings[task], counts[task] = result, count
+            raw = cp.full((len(users), top_m), cp.nan, dtype=scores.dtype)
+            raw[:, : ranked.shape[1]] = cp.where(
+                cp.arange(ranked.shape[1])[None, :] < cp.asarray(count)[:, None],
+                cp.take_along_axis(scores, selected, axis=1),
+                cp.nan,
+            )
+            rankings[task], counts[task], raw_scores[task] = result, count, raw
         cp.cuda.Stream.null.synchronize()
-        return rankings, counts, time.perf_counter() - started
+        return rankings, counts, raw_scores, time.perf_counter() - started
+
+    def rank(self, users, histories, *, observed=None):
+        rankings, counts, _, elapsed = self.candidates(
+            users, histories, top_m=20, observed=observed
+        )
+        return rankings, counts, elapsed
 
 
 def score_gpu(
@@ -66,6 +91,9 @@ def score_gpu(
     from src.infrastructure.datasets.full_io import DetailWriter, user_rows
 
     started = time.perf_counter()
+    factor_model = factor_model if factor_model is not None else itemcf
+    if factor_model is None:
+        raise ValueError("GPU scoring requires a compatible trained model")
     ranker = GPURanker(factor_model)
     accuracy = GPUAccuracy(config.evaluation, factor_model.index)
     diversity = GPUDiversity(

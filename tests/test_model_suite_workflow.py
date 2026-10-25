@@ -9,7 +9,7 @@ from model_suite_support import MODELS, model_config
 def test_all_models_complete_common_search_selection_and_final_test(
     study, listening_study, model, protocol
 ):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         freeze_selection,
         inspect_selected,
         review_selection,
@@ -45,7 +45,7 @@ def test_all_models_complete_common_search_selection_and_final_test(
 
 
 def test_diagnostic_results_are_readable_without_selecting_a_best_setting(listening_study):
-    from src.interfaces.cli.experiment_search import (
+    from src.infrastructure.research.search import (
         run_final_test,
         run_search,
         select_best,
@@ -72,7 +72,7 @@ def test_changed_or_wrong_source_features_cannot_reuse_a_successful_search(
 ):
     import json
 
-    from src.interfaces.cli.experiment_search import load_study, run_search, smoke
+    from src.infrastructure.research.search import load_study, run_search, smoke
 
     config = model_config(listening_study(), "content")
     smoke(config)
@@ -113,7 +113,7 @@ def test_standalone_benchmark_loads_content_features_and_rejects_wrong_source(
 
 
 def test_recall_objective_keeps_its_label_in_tradeoff_analysis(study):
-    from src.interfaces.cli.experiment_search import run_search, smoke
+    from src.infrastructure.research.search import run_search, smoke
     from src.interfaces.notebook.search_analysis import tradeoff_points
 
     config = replace(model_config(study(), "usercf"), metric="recall")
@@ -125,7 +125,7 @@ def test_recall_objective_keeps_its_label_in_tradeoff_analysis(study):
 
 
 def test_legacy_v2_without_beyond_accuracy_remains_unmeasured(listening_study):
-    from src.interfaces.cli.experiment_search import run_search, smoke, trial_rows
+    from src.infrastructure.research.search import run_search, smoke, trial_rows
     from src.interfaces.notebook.search_analysis import _curve_frame, _trial_bundles
 
     config = model_config(listening_study(), "usercf")
