@@ -1,5 +1,24 @@
 """Shared notation for measured, discrete K values and publication figures."""
 
+from contextlib import contextmanager
+
+
+@contextmanager
+def figure_scope():
+    """Close figures created during rendering, including failures before yielding."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    existing = set(plt.get_fignums())
+    try:
+        yield
+    finally:
+        for number in set(plt.get_fignums()) - existing:
+            plt.close(number)
+
+
 STYLES = (
     dict(color="#0072B2", marker="o", linestyle="-"),
     dict(color="#D55E00", marker="s", linestyle="--"),

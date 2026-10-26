@@ -53,6 +53,7 @@ flowchart LR
 | 単独方式の全件評価 | `src.interfaces.cli.evaluate --config <JSON>` |
 | 因子数/epoch・感度 | `factor_study` / `sensitivity` / `bm25_grid` |
 | 保存結果・対応差・共通ILD | `catalog` / `audit` / `als_report` |
+| 保存済みItemCF Gridの比較図を作成 | `itemcf_report --config <JSON>`（評価は開始しない） |
 | 固定済み単独Test | `popularity_test` / `itemcf_test` / `als_test` / `final_test` |
 | 固定Hybridの計画 | `hybrid --config configs/hybrid.json`、既定は計画表示のみ |
 | 固定HybridのValidation | 同じ引数へ`--run`を追加。Testや採用選択は行わない |

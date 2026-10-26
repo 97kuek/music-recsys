@@ -228,7 +228,9 @@ def test_cli_small_full_population_provenance_no_overwrite_and_null_details(tmp_
     )["create_example"]
     bundle = create(tmp_path / "bundle")
     sources = {}
-    monkeypatch.setattr(evaluate, "render", lambda *args: None)
+    from src.infrastructure.research.reports import FullReport
+
+    monkeypatch.setattr(FullReport, "write", lambda *args: None)
     monkeypatch.setattr(audit, "render", lambda *args: [])
     for basis in ("play_count", "user_count"):
         raw = load_settings(Path("configs/popularity-plays.json"))

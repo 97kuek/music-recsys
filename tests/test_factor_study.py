@@ -120,6 +120,17 @@ def test_low_disk_stops_with_explicit_failure_and_no_fake_success(tmp_path):
     assert not (output / "metrics.csv").exists()
 
 
+@pytest.mark.parametrize("model", ["als", "bpr"])
+def test_small_study_adapter_runs_and_verifies_saved_conditions(tmp_path, model):
+    path = small_study(tmp_path, model)
+    output = run_study(path, minimum_free_gb=0)
+    result = (output / "result.json").read_bytes()
+    assert json.loads(result)["status"] == "succeeded"
+    assert json.loads(result)["completed"] == 2
+    assert run_study(path, minimum_free_gb=0) == output
+    assert (output / "result.json").read_bytes() == result
+
+
 def test_als_sensitivity_keeps_shared_population_metrics_and_distinct_conditions():
     config = load_study_config("configs/als-sensitivity.json")
     base = load_study_config("configs/bpr-200epoch.json")

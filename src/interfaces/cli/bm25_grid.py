@@ -18,11 +18,12 @@ def run(path, k1, b):
     import cupy as cp
     import numpy as np
 
+    from src.bootstrap import create_full_report
     from src.infrastructure.datasets.features import load_features
     from src.infrastructure.evaluation.itemcf_sensitivity import prefix_models, score_prefixes
     from src.infrastructure.provenance import source_hash
     from src.infrastructure.recommenders.full_bm25 import FullBM25
-    from src.interfaces.cli.evaluate import evaluation_definitions, render
+    from src.infrastructure.research.evaluation import evaluation_definitions
     from src.interfaces.notebook.listening_analysis import observation_distribution
 
     parent = load_study_config(path)
@@ -113,7 +114,7 @@ def run(path, k1, b):
                 artifacts=artifacts,
                 definitions=evaluation_definitions(c, factor_model=model, use_gpu=True),
             )
-            render(c, document, observations=observed)
+            create_full_report().write(c, document, observations=observed)
             atomic_json(c.output / "result.json", document)
             (c.output / "run.log").write_text(
                 f"SUCCEEDED: {counts['users']} users; shared top-{owner} table; k1={k1:g}, b={b:g}; timing metadata in config.json; group scoring/render seconds={time.perf_counter() - started:.3f}\n"

@@ -13,9 +13,19 @@ from src.infrastructure.research.results import read_result
 from src.infrastructure.research.search import load_study_config, study_lock
 from src.infrastructure.research.store import atomic_json
 from src.interfaces.cli.evaluate import run
-from src.interfaces.notebook.factor_report import build_report
-from src.interfaces.notebook.itemcf_report import build_grid_report
 from src.paths import PROJECT_ROOT
+
+
+def build_report(config, paths, compare=()):
+    from src.bootstrap import create_factor_report
+
+    return create_factor_report().write(config, paths, compare)
+
+
+def build_grid_report(config_path):
+    from src.bootstrap import create_itemcf_report
+
+    return create_itemcf_report().write(config_path)
 
 
 def run_grid(config_path, *, compare=()):

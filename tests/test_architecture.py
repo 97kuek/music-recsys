@@ -34,6 +34,32 @@ def test_notebook_helpers_do_not_import_cli_entrypoints():
             assert not any(module.startswith("src.interfaces.cli") for module in modules), path
 
 
+@pytest.mark.parametrize("name", ["factor_report", "itemcf_report", "full_report", "study_report"])
+def test_report_renderers_do_not_read_or_write_artifacts(name):
+    path = ROOT / "src/interfaces/notebook" / f"{name}.py"
+    forbidden = {
+        "savefig",
+        "to_csv",
+        "write_text",
+        "write_bytes",
+        "read_text",
+        "read_bytes",
+        "open",
+        "atomic_json",
+        "load_study_config",
+        "read_result",
+        "verified_result",
+    }
+    for node in ast.walk(ast.parse(path.read_text())):
+        if isinstance(node, ast.Call):
+            called = (
+                node.func.attr
+                if isinstance(node.func, ast.Attribute)
+                else (node.func.id if isinstance(node.func, ast.Name) else "")
+            )
+            assert called not in forbidden, (path, called)
+
+
 @pytest.mark.parametrize("layer", ["domain", "application", "infrastructure"])
 def test_python_dependencies_point_inward(layer):
     for path in (ROOT / "src" / layer).rglob("*.py"):

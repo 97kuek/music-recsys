@@ -69,7 +69,7 @@ def _source(config, manifest, counts, features_hash, model):
 
 
 def _finish(trial, saved, values, observations):
-    from src.interfaces.cli.evaluate import render
+    from src.bootstrap import create_full_report
 
     rows, beyond, efficiency = values
     artifacts = {}
@@ -103,7 +103,7 @@ def _finish(trial, saved, values, observations):
             usage="unmeasured is null",
         ),
     )
-    render(trial, document, observations=observations)
+    create_full_report().write(trial, document, observations=observations)
     atomic_json(trial.output / "result.json", document)
     (trial.output / "run.log").write_text(
         "SUCCEEDED full population; shared top-500 table; all four aspects and observation distributions; detailed execution in ../../../sensitivity/run.log\n",

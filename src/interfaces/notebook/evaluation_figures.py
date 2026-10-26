@@ -265,28 +265,6 @@ def accuracy_heatmaps(frame, day_weight):
 
 
 def prune_generated_figures(output, filenames):
-    """共通生成図のうち今回未測定になったものを除去 / 独自の図には触れない。"""
-    from pathlib import Path
+    from src.infrastructure.research.reports import prune_figures
 
-    accuracy = {name for name, _ in ACCURACY_NAMES.values()}
-    known = (
-        accuracy
-        | {name + "_heatmap" for name in accuracy}
-        | {
-            "ild",
-            "coverage",
-            "novelty",
-            "latency",
-            "input_tokens",
-            "output_tokens",
-            "api_cost",
-            "llm_calls",
-            "tool_calls",
-            "play_count",
-            "active_days",
-        }
-    )
-    for name in known:
-        filename = name + ".png"
-        if filename not in filenames:
-            (Path(output) / filename).unlink(missing_ok=True)
+    prune_figures(output, filenames, (name for name, _ in ACCURACY_NAMES.values()))

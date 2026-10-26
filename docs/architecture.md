@@ -24,7 +24,23 @@
 - 実験条件の展開は`infrastructure/research/grid.py`、保存結果の比較・出典照合・公開処理は`comparison.py`に置く
 - Notebook補助からCLIをimportしない。CLIとNotebookは共通のInfrastructureを利用し、描画用の結果抽出は`interfaces/notebook/report_data.py`へ置く
 - DDDの中心は推薦条件・候補規則と参加者セッションの文脈。DomainとApplicationの依存制約、adapter差替え、循環importは自動テストで確認する
-- 研究用CLIには実行順制御、Notebookのreportモジュールには結果保存が残る。全ユースケースがApplicationへ分離された構成ではなく、層の依存検査だけで完全なDDD・クリーンアーキテクチャとは判断しない
+- `evaluate`・`factor_study`の実行順はApplicationの`Evaluation`・`FactorStudy`が管理する。CLIは引数処理と起動、bootstrapは具象Adapterの注入を担当する
+- `LocalEvaluation`・`LocalStudy`はProtocolを満たすAdapter。実行中のモデル・設定・ログは非公開のsessionへ保持し、Applicationから直接操作しない
+- 多態性はProtocolと依存注入で実現する。共通の状態や振る舞いがないクラスに継承を追加せず、図の保存は`FigureWriter`を組み込んで共有する
+- `FactorReport`・`ItemCFReport`・`FullReport`・`StudyReport`はInfrastructureで保存する。対応するNotebookの`draw`は入力済みの表から図を作り、成功・例外のいずれでも作成した図を解放する
+- ItemCF比較レポートのコマンド入口は`python -m src.interfaces.cli.itemcf_report --config <JSON>`。Notebookモジュールは描画だけを担当する
+- 評価結果は描画・出典再照合・指定されたモデル保存の成功後に公開する。条件探索の進捗JSONはrunning/failedを区別し、既存の成功条件も再利用前に出典を確認する
+- メモリAdapterによる実行順・失敗・再開試験と、保存物を使う統合試験を併用する。他の研究用CLIには実行順制御が残り、全ユースケースのApplication分離が完了した構成ではない
+
+```mermaid
+flowchart LR
+    CLI[evaluate / factor_study] --> B[bootstrap / Adapter注入]
+    B --> A[Application / Evaluation・FactorStudy]
+    A --> P[実行sessionのProtocol]
+    L[LocalEvaluation・LocalStudy] -. 実装 .-> P
+    L --> R[Report / 出典照合・保存]
+    R --> W[注入されたdraw / 図の生成と解放]
+```
 
 ```mermaid
 flowchart LR
