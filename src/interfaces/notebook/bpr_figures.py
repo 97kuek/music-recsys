@@ -6,10 +6,10 @@ from dataclasses import asdict
 from pathlib import Path
 
 from src.infrastructure.datasets.listening_data import file_sha256
+from src.infrastructure.research.comparison import staged_report, verified_result
+from src.infrastructure.research.grid import factor_conditions
 from src.infrastructure.research.search import load_study_config, study_lock
 from src.infrastructure.research.store import atomic_json
-from src.interfaces.cli.comparison import staged_report, verified_result
-from src.interfaces.cli.factor_study import conditions
 
 
 def load_points(config, k):
@@ -24,7 +24,7 @@ def load_points(config, k):
     state = json.loads((root / "result.json").read_text())
     if saved["settings"] != json.loads(json.dumps(asdict(config), default=str)):
         raise ValueError("Saved study settings differ")
-    planned = dict(conditions(config))
+    planned = dict(factor_conditions(config))
     entries = {entry["condition"]: entry for entry in state["conditions"]}
     if (
         state["status"] != "succeeded"

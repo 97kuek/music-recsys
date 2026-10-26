@@ -5,12 +5,12 @@ from statistics import fmean, stdev
 
 from src.infrastructure.datasets.listening_data import file_sha256
 from src.infrastructure.research.als_report import write_csv
+from src.infrastructure.research.comparison import staged_report
 from src.infrastructure.research.complementarity import paired_score_differences
 from src.infrastructure.research.diversity import common_ild
 from src.infrastructure.research.metrics import average_rows
 from src.infrastructure.research.results import verify_artifacts
 from src.infrastructure.research.store import atomic_json
-from src.interfaces.cli.comparison import staged_report
 from src.interfaces.notebook.hybrid_figures import figures
 from src.interfaces.notebook.listening_analysis import observation_distribution
 

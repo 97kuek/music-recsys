@@ -8,7 +8,7 @@ import pytest
 
 from src.domain.recommendation.contracts import GroundTruth
 from src.infrastructure.datasets.json_dataset import load_dataset
-from src.interfaces.notebook import recommendation_inspection as inspection
+from src.interfaces.notebook import inspection as inspection
 
 DATA = Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json"
 

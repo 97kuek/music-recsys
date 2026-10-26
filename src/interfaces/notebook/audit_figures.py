@@ -1,7 +1,7 @@
 """Common-population and stratified plots for explicitly listed saved recommenders."""
 
 from src.interfaces.notebook.parameter_figures import save
-from src.interfaces.notebook.scientific_plots import axes, finish_k, plot_k
+from src.interfaces.notebook.plots import axes, finish_k, plot_k
 
 
 def render(output, rows):

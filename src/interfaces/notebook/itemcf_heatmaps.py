@@ -1,6 +1,6 @@
 """Discrete similarity/neighbor grids with measured values and no interpolation."""
 
-from src.interfaces.notebook.scientific_plots import axes
+from src.interfaces.notebook.plots import axes
 
 
 def heatmaps(frame, similarities, neighbors):

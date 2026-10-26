@@ -76,7 +76,7 @@ def test_v2_final_comparison_does_not_mix_protocol_or_gain(listening_study):
 
 def test_repeat_inspection_counts_eligible_history_and_explains_seen_candidates(listening_study):
     from src.infrastructure.research.search import inspect_selected
-    from src.interfaces.notebook.recommendation_inspection import (
+    from src.interfaces.notebook.inspection import (
         inspect_recommendation,
         request_options,
     )

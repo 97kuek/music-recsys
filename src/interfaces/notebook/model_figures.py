@@ -1,7 +1,7 @@
 """Final Test figures using the same K, units and single-metric style as ItemCF/ALS."""
 
 from src.interfaces.notebook.parameter_figures import ACCURACY, DIVERSITY, EFFICIENCY, save
-from src.interfaces.notebook.scientific_plots import STYLES, axes, finish_k, metric_label, plot_k
+from src.interfaces.notebook.plots import STYLES, axes, finish_k, metric_label, plot_k
 
 
 def label(group, model):

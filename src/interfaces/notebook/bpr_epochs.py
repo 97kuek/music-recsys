@@ -17,10 +17,10 @@ from src.infrastructure.research.bpr_audit import (
     population_audit,
     revision_audit,
 )
+from src.infrastructure.research.comparison import metric_rows, staged_report, verified_result
+from src.infrastructure.research.grid import factor_conditions
 from src.infrastructure.research.search import load_study_config, study_lock
 from src.infrastructure.research.store import atomic_json
-from src.interfaces.cli.comparison import metric_rows, staged_report, verified_result
-from src.interfaces.cli.factor_study import conditions
 from src.interfaces.notebook.bpr_epoch_views import (
     METRICS,
     analysis_report,
@@ -49,7 +49,7 @@ def load_trials(configs, *, factors, k):
             raise ValueError("Comparison requires seeds 42/43/44")
         if file_sha256(config.validation_dataset / "manifest.json") != saved["manifest_sha256"]:
             raise ValueError("Validation input changed")
-        plan = dict(conditions(config))
+        plan = dict(factor_conditions(config))
         entries = {c["condition"]: c for c in state["conditions"]}
         if (
             state["status"] != "succeeded"

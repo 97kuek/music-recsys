@@ -5,10 +5,10 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+from src.infrastructure.research.comparison import metric_rows, staged_report, verified_result
 from src.infrastructure.research.results import read_result
 from src.infrastructure.research.search import load_study_config
 from src.infrastructure.research.store import atomic_json
-from src.interfaces.cli.comparison import metric_rows, staged_report, verified_result
 
 
 def comparison_curves(frame, output):

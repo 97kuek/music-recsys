@@ -1,7 +1,7 @@
 """Pair-specific Hybrid comparisons: one metric per figure and all-null costs omitted."""
 
 from src.interfaces.notebook.parameter_figures import ACCURACY, DIVERSITY, save
-from src.interfaces.notebook.scientific_plots import STYLES, axes, finish_k, metric_label, plot_k
+from src.interfaces.notebook.plots import STYLES, axes, finish_k, metric_label, plot_k
 
 
 def figures(output, rows, common):

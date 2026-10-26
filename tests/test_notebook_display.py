@@ -4,12 +4,12 @@ import re
 
 import pandas as pd
 
+from src.interfaces.notebook.display import table_html
 from src.interfaces.notebook.evaluation_views import (
     accuracy_groups,
     diversity_table,
     efficiency_table,
 )
-from src.interfaces.notebook.notebook_display import table_html
 
 
 def test_csv_retains_every_row_precision_and_column_order():

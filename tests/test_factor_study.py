@@ -5,8 +5,9 @@ from pathlib import Path
 import pytest
 
 from src.infrastructure.research.configuration import load_settings
+from src.infrastructure.research.grid import factor_conditions
 from src.infrastructure.research.search import load_study_config
-from src.interfaces.cli.factor_study import conditions, run_study
+from src.interfaces.cli.factor_study import run_study
 
 
 def small_study(tmp_path, model="bpr"):
@@ -41,7 +42,7 @@ def test_studies_separate_epochs_and_share_factors_seeds_and_inputs():
     assert configs[0].features == configs[1].features
     for config, epoch in zip(configs, (30, 100, 200, 500), strict=True):
         assert config.output.parts[-2:] == ("bpr", f"{epoch}epoch")
-        planned = list(conditions(config))
+        planned = list(factor_conditions(config))
         assert len(planned) == len({name for name, _ in planned}) == 12
         assert {name for name, _ in planned} == {
             f"f{factors}-s{seed}" for factors in (32, 64, 128, 256) for seed in (42, 43, 44)
@@ -61,7 +62,7 @@ def test_mixed_epoch_study_keeps_distinct_condition_directories():
 
     config = load_study_config("configs/bpr-30epoch.json")
     config = replace(config, grid={**config.grid, "iterations": [30, 100]}, max_trials=24)
-    planned = list(conditions(config))
+    planned = list(factor_conditions(config))
     assert len(planned) == len({trial.output for _, trial in planned}) == 24
     assert all(f"-e{trial.parameters['iterations']}-" in name for name, trial in planned)
 
@@ -88,7 +89,7 @@ def test_study_executes_exports_and_resumes_without_retraining(tmp_path, model):
     root_result = (output / "result.json").read_bytes()
     results = {
         name: (output / name / "result.json").read_bytes()
-        for name, _ in conditions(load_study_config(path))
+        for name, _ in factor_conditions(load_study_config(path))
     }
     assert (output / "metrics.csv").is_file()
     assert all((output / name).is_file() for name in state["figures"])
@@ -122,7 +123,7 @@ def test_low_disk_stops_with_explicit_failure_and_no_fake_success(tmp_path):
 def test_als_sensitivity_keeps_shared_population_metrics_and_distinct_conditions():
     config = load_study_config("configs/als-sensitivity.json")
     base = load_study_config("configs/bpr-200epoch.json")
-    trials = list(conditions(config))
+    trials = list(factor_conditions(config))
     assert len(trials) == len({name for name, _ in trials}) == 27
     assert config.evaluation == base.evaluation
     assert config.validation_dataset == base.validation_dataset
@@ -132,4 +133,4 @@ def test_als_sensitivity_keeps_shared_population_metrics_and_distinct_conditions
     assert all(
         trial.parameters["use_gpu"] and trial.parameters["cg_steps"] == 20 for _, trial in trials
     )
-    assert len(list(conditions(load_study_config("configs/bpr-500epoch.json")))) == 12
+    assert len(list(factor_conditions(load_study_config("configs/bpr-500epoch.json")))) == 12

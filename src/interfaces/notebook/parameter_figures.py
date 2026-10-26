@@ -1,6 +1,6 @@
 """Publication figures for explicit Content and BM25 Validation experiments."""
 
-from src.interfaces.notebook.scientific_plots import axes, finish_k, metric_label, plot_k
+from src.interfaces.notebook.plots import axes, finish_k, metric_label, plot_k
 
 ACCURACY = (
     ("discovery", "binary_ndcg", "binary_ndcg"),
@@ -204,7 +204,7 @@ def publish(config, finished, output):
 
     from src.infrastructure.research.als_report import write_csv
     from src.infrastructure.research.complementarity import paired_score_differences
-    from src.interfaces.cli.catalog import metric_rows
+    from src.infrastructure.research.metrics import metric_rows
 
     rows, sources = [], {}
     for name, trial, result, source in finished:

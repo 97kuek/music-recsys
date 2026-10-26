@@ -1,81 +1,28 @@
 """Sequential, resumable ALS/BPR sensitivity experiments using full Validation."""
 
 import argparse
-import itertools
 import json
 import math
 import shutil
 import subprocess
 import sys
 import time
-from dataclasses import asdict, replace
+from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
 from src.infrastructure.datasets.listening_data import file_sha256
+from src.infrastructure.research.grid import factor_conditions
 from src.infrastructure.research.search import load_study_config, study_lock
 from src.infrastructure.research.store import atomic_json
 from src.interfaces.cli.evaluate import run
 from src.paths import PROJECT_ROOT
 
 
-def conditions(config):
-    from src.infrastructure.recommenders.factors import integer, number
-
-    required = {"factors", "iterations"}
-    optional = {"alpha", "regularization"} if config.model == "als" else set()
-    if (
-        config.model not in {"als", "bpr"}
-        or not required <= set(config.grid)
-        or set(config.grid) - required - optional
-    ):
-        raise ValueError("ALS/BPR study requires factors/iterations and supported sensitivity grid")
-    count = len(config.seeds)
-    for key, values in config.grid.items():
-        if not values:
-            raise ValueError("study grid must not be empty")
-        count *= len(values)
-        for value in values:
-            if key in required:
-                integer(value, key)
-            else:
-                number(value, key, positive=key == "regularization")
-    if count > config.max_trials:
-        raise ValueError("factor study exceeds max_trials")
-    keys = ["factors", "iterations", *sorted(set(config.grid) - required)]
-    for values in itertools.product(*(config.grid[key] for key in keys), config.seeds):
-        parameters, seed = dict(zip(keys, values[:-1], strict=True)), values[-1]
-        name = f"f{parameters['factors']}-e{parameters['iterations']}"
-        for key, short in (("alpha", "a"), ("regularization", "r")):
-            if key in parameters:
-                name += f"-{short}{parameters[key]:g}"
-        name += f"-s{seed}"
-        directory = name
-        if (
-            config.model == "bpr"
-            and len(config.grid["iterations"]) == 1
-            and config.output.name == f"{parameters['iterations']}epoch"
-        ):
-            directory = f"f{parameters['factors']}-s{seed}"
-        yield (
-            directory,
-            replace(
-                config,
-                name=f"{config.name}-{name}",
-                output=config.output / directory,
-                parameters={**config.parameters, **parameters},
-                grid={},
-                seeds=(seed,),
-                stage="A",
-                max_trials=1,
-            ),
-        )
-
-
 def verify(trial):
     from src.infrastructure.models.artifacts import load_model
     from src.infrastructure.provenance import source_hash
-    from src.interfaces.cli.comparison import verified_result
+    from src.infrastructure.research.comparison import verified_result
 
     result, saved, _, _ = verified_result(trial, trial.evaluation)
     if saved["source_sha256"] != source_hash():
@@ -94,7 +41,7 @@ def summarize(config, finished):
     import matplotlib.pyplot as plt
     import pandas as pd
 
-    from src.interfaces.cli.comparison import metric_rows
+    from src.infrastructure.research.comparison import metric_rows
     from src.interfaces.notebook.evaluation_figures import ACCURACY_NAMES
 
     rows = []
@@ -174,7 +121,7 @@ def run_study(path, *, minimum_free_gb=5):
     from src.infrastructure.provenance import source_hash
 
     config = load_study_config(path)
-    planned = list(conditions(config))
+    planned = list(factor_conditions(config))
     identity = dict(
         format="music-recsys-factor-study-config-v1",
         settings=json.loads(json.dumps(asdict(config), default=str)),
@@ -280,7 +227,7 @@ def main():
         parser.error("--minimum-free-gb must be finite and non-negative")
     if args.condition:
         config = load_study_config(args.config)
-        matches = [trial for name, trial in conditions(config) if name == args.condition]
+        matches = [trial for name, trial in factor_conditions(config) if name == args.condition]
         if len(matches) != 1:
             parser.error("unknown condition")
         trial = matches[0]

@@ -1,7 +1,7 @@
 """Title-free, single-metric ALS figures for manuscript export."""
 
 from src.interfaces.notebook.evaluation_figures import ACCURACY_NAMES, observation_figures
-from src.interfaces.notebook.scientific_plots import STYLES, axes, finish_k, metric_label
+from src.interfaces.notebook.plots import STYLES, axes, finish_k, metric_label
 
 STYLES = (
     *STYLES,

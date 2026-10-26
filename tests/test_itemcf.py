@@ -99,7 +99,7 @@ def test_inspection_exposes_itemcf_scores_and_history_evidence():
     from pathlib import Path
 
     from src.infrastructure.datasets.json_dataset import load_dataset
-    from src.interfaces.notebook.recommendation_inspection import inspect_recommendation
+    from src.interfaces.notebook.inspection import inspect_recommendation
 
     dataset = load_dataset(
         Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json", top_k=20
@@ -124,7 +124,7 @@ def test_real_itemcf_grid_selects_and_retrains_locked_parameters(study):
         select_best,
         smoke,
     )
-    from src.interfaces.notebook.recommendation_inspection import inspect_recommendation
+    from src.interfaces.notebook.inspection import inspect_recommendation
 
     config = replace(
         study(),

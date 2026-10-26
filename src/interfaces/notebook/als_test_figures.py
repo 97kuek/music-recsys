@@ -1,6 +1,7 @@
 """One-metric ALS Test figures with measured factor counts and K cutoffs."""
 
-from src.interfaces.notebook.scientific_plots import STYLES, axes, finish_k, metric_label
+from src.interfaces.notebook.plots import STYLES, axes, finish_k, metric_label
+from src.interfaces.notebook.report_data import accuracy_rows, shared_observations
 
 
 def _label(record):
@@ -52,14 +53,12 @@ def _factor_figure(frame, ylabel, scale):
 
 
 def _model_figure(records, task, metric):
-    from src.interfaces.notebook.itemcf_test_figures import _accuracy
-
     ylabel, scale = metric_label(metric, task)
     fig, ax = axes(figsize=(7.2, max(3.6, len(records) * 0.42)))
     ax.grid(False)
     ax.grid(axis="x", color="0.9", linewidth=0.6)
     for index, record in enumerate(records):
-        row = _accuracy(record, task, metric).query("k==20").iloc[0]
+        row = accuracy_rows(record, task, metric).query("k==20").iloc[0]
         if row[["mean"]].isna().any():
             continue
         mean = float(row["mean"]) * scale
@@ -94,14 +93,13 @@ def figures(records):
         efficiency_figures,
         observation_figures,
     )
-    from src.interfaces.notebook.itemcf_test_figures import _accuracy
 
     primary = sorted([r for r in records if "factors" in r], key=lambda r: r["factors"])
     styles = (*STYLES, dict(color="0.25", marker="v", linestyle=(0, (3, 1, 1, 1))))
     result = {}
     for (task, metric), (name, _) in ACCURACY_NAMES.items():
         ylabel, scale = metric_label(metric, task)
-        groups = [(r, _accuracy(r, task, metric)) for r in primary]
+        groups = [(r, accuracy_rows(r, task, metric)) for r in primary]
         if not any(f["mean"].notna().any() for _, f in groups):
             continue
         fig, ax = axes()
@@ -158,21 +156,7 @@ def figures(records):
             result[f"{name}_{task}"] = fig
             result[f"{name}_{task}_factors"] = _factor_figure(pd.DataFrame(k20), ylabel, scale)
 
-    def observations(record):
-        return sorted(
-            record["result"]["observations"],
-            key=lambda row: (
-                row["phase"],
-                row["window_days"],
-                row["task"],
-                row["observation"],
-                row["bin"],
-            ),
-        )
-
-    observed = observations(primary[0])
-    if any(observations(r) != observed for r in records):
-        raise ValueError("Test observation distributions differ")
+    observed = shared_observations(records)
     result.update(observation_figures(pd.DataFrame(observed)))
     result.update(
         efficiency_figures(
@@ -183,6 +167,6 @@ def figures(records):
 
 
 def save_figures(output, records):
-    from src.interfaces.notebook.scientific_plots import save_pngs
+    from src.interfaces.notebook.plots import save_pngs
 
     return save_pngs(output, lambda: figures(records))

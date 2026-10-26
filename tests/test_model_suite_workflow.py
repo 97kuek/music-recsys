@@ -18,7 +18,7 @@ def test_all_models_complete_common_search_selection_and_final_test(
         select_best,
         smoke,
     )
-    from src.interfaces.notebook.recommendation_inspection import inspect_recommendation
+    from src.interfaces.notebook.inspection import inspect_recommendation
 
     config = model_config(listening_study() if protocol == "listening-v2" else study(), model)
     assert smoke(config)["status"] == "succeeded"

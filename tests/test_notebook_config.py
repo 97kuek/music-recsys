@@ -2,13 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from src.interfaces.notebook.notebook_config import ExperimentConfigPicker
+from src.interfaces.notebook.config import ConfigPicker
 
 
 def test_picker_requires_explicit_click_and_invalidates_changes(listening_study, monkeypatch):
     config = listening_study()
     monkeypatch.setenv("MUSIC_RECSYS_EXPERIMENT_CONFIG", str(config.path))
-    picker = ExperimentConfigPicker(config.path.parent)
+    picker = ConfigPicker(config.path.parent)
     assert picker.dropdown.value is None
     with pytest.raises(ValueError, match="未指定"):
         picker.require_loaded()
@@ -37,7 +37,7 @@ def test_picker_bad_config_never_reuses_previous(listening_study):
     config = listening_study()
     bad = config.path.parent / "bad.toml"
     bad.write_text("invalid = [")
-    picker = ExperimentConfigPicker(config.path.parent)
+    picker = ConfigPicker(config.path.parent)
     picker.dropdown.value = str(config.path)
     picker.load_button.click()
     picker.dropdown.value = str(bad)
@@ -50,7 +50,7 @@ def test_picker_bad_config_never_reuses_previous(listening_study):
 
 
 def test_picker_empty_directory(tmp_path):
-    picker = ExperimentConfigPicker(tmp_path)
+    picker = ConfigPicker(tmp_path)
     assert "設定ファイルなし" in picker.status.value
     picker.load_button.click()
     with pytest.raises(ValueError, match="未指定"):
@@ -78,7 +78,7 @@ def test_picker_hides_nested_generated_conditions_until_requested(tmp_path):
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(raw))
-    picker = ExperimentConfigPicker(tmp_path)
+    picker = ConfigPicker(tmp_path)
     values = {value for _, value in picker.dropdown.options if value}
     assert values == {str(tmp_path / name) for name in visible}
     picker.show_trials.value = True

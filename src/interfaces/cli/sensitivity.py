@@ -11,10 +11,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from src.infrastructure.datasets.listening_data import file_sha256, validate_bundle
+from src.infrastructure.research.comparison import staged_report
 from src.infrastructure.research.configuration import load_settings
 from src.infrastructure.research.search import load_study_config, study_lock
 from src.infrastructure.research.store import atomic_json
-from src.interfaces.cli.comparison import staged_report
 from src.paths import PROJECT_ROOT
 
 
@@ -180,7 +180,7 @@ def summarize(config, finished, output):
     import matplotlib.pyplot as plt
     import pandas as pd
 
-    from src.interfaces.cli.comparison import metric_rows
+    from src.infrastructure.research.comparison import metric_rows
     from src.interfaces.notebook.evaluation_figures import ACCURACY_NAMES
 
     rows = []

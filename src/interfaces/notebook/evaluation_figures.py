@@ -80,7 +80,7 @@ def factor_figures(frame, model, window_days):
 
 
 def accuracy_figures(frame):
-    from src.interfaces.notebook.scientific_plots import axes, finish_k, metric_label, plot_k
+    from src.interfaces.notebook.plots import axes, finish_k, metric_label, plot_k
 
     figures = {}
     for (task, metric), rows in frame.groupby(["task", "metric"], sort=False):
@@ -98,7 +98,7 @@ def accuracy_figures(frame):
 
 
 def diversity_figures(frame, *, separate_tasks=False):
-    from src.interfaces.notebook.scientific_plots import axes, finish_k, metric_label, plot_k
+    from src.interfaces.notebook.plots import axes, finish_k, metric_label, plot_k
 
     figures = {}
     if separate_tasks:
@@ -128,7 +128,7 @@ def diversity_figures(frame, *, separate_tasks=False):
 
 
 def efficiency_figures(frame):
-    from src.interfaces.notebook.scientific_plots import STYLES, axes, label_text
+    from src.interfaces.notebook.plots import STYLES, axes, label_text
 
     figures = {}
     for metric, name, unit, scale in [
@@ -159,7 +159,7 @@ def efficiency_figures(frame):
 def observation_figures(frame):
     from matplotlib.ticker import MaxNLocator
 
-    from src.interfaces.notebook.scientific_plots import STYLES, axes, label_text
+    from src.interfaces.notebook.plots import STYLES, axes, label_text
 
     figures = {}
     if frame.empty:
@@ -227,7 +227,7 @@ def accuracy_heatmaps(frame, day_weight):
     """各指標の K × 評価期間 / 各セルは実測した整数Kのみ。"""
     import numpy as np
 
-    from src.interfaces.notebook.scientific_plots import axes, metric_label
+    from src.interfaces.notebook.plots import axes, metric_label
 
     figures = {}
     for (task, metric), rows in frame.groupby(["task", "metric"], sort=False):

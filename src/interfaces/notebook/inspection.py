@@ -12,7 +12,7 @@ from src.infrastructure.recommenders import create_recommender
 
 
 @dataclass(frozen=True)
-class RecommendationInspection:
+class Inspection:
     model: str
     request: RecommendationRequest
     response: RecommendationResponse
@@ -42,7 +42,7 @@ def inspect_recommendation(
     parameters: dict | None = None,
     seed: int = 0,
     features: dict | None = None,
-) -> RecommendationInspection:
+) -> Inspection:
     """学習履歴だけでモデルを作り、選択した要求を実行する。正解は参照しない。"""
     request = next((r for r in dataset.requests if r.request_id == request_id), None)
     if request is None:
@@ -92,7 +92,7 @@ def inspect_recommendation(
         }
         for item_id in request.candidate_ids
     ]
-    return RecommendationInspection(model, request, response, history, recommendations, candidates)
+    return Inspection(model, request, response, history, recommendations, candidates)
 
 
 def audio_player(item_id: str, audio_files: Mapping[str, Path]):

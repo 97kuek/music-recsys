@@ -1,6 +1,7 @@
 """Title-free ItemCF Test figures: measured K, neighbor counts and categorical models."""
 
-from src.interfaces.notebook.scientific_plots import STYLES, axes, finish_k, metric_label
+from src.interfaces.notebook.plots import STYLES, axes, finish_k, metric_label
+from src.interfaces.notebook.report_data import accuracy_rows, shared_observations
 
 
 def _style(record):
@@ -9,18 +10,6 @@ def _style(record):
         marker={20: "o", 50: "s", 100: "^"}.get(record["neighbors"], "D"),
         linestyle={20: "-", 50: "--", 100: ":"}.get(record["neighbors"], "-."),
     )
-
-
-def _accuracy(record, task, metric):
-    import pandas as pd
-
-    frame = pd.DataFrame(record["result"]["accuracy"])
-    return frame[
-        (frame.task == task)
-        & (frame.metric == metric)
-        & (frame.window_days == 90)
-        & ((frame.metric != "graded_ndcg") | (frame.day_weight == 1.0))
-    ].sort_values("k")
 
 
 def _neighbor_figure(frame, ylabel, scale):
@@ -75,7 +64,7 @@ def figures(records):
     result = {}
     for (task, metric), (name, _) in ACCURACY_NAMES.items():
         ylabel, scale = metric_label(metric, task)
-        groups = [(r, _accuracy(r, task, metric)) for r in items]
+        groups = [(r, accuracy_rows(r, task, metric)) for r in items]
         if not any(f["mean"].notna().any() for _, f in groups):
             continue
         fig, ax = axes(figsize=(6.4, 4.2))
@@ -134,21 +123,7 @@ def figures(records):
             result[f"{name}_{task}"] = fig
             result[f"{name}_{task}_neighbors"] = _neighbor_figure(pd.DataFrame(k20), ylabel, scale)
 
-    def observation_rows(record):
-        return sorted(
-            record["result"]["observations"],
-            key=lambda row: (
-                row["phase"],
-                row["window_days"],
-                row["task"],
-                row["observation"],
-                row["bin"],
-            ),
-        )
-
-    observed = observation_rows(items[0])
-    if any(observation_rows(r) != observed for r in records):
-        raise ValueError("Test observation distributions differ")
+    observed = shared_observations(records)
     result.update(observation_figures(pd.DataFrame(observed)))
     result.update(
         efficiency_figures(
@@ -173,7 +148,7 @@ def _model_figure(records, task, metric):
     ax.grid(False)
     ax.grid(axis="x", color="0.9", linewidth=0.6)
     for index, record in enumerate(records):
-        frame = _accuracy(record, task, metric)
+        frame = accuracy_rows(record, task, metric)
         row = frame[frame.k == 20].iloc[0]
         if row["mean"] is None:
             continue
@@ -196,6 +171,6 @@ def _model_figure(records, task, metric):
 
 
 def save_figures(output, records):
-    from src.interfaces.notebook.scientific_plots import save_pngs
+    from src.interfaces.notebook.plots import save_pngs
 
     return save_pngs(output, lambda: figures(records))

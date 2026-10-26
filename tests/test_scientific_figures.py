@@ -3,6 +3,49 @@ import pandas as pd
 import pytest
 
 
+def test_report_filter_keeps_zero_and_missing_estimates_without_mutation():
+    from src.interfaces.notebook.report_data import accuracy_rows
+
+    rows = [
+        dict(
+            task="repeat",
+            metric="graded_ndcg",
+            window_days=window,
+            day_weight=weight,
+            k=k,
+            mean=mean,
+        )
+        for window, weight, k, mean in [
+            (90, 1.0, 3, None),
+            (90, 1.0, 2, 0),
+            (30, 1.0, 2, 0.5),
+            (90, 0.5, 2, 0.7),
+        ]
+    ]
+    frame = accuracy_rows({"result": {"accuracy": rows}}, "repeat", "graded_ndcg")
+    assert frame.k.tolist() == [2, 3]
+    assert frame["mean"].iloc[0] == 0
+    assert pd.isna(frame["mean"].iloc[1])
+    assert rows[0]["mean"] is None
+
+
+def test_shared_observations_reject_changed_counts_and_missing_bins():
+    from src.interfaces.notebook.report_data import shared_observations
+
+    rows = [
+        dict(
+            phase="test", window_days=90, task="new", observation="play_count", bin=str(i), pairs=i
+        )
+        for i in (1, 2)
+    ]
+    record = {"result": {"observations": rows}}
+    reordered = {"result": {"observations": list(reversed(rows))}}
+    assert shared_observations([record, reordered]) == rows
+    for changed in ([rows[0]], [rows[0], dict(rows[1], pairs=3)]):
+        with pytest.raises(ValueError, match="distributions differ"):
+            shared_observations([record, {"result": {"observations": changed}}])
+
+
 def test_discrete_cutoffs_preserve_missing_values_and_pointwise_intervals():
     import matplotlib.pyplot as plt
 

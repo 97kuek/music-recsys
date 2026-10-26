@@ -25,7 +25,7 @@ BM25_EXTRA = {(20, 0.3, 0.75), (10, 4.8, 0.75), (100, 4.8, 0.25), (200, 4.8, 0.2
 
 def plan():
     """A fixed recipe: never inspect Test scores or choose a primary objective."""
-    from src.interfaces.cli.factor_study import conditions as factors
+    from src.infrastructure.research.grid import factor_conditions as factors
     from src.interfaces.cli.sensitivity import conditions
 
     result = {name: [] for name in MODELS}

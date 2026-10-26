@@ -7,7 +7,7 @@ from src.infrastructure.research.configuration import load_settings
 from src.infrastructure.research.search import load_study_config
 
 
-class ExperimentConfigPicker:
+class ConfigPicker:
     def __init__(self, directory: Path):
         import ipywidgets as widgets
 

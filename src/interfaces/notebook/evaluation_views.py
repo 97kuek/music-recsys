@@ -1,7 +1,7 @@
 """全モデル共通の4観点 / 選択用の主指標によって表示を省略しない。"""
 
+from src.interfaces.notebook.display import show_metric_group, show_table
 from src.interfaces.notebook.listening_analysis import primary_rows
-from src.interfaces.notebook.notebook_display import show_metric_group, show_table
 
 ACCURACY = {
     "新規発見": (("discovery", "binary_ndcg"), ("discovery", "recall")),

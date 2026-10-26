@@ -40,7 +40,7 @@ def test_inheritance_paths_overrides_and_cycles(tmp_path):
 
 
 def test_picker_invalidates_shared_settings_and_hides_template(tmp_path):
-    from src.interfaces.notebook.notebook_config import ExperimentConfigPicker
+    from src.interfaces.notebook.config import ConfigPicker
 
     base = tmp_path / "common.json"
     base.write_text(
@@ -64,7 +64,7 @@ def test_picker_invalidates_shared_settings_and_hides_template(tmp_path):
             }
         )
     )
-    picker = ExperimentConfigPicker(tmp_path)
+    picker = ConfigPicker(tmp_path)
     assert len(picker.dropdown.options) == 2
     picker.dropdown.value = str(path)
     picker.load_button.click()

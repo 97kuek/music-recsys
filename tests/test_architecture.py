@@ -21,6 +21,19 @@ from src.infrastructure.config.study import ConditionPayload, StudyPlanPayload
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_notebook_helpers_do_not_import_cli_entrypoints():
+    for path in (ROOT / "src/interfaces/notebook").glob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Import):
+                modules = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                modules = [node.module or ""]
+                modules.extend(f"{node.module}.{alias.name}" for alias in node.names)
+            else:
+                continue
+            assert not any(module.startswith("src.interfaces.cli") for module in modules), path
+
+
 @pytest.mark.parametrize("layer", ["domain", "application", "infrastructure"])
 def test_python_dependencies_point_inward(layer):
     for path in (ROOT / "src" / layer).rglob("*.py"):

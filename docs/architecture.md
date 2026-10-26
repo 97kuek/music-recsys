@@ -18,6 +18,14 @@
 - source hash・学習出典・モデルmanifest・候補Parquet・探索処理・grid生成・保存Testの検証を共有部品へ分離し、Python全層の循環importも検査する
 - 依存方向が正しいことと、全機能の研究妥当性・本番運用確認は別。未確認事項は[TODO](todo.md)へ置く
 
+## 共通処理の配置と命名
+
+- パッケージ名で分かる接頭辞は重ねない。Notebook補助は`config.ConfigPicker`・`display`・`inspection.Inspection`・`plots`を使う
+- 実験条件の展開は`infrastructure/research/grid.py`、保存結果の比較・出典照合・公開処理は`comparison.py`に置く
+- Notebook補助からCLIをimportしない。CLIとNotebookは共通のInfrastructureを利用し、描画用の結果抽出は`interfaces/notebook/report_data.py`へ置く
+- DDDの中心は推薦条件・候補規則と参加者セッションの文脈。DomainとApplicationの依存制約、adapter差替え、循環importは自動テストで確認する
+- 研究用CLIには実行順制御、Notebookのreportモジュールには結果保存が残る。全ユースケースがApplicationへ分離された構成ではなく、層の依存検査だけで完全なDDD・クリーンアーキテクチャとは判断しない
+
 ```mermaid
 flowchart LR
     I[CLI / HTTP / Notebook] --> A[Application / port]

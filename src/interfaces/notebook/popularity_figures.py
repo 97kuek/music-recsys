@@ -1,5 +1,7 @@
 """Popularity Test figures from saved estimates, without scoring or selection."""
 
+from src.interfaces.notebook.report_data import primary_accuracy
+
 
 def comparison_figures(configs, results, differences=()):
     import pandas as pd
@@ -18,9 +20,7 @@ def comparison_figures(configs, results, differences=()):
         diversity.extend(dict(r, experiment=name) for r in result["diversity"])
         efficiency.append(dict(result["efficiency"], experiment=name))
     frame = pd.DataFrame(accuracy)
-    primary = frame[
-        (frame.window_days == 90) & ((frame.metric != "graded_ndcg") | (frame.day_weight == 1.0))
-    ]
+    primary = primary_accuracy(frame)
     names = {
         "binary_ndcg": "binary_ndcg_new",
         "recall": "recall_new",
@@ -38,7 +38,7 @@ def comparison_figures(configs, results, differences=()):
 
 def paired_difference_figures(differences):
     """One endpoint/metric per figure; no joint axis for unlike units."""
-    from src.interfaces.notebook.scientific_plots import STYLES, axes
+    from src.interfaces.notebook.plots import STYLES, axes
 
     names = {
         ("new", "paired_difference_binary_ndcg"): ("binary_ndcg_new", "New-track binary NDCG", 1),
@@ -106,10 +106,7 @@ def condition_figures(document):
     frame = pd.DataFrame(document["accuracy"])
     window = document["primary"]["primary_window_days"]
     weight = document["primary"]["primary_day_weight"]
-    primary = frame[
-        (frame.window_days == window)
-        & ((frame.metric != "graded_ndcg") | (frame.day_weight == weight))
-    ]
+    primary = primary_accuracy(frame, window=window, day_weight=weight)
     figures = accuracy_figures(primary)
     figures.update(diversity_figures(pd.DataFrame(document["diversity"])))
     figures.update(efficiency_figures(pd.DataFrame([document["efficiency"]])))
