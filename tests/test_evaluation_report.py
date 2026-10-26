@@ -48,10 +48,10 @@ def test_flat_report_preserves_trials_and_separates_figures(listening_study, tmp
 
 def test_compact_result_can_be_read_and_reused(listening_study):
     from src.infrastructure.research.search import (
-        _verified_trial,
         load_study,
         run_search,
         study_lock,
+        verify_trial,
     )
     from src.infrastructure.research.store import compact
     from src.interfaces.notebook.search_analysis import trial_curves
@@ -62,7 +62,7 @@ def test_compact_result_can_be_read_and_reused(listening_study):
     assert not (config.output / "study.json").exists()
     assert not (config.output / "trials").exists()
     study = load_study(config)
-    assert all(_verified_trial(config, t) for t in study["trials"].values())
+    assert all(verify_trial(config, t) for t in study["trials"].values())
     assert not trial_curves(config, study["planned"][0], resamples=100).empty
     reused = run_search(config)
     assert reused["executed_trials"] == 0 and reused["reused_trials"] == 2
@@ -115,19 +115,19 @@ def test_cli_smoke_search_and_status_use_flat_output(listening_study, monkeypatc
 
 
 def test_archive_tampering_and_historical_mutations_are_rejected(listening_study, monkeypatch):
-    import src.infrastructure.research.search as search
+    import src.infrastructure.research.search.state as state
     from src.infrastructure.research.search import (
-        _verified_trial,
         load_study,
         run_search,
         study_lock,
+        verify_trial,
     )
     from src.infrastructure.research.store import atomic_json, compact, read_document
 
     config = completed(listening_study)
     with study_lock(config):
         compact(config)
-    monkeypatch.setattr(search, "source_hash", lambda: "different-code")
+    monkeypatch.setattr(state, "source_hash", lambda: "different-code")
     study = load_study(config)
     assert study["status"] == "succeeded"
     with pytest.raises(ValueError, match="コード"):
@@ -137,7 +137,7 @@ def test_archive_tampering_and_historical_mutations_are_rejected(listening_study
     document["trials"][key]["curves"]["metrics"][0]["ndcg"] = 0.123456
     atomic_json(config.output / "result.json", document)
     with pytest.raises(ValueError, match="改変"):
-        _verified_trial(config, study["trials"][key])
+        verify_trial(config, study["trials"][key])
 
 
 def test_unmeasured_figures_omitted_but_measured_zero_kept(tmp_path):

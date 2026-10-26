@@ -41,6 +41,7 @@ def test_storage_failure_marks_mlflow_trial_failed(study, tmp_path, monkeypatch)
 
     import src.infrastructure.research.search as search
     from src.infrastructure.evaluation.tracking import TrackingConfig
+    from src.infrastructure.research.search import trials
 
     tracking = TrackingConfig(
         enabled=True,
@@ -52,7 +53,7 @@ def test_storage_failure_marks_mlflow_trial_failed(study, tmp_path, monkeypatch)
     def broken_save(*args, **kwargs):
         raise OSError("disk failure")
 
-    monkeypatch.setattr(search, "save_report", broken_save)
+    monkeypatch.setattr(trials, "save_report", broken_save)
     assert search.smoke(config, factory=fixture_factory)["status"] == "failed"
     client = MlflowClient(tracking_uri=tracking.tracking_uri)
     experiment = client.get_experiment_by_name(tracking.experiment_name)

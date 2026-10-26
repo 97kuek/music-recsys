@@ -8,9 +8,9 @@ from dataclasses import asdict
 from pathlib import Path
 
 from src.infrastructure.datasets.listening_data import file_sha256, validate_bundle
+from src.infrastructure.research.parameters import conditions
 from src.infrastructure.research.search import load_study_config, study_lock
 from src.infrastructure.research.store import atomic_json
-from src.interfaces.cli.sensitivity import conditions
 from src.paths import PROJECT_ROOT
 
 

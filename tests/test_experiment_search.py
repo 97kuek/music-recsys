@@ -195,10 +195,10 @@ def test_rejected_qualitative_review_returns_to_validation(study):
 
 
 def test_grid_plan_is_bounded_by_budget_without_materializing_combinations(study, monkeypatch):
-    import src.infrastructure.research.search as search
+    import src.infrastructure.research.search.runner as runner
     from src.infrastructure.research.search import run_search, smoke
 
-    original = search._plans
+    original = runner._plans
 
     def guarded(config):
         for index, value in enumerate(original(config)):
@@ -206,7 +206,7 @@ def test_grid_plan_is_bounded_by_budget_without_materializing_combinations(study
                 raise AssertionError("budget must stop before consuming the whole grid")
             yield value
 
-    monkeypatch.setattr(search, "_plans", guarded)
+    monkeypatch.setattr(runner, "_plans", guarded)
     config = study(
         grid="\n".join(f"p{i}=[0,1]" for i in range(25)), stage="B", budget=1, seeds="[0]"
     )

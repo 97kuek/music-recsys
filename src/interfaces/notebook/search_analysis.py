@@ -6,8 +6,6 @@ from collections import defaultdict
 from statistics import fmean
 
 from src.infrastructure.research.search import (
-    _read_sealed,
-    _verified_trial,
     context,
     load_final_test,
     load_locked_selection,
@@ -15,7 +13,9 @@ from src.infrastructure.research.search import (
     load_study,
     ranked_settings,
     read_json,
+    read_sealed,
     trial_rows,
+    verify_trial,
 )
 from src.interfaces.notebook.experiment_analysis import BootstrapConfig, cluster_statistics
 
@@ -207,7 +207,7 @@ def workflow_state(config):
             }
         review_path = config.output / "review.json"
         if review_path.exists():
-            review = _read_sealed(review_path)
+            review = read_sealed(review_path)
             if review["selection_sha256"] == selected["content_sha256"] and not review["accepted"]:
                 return {
                     **result,
@@ -374,7 +374,7 @@ def _trial_bundles(config, trial_ids):
         if not study or key not in study["planned"] or key not in study["trials"]:
             raise ValueError("診断trialが見つかりません")
         trial = study["trials"][key]
-        if not _verified_trial(config, trial):
+        if not verify_trial(config, trial):
             raise ValueError("成功済みtrialだけを分析できます")
         bundles.append(read_json(config.output / trial["curves"]))
     return bundles
@@ -475,7 +475,7 @@ def final_comparison(configs):
         final = load_final_test(config)
         if final["status"] != "succeeded":
             raise ValueError("Testが未完了のモデルは最終比較できません")
-        locked = _read_sealed(config.output / "locked-selection.json")
+        locked = read_sealed(config.output / "locked-selection.json")
         if final["locked_sha256"] != locked["content_sha256"]:
             raise ValueError("比較条件不一致: Testの固定設定")
         if conditions is not None and final["conditions"] != conditions:
@@ -483,7 +483,7 @@ def final_comparison(configs):
         conditions = final["conditions"]
         bundles = []
         for trial in final["trials"].values():
-            _verified_trial(config, trial)
+            verify_trial(config, trial)
             bundles.append(read_json(config.output / trial["curves"]))
         rows.append(
             _curve_frame(bundles, config.model, "test", 2000).assign(experiment=config.name)
@@ -568,7 +568,7 @@ def tradeoff_points(config):
         return pd.DataFrame()
     for key in study["planned"]:
         trial = study["trials"][key]
-        if _verified_trial(config, trial):
+        if verify_trial(config, trial):
             metrics = read_json(config.output / trial["curves"])["metrics"]
             row = next(r for r in metrics if r["k"] == 10)
             label = str(trial["parameters"]) if trial["parameters"] else config.model

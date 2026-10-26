@@ -50,6 +50,24 @@ def create_factor_study():
     return FactorStudy(LocalStudy(StudyReport(draw).write))
 
 
+def create_sensitivity():
+    from src.application.experiments import Sensitivity
+    from src.infrastructure.research.sensitivity import LocalSensitivity
+    from src.interfaces.notebook.sensitivity_report import summarize
+
+    return Sensitivity(LocalSensitivity(summarize))
+
+
+def run_sensitivity_condition(path, name):
+    from src.infrastructure.research.parameters import conditions
+    from src.infrastructure.research.search import load_study_config
+
+    trials = dict(conditions(load_study_config(path)))
+    if name not in trials:
+        raise ValueError("unknown condition")
+    return create_evaluation().run(trials[name])
+
+
 def run_factor_condition(path, name):
     from src.application.ports.experiments import EvaluationOptions
     from src.infrastructure.research.grid import factor_conditions

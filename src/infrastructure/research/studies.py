@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime
 
+from src.domain.experiments import ConditionResult, ProgressSnapshot, RunStatus
 from src.infrastructure.datasets.listening_data import file_sha256
 from src.infrastructure.provenance import source_hash
 from src.infrastructure.research.grid import factor_conditions
@@ -118,9 +119,8 @@ class _StudySession:
 
     def evidence(self, name, result):
         trial = self._trials[name]
-        return dict(
+        return ConditionResult(
             condition=name,
-            status="succeeded",
             result=f"{name}/result.json",
             result_sha256=file_sha256(trial.output / "result.json"),
             training_seconds=result["efficiency"]["training_seconds"],
@@ -138,5 +138,22 @@ class _StudySession:
         self._log.write(text + "\n")
         self._log.flush()
 
-    def checkpoint(self, state):
-        atomic_json(self.output / "result.json", state)
+    def checkpoint(self, state: ProgressSnapshot):
+        atomic_json(self.output / "result.json", progress_document(state))
+
+
+def progress_document(state: ProgressSnapshot) -> dict:
+    document = dict(
+        format="music-recsys-factor-study-v1",
+        status=state.status.value,
+        phase="validation",
+        planned=state.planned,
+        completed=state.completed,
+        conditions=[dict(**asdict(result), status="succeeded") for result in state.conditions],
+        figures=list(state.figures),
+    )
+    if state.current is not None or state.status == RunStatus.SUCCEEDED:
+        document["current"] = state.current
+    if state.error is not None:
+        document["error"] = state.error
+    return document

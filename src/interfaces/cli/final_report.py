@@ -8,10 +8,10 @@ from src.infrastructure.datasets.listening_data import file_sha256
 from src.infrastructure.research.comparison import staged_report
 from src.infrastructure.research.full_test import restore, verify_test
 from src.infrastructure.research.metrics import average_rows
+from src.infrastructure.research.parameters import condition_name
 from src.infrastructure.research.results import verify_artifacts
 from src.infrastructure.research.store import atomic_json
 from src.interfaces.cli.fixed_test import _reference, _verify_references
-from src.interfaces.cli.sensitivity import condition_name
 
 
 def summarize(output, protocol):

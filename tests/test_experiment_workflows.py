@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from src.application.experiments import Evaluation, FactorStudy
+from src.domain.experiments import ConditionResult, RunStatus
 
 
 class MemoryEvaluation:
@@ -123,7 +124,7 @@ class MemoryStudy:
         return {"name": name}
 
     def evidence(self, name, result):
-        return {"condition": name, "status": "succeeded"}
+        return ConditionResult(name, f"{name}/result.json", "a" * 64, 1.0, 2.0)
 
     def summarize(self, finished):
         self.summary = finished
@@ -144,8 +145,8 @@ def test_study_reuses_existing_trial_and_summarizes_verified_results():
     assert store.executed == ["b"]
     assert store.verified == ["a", "b"]
     assert store.summary == [("a", {"name": "a"}), ("b", {"name": "b"})]
-    assert store.states[-1]["status"] == "succeeded"
-    assert store.states[-1]["completed"] == 2
+    assert store.states[-1].status == RunStatus.SUCCEEDED
+    assert store.states[-1].completed == 2
     assert store.closed
 
 
@@ -162,9 +163,9 @@ def test_study_failure_never_checkpoints_success(failure, completed):
     store = MemoryStudy(failure=failure)
     with pytest.raises(ValueError):
         FactorStudy(store).run("config")
-    assert store.states[-1]["status"] == "failed"
-    assert store.states[-1]["completed"] == completed
-    assert not any(state["status"] == "succeeded" for state in store.states)
+    assert store.states[-1].status == RunStatus.FAILED
+    assert store.states[-1].completed == completed
+    assert not any(state.status == RunStatus.SUCCEEDED for state in store.states)
     assert store.closed
 
 
@@ -174,3 +175,20 @@ def test_invalid_disk_budget_is_rejected_before_opening(budget):
     with pytest.raises(ValueError, match="finite and non-negative"):
         FactorStudy(store).run("config", minimum_free_gb=budget)
     assert not store.closed and not store.states
+
+
+def test_success_log_failure_records_failure_without_publishing_success():
+    class BrokenLog(MemoryStudy):
+        def record(self, message):
+            if message.startswith("SUCCEEDED"):
+                raise OSError("log unavailable")
+            super().record(message)
+
+    store = BrokenLog()
+    with pytest.raises(OSError, match="log unavailable"):
+        FactorStudy(store).run("config")
+    assert store.states[-1].status is RunStatus.FAILED
+    assert store.states[-1].completed == 2
+    assert store.states[-1].error == "OSError: log unavailable"
+    assert not any(state.status is RunStatus.SUCCEEDED for state in store.states)
+    assert store.closed

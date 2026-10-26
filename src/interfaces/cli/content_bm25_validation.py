@@ -5,8 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from src.infrastructure.research.parameters import conditions
 from src.infrastructure.research.search import load_study_config
-from src.interfaces.cli.sensitivity import conditions
 
 
 def audit_sources(content, bm25):

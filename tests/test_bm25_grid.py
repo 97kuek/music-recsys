@@ -34,9 +34,9 @@ def test_shared_prefixes_match_independent_bm25_cpu_rankings_and_scores(tmp_path
     from src.infrastructure.evaluation.full_scoring import score_cpu
     from src.infrastructure.recommenders.full_bm25 import FullBM25
     from src.infrastructure.research.configuration import load_settings
+    from src.infrastructure.research.parameters import conditions, verify
     from src.infrastructure.research.search import load_study_config
     from src.interfaces.cli.bm25_grid import run
-    from src.interfaces.cli.sensitivity import conditions, verify
 
     bundle = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")

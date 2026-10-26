@@ -11,11 +11,11 @@ from pathlib import Path
 
 from src.infrastructure.datasets.listening_data import file_sha256, read_bundle, validate_bundle
 from src.infrastructure.research.full_test import restore, verify_test
+from src.infrastructure.research.parameters import condition_name, controls, verify
 from src.infrastructure.research.results import verify_artifacts
 from src.infrastructure.research.search import load_study_config, study_lock
 from src.infrastructure.research.store import atomic_json
 from src.interfaces.cli.fixed_test import _reference, _verify_references
-from src.interfaces.cli.sensitivity import condition_name, controls, verify
 from src.paths import PROJECT_ROOT
 
 MODELS = ("ease", "content", "bm25", "bpr")
@@ -26,7 +26,7 @@ BM25_EXTRA = {(20, 0.3, 0.75), (10, 4.8, 0.75), (100, 4.8, 0.25), (200, 4.8, 0.2
 def plan():
     """A fixed recipe: never inspect Test scores or choose a primary objective."""
     from src.infrastructure.research.grid import factor_conditions as factors
-    from src.interfaces.cli.sensitivity import conditions
+    from src.infrastructure.research.parameters import conditions
 
     result = {name: [] for name in MODELS}
     for epoch in (30, 100, 200, 500):

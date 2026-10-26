@@ -6,8 +6,9 @@ from pathlib import Path
 import pytest
 
 from src.infrastructure.research.configuration import load_settings
+from src.infrastructure.research.parameters import conditions, controls, verify
 from src.infrastructure.research.search import load_study_config
-from src.interfaces.cli.sensitivity import conditions, controls, run_study, verify
+from src.interfaces.cli.sensitivity import run_study
 
 
 @pytest.mark.parametrize(
@@ -189,3 +190,42 @@ def test_content_publication_evaluates_all_settings_and_never_opens_test(tmp_pat
     before = (output / "result.json").read_bytes()
     run_study(path, minimum_free_gb=0)
     assert (output / "result.json").read_bytes() == before
+
+
+def test_shared_neighbor_group_keeps_partial_evidence_and_refuses_reexecution(tmp_path):
+    path = small_study(tmp_path)
+    raw = json.loads(path.read_text())
+    raw["model"]["parameters"]["use_gpu"] = True
+    raw["search"]["shared_neighbors"] = True
+    path.write_text(json.dumps(raw))
+    config = load_study_config(path)
+    _, trial = next(conditions(config))
+    trial.output.mkdir(parents=True)
+    evidence = trial.output / "run.log"
+    evidence.write_text("interrupted group")
+    with pytest.raises(ValueError, match="partial shared-neighbor group"):
+        run_study(path, minimum_free_gb=0)
+    assert evidence.read_text() == "interrupted group"
+    assert not (config.output / "result.json").exists()
+
+
+def test_report_failure_preserves_trial_without_publishing_comparison(tmp_path):
+    from src.application.experiments import Sensitivity
+    from src.bootstrap import create_evaluation
+    from src.infrastructure.research.sensitivity import LocalSensitivity
+
+    path = small_study(tmp_path)
+    config = load_study_config(path)
+    _, trial = next(conditions(config))
+    create_evaluation().run(trial)
+    original = (trial.output / "result.json").read_bytes()
+
+    def fail_report(config, finished, output):
+        (output / "metrics.csv").write_text("partial report")
+        raise OSError("report failed")
+
+    with pytest.raises(OSError, match="report failed"):
+        Sensitivity(LocalSensitivity(fail_report)).run(path, minimum_free_gb=0)
+    assert not (config.output / "result.json").exists()
+    assert not (config.output / "metrics.csv").exists()
+    assert (trial.output / "result.json").read_bytes() == original

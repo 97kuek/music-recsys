@@ -24,8 +24,13 @@
 - 実験条件の展開は`infrastructure/research/grid.py`、保存結果の比較・出典照合・公開処理は`comparison.py`に置く
 - Notebook補助からCLIをimportしない。CLIとNotebookは共通のInfrastructureを利用し、描画用の結果抽出は`interfaces/notebook/report_data.py`へ置く
 - DDDの中心は推薦条件・候補規則と参加者セッションの文脈。DomainとApplicationの依存制約、adapter差替え、循環importは自動テストで確認する
-- `evaluate`・`factor_study`の実行順はApplicationの`Evaluation`・`FactorStudy`が管理する。CLIは引数処理と起動、bootstrapは具象Adapterの注入を担当する
+- `evaluate`・`factor_study`・`sensitivity`の実行順はApplicationの`Evaluation`・`FactorStudy`・`Sensitivity`が管理する。CLIは引数処理と起動、bootstrapは具象Adapterの注入を担当する
 - `LocalEvaluation`・`LocalStudy`はProtocolを満たすAdapter。実行中のモデル・設定・ログは非公開のsessionへ保持し、Applicationから直接操作しない
+- `LocalSensitivity`は感度分析の入力照合・保存・子プロセス実行を担当する。条件展開と過去結果の検証は`research/parameters.py`を共有し、他のCLIから感度分析CLIをimportしない
+- `Sensitivity`はBM25共有バッチ、比較対象の検証、未完了条件の実行、評価定義の一致確認、公開の順序を管理する。過去の比較対象は再学習せず、公開済み比較は出典の再検証だけを行う
+- 感度分析の表・図生成は注入された`notebook/sensitivity_report.py`が担い、比較の成功マーカーはAdapterが最後に公開する
+- `FactorStudy`の進捗はDomainの`Progress`で管理する。計画外・重複した条件完了、未完了での成功、終了後の更新を拒否し、完了件数は検証済み`ConditionResult`の数から求める
+- 保存portへ渡す`ProgressSnapshot`は変更不可。`research/studies.py`が既存の`music-recsys-factor-study-v1`形式へ変換する。再開時は保存済み条件を再検証して進捗を組み直す
 - 多態性はProtocolと依存注入で実現する。共通の状態や振る舞いがないクラスに継承を追加せず、図の保存は`FigureWriter`を組み込んで共有する
 - `FactorReport`・`ItemCFReport`・`FullReport`・`StudyReport`はInfrastructureで保存する。対応するNotebookの`draw`は入力済みの表から図を作り、成功・例外のいずれでも作成した図を解放する
 - ItemCF比較レポートのコマンド入口は`python -m src.interfaces.cli.itemcf_report --config <JSON>`。Notebookモジュールは描画だけを担当する
@@ -34,10 +39,10 @@
 
 ```mermaid
 flowchart LR
-    CLI[evaluate / factor_study] --> B[bootstrap / Adapter注入]
-    B --> A[Application / Evaluation・FactorStudy]
+    CLI[evaluate / factor_study / sensitivity] --> B[bootstrap / Adapter注入]
+    B --> A[Application / Evaluation・FactorStudy・Sensitivity]
     A --> P[実行sessionのProtocol]
-    L[LocalEvaluation・LocalStudy] -. 実装 .-> P
+    L[LocalEvaluation・LocalStudy・LocalSensitivity] -. 実装 .-> P
     L --> R[Report / 出典照合・保存]
     R --> W[注入されたdraw / 図の生成と解放]
 ```
@@ -53,6 +58,31 @@ flowchart LR
 ```
 
 ## 研究の標準経路
+
+```mermaid
+stateDiagram-v2
+    [*] --> running
+    running --> running: 条件開始・検証済み条件の完了
+    running --> succeeded: 全条件完了・集計と完了ログ成功
+    running --> failed: 実行・検証・集計・ログの失敗
+    succeeded --> [*]
+    failed --> [*]
+```
+
+探索の公開操作は`infrastructure/research/search/__init__.py`から利用する。内部の担当は次のとおりで、内部モジュール同士は公開入口を経由せず直接依存する
+
+| モジュール | 担当 |
+| --- | --- |
+| `config` | 設定読込み・検証とStudyConfig |
+| `runner` | Smoke・予算付きValidation探索 |
+| `trials` | 1試行の学習・評価・保存・再利用時の検証 |
+| `state` | 比較条件・進捗読込み・排他ロック・固定後の書込み制限 |
+| `selection` | 順位付け・選択・確認記録・固定 |
+| `final` | 固定済みTest入力の検証・最終評価・再開 |
+| `artifacts` | 内容hashと選択記録の改変検知 |
+
+- JSONの保存と読込みは既存の`research/store.py`を共有する
+- 探索の実行制御はInfrastructureにあり、Applicationへの分離は未実施
 
 ```mermaid
 flowchart LR
