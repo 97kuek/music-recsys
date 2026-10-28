@@ -11,8 +11,8 @@ from test_experiment_search import fixture_factory
 
 
 def test_state_guides_smoke_selection_and_review(study):
-    from src.infrastructure.research.search import run_search, select_best, smoke
-    from src.interfaces.notebook.search_analysis import workflow_state
+    from backend.infrastructure.research.search import run_search, select_best, smoke
+    from backend.interfaces.notebook.search_analysis import workflow_state
 
     config = study()
     assert workflow_state(config)["status"] == "not_run"
@@ -33,8 +33,8 @@ def test_state_guides_smoke_selection_and_review(study):
     ],
 )
 def test_grid_plots_actual_trials(study, grid, stage, kind):
-    from src.infrastructure.research.search import run_search, smoke
-    from src.interfaces.notebook.search_analysis import plot_search, search_table
+    from backend.infrastructure.research.search import run_search, smoke
+    from backend.interfaces.notebook.search_analysis import plot_search, search_table
 
     config = study(grid=grid, stage=stage)
     smoke(config, factory=fixture_factory)
@@ -47,8 +47,8 @@ def test_grid_plots_actual_trials(study, grid, stage, kind):
 
 
 def test_selected_curves_include_all_k_and_real_uncertainty(study):
-    from src.infrastructure.research.search import run_search, select_best, smoke
-    from src.interfaces.notebook.search_analysis import selected_curves
+    from backend.infrastructure.research.search import run_search, select_best, smoke
+    from backend.interfaces.notebook.search_analysis import selected_curves
 
     config = study()
     smoke(config, factory=fixture_factory)
@@ -63,8 +63,8 @@ def test_selected_curves_include_all_k_and_real_uncertainty(study):
 
 
 def test_mismatch_is_visible_instead_of_normal_state(study):
-    from src.infrastructure.research.search import run_search, smoke
-    from src.interfaces.notebook.search_analysis import workflow_state
+    from backend.infrastructure.research.search import run_search, smoke
+    from backend.interfaces.notebook.search_analysis import workflow_state
 
     config = study()
     smoke(config, factory=fixture_factory)
@@ -76,8 +76,8 @@ def test_mismatch_is_visible_instead_of_normal_state(study):
 
 
 def test_three_parameter_sensitivity_holds_other_parameters_fixed(study):
-    from src.infrastructure.research.search import run_search, smoke
-    from src.interfaces.notebook.search_analysis import plot_sensitivity, sensitivity
+    from backend.infrastructure.research.search import run_search, smoke
+    from backend.interfaces.notebook.search_analysis import plot_sensitivity, sensitivity
 
     config = study(
         grid="reverse=[false,true]\noffset=[0,1]\nunused=[1,2]", stage="B", budget=20, seeds="[0]"
@@ -98,9 +98,9 @@ def test_three_parameter_sensitivity_holds_other_parameters_fixed(study):
 def test_beyond_accuracy_averages_users_not_duplicate_requests(study):
     from dataclasses import replace
 
-    from src.infrastructure.datasets.json_dataset import load_dataset
-    from src.infrastructure.evaluation.benchmark import run_benchmark
-    from src.infrastructure.research.search_metrics import ranking_metrics
+    from backend.infrastructure.datasets.json_dataset import load_dataset
+    from backend.infrastructure.evaluation.benchmark import run_benchmark
+    from backend.infrastructure.research.search_metrics import ranking_metrics
 
     config = study()
     data = load_dataset(config.validation_dataset, top_k=20)

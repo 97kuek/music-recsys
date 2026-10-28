@@ -8,23 +8,23 @@ import pytest
 def test_itemcf_final_test_matches_reference_preserves_validation_and_plots(tmp_path, monkeypatch):
     import matplotlib.pyplot as plt
 
-    from src.infrastructure.datasets.features import load_features
-    from src.infrastructure.datasets.listening_data import load_listening_dataset
-    from src.infrastructure.evaluation.listening_benchmark import run_listening_benchmark
-    from src.infrastructure.evaluation.tracking import TrackingConfig
-    from src.infrastructure.recommenders import create_recommender
-    from src.infrastructure.research.configuration import load_settings
-    from src.infrastructure.research.grid import grid_variants as variants
-    from src.infrastructure.research.search import load_study_config
-    from src.interfaces.cli import evaluate, itemcf_test
-    from src.interfaces.cli.grid import run_grid
-    from src.interfaces.notebook.itemcf_test_figures import figures
+    from backend.infrastructure.datasets.features import load_features
+    from backend.infrastructure.datasets.listening_data import load_listening_dataset
+    from backend.infrastructure.evaluation.listening_benchmark import run_listening_benchmark
+    from backend.infrastructure.evaluation.tracking import TrackingConfig
+    from backend.infrastructure.recommenders import create_recommender
+    from backend.infrastructure.research.configuration import load_settings
+    from backend.infrastructure.research.grid import grid_variants as variants
+    from backend.infrastructure.research.search import load_study_config
+    from backend.interfaces.cli import evaluate, itemcf_test
+    from backend.interfaces.cli.grid import run_grid
+    from backend.interfaces.notebook.itemcf_test_figures import figures
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = load_settings("configs/itemcf.json")
+    raw = load_settings("configs/itemcf/base.json")
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(bundle / "test"),

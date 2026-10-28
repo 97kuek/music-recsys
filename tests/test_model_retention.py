@@ -4,14 +4,14 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from src.infrastructure.datasets.listening_data import file_sha256
-from src.infrastructure.models.artifacts import export_model, load_model
-from src.infrastructure.models.manifest import ModelWeightsPruned, retention_record
-from src.infrastructure.models.retention import (
+from backend.infrastructure.datasets.listening_data import file_sha256
+from backend.infrastructure.models.artifacts import export_model, load_model
+from backend.infrastructure.models.manifest import ModelWeightsPruned, retention_record
+from backend.infrastructure.models.retention import (
     inspect_model_evidence,
     prune_weights,
 )
-from src.infrastructure.recommenders.full_popularity import FullPopularity
+from backend.infrastructure.recommenders.full_popularity import FullPopularity
 
 
 def exported(tmp_path):

@@ -4,21 +4,21 @@ from pathlib import Path
 
 import pytest
 
-from src.infrastructure.research.configuration import load_settings
+from backend.infrastructure.research.configuration import load_settings
 
 
 @pytest.mark.parametrize("model_name", ["als", "bpr"])
 def test_factor_grid_end_to_end_and_comparison_guards(tmp_path, model_name):
-    from src.infrastructure.research.search import load_study_config
-    from src.interfaces.cli.evaluate import run
-    from src.interfaces.cli.grid import run_grid
-    from src.interfaces.notebook.full_analysis import curves
+    from backend.infrastructure.research.search import load_study_config
+    from backend.interfaces.cli.evaluate import run
+    from backend.interfaces.cli.grid import run_grid
+    from backend.interfaces.notebook.full_analysis import curves
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    config_path = "configs/bpr-30epoch.json" if model_name == "bpr" else "configs/als.json"
+    config_path = "configs/bpr/30epoch.json" if model_name == "bpr" else "configs/als/base.json"
     raw = load_settings(Path(config_path))
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),

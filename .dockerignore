@@ -2,11 +2,11 @@
 !pyproject.toml
 !uv.lock
 !README.md
-!src/
-!src/**
-src/**/__pycache__/
-src/**/*.pyc
-src/interfaces/http/static/
+!backend/
+!backend/**
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/interfaces/http/static/
 !frontend/
 !frontend/package.json
 !frontend/package-lock.json

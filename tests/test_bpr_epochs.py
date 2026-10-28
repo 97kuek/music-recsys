@@ -8,9 +8,13 @@ import pyarrow.parquet as pq
 import pytest
 from listening_support import write_bundle
 
-from src.infrastructure.research.bpr_audit import audit_ranking, population_audit, revision_audit
-from src.interfaces.notebook.bpr_epoch_views import best_epoch, make_figures
-from src.interfaces.notebook.bpr_epochs import summarize
+from backend.infrastructure.research.bpr_audit import (
+    audit_ranking,
+    population_audit,
+    revision_audit,
+)
+from backend.interfaces.notebook.bpr_epoch_views import best_epoch, make_figures
+from backend.interfaces.notebook.bpr_epochs import summarize
 
 
 def test_primary_metric_selects_observed_best_epoch_not_largest_budget():

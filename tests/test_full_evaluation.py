@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from src.infrastructure.research.configuration import load_settings
+from backend.infrastructure.research.configuration import load_settings
 
 
 @pytest.mark.parametrize(
@@ -13,19 +13,19 @@ from src.infrastructure.research.configuration import load_settings
     [("popularity", "play_count"), ("popularity", "user_count"), ("itemcf", None), ("als", None)],
 )
 def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, model, basis):
-    from src.infrastructure.datasets.features import load_features
-    from src.infrastructure.datasets.listening_data import load_listening_dataset
-    from src.infrastructure.evaluation.listening_benchmark import run_listening_benchmark
-    from src.infrastructure.evaluation.tracking import TrackingConfig
-    from src.infrastructure.recommenders import create_recommender
-    from src.infrastructure.research.search import load_study_config
-    from src.interfaces.cli.evaluate import run
+    from backend.infrastructure.datasets.features import load_features
+    from backend.infrastructure.datasets.listening_data import load_listening_dataset
+    from backend.infrastructure.evaluation.listening_benchmark import run_listening_benchmark
+    from backend.infrastructure.evaluation.tracking import TrackingConfig
+    from backend.infrastructure.recommenders import create_recommender
+    from backend.infrastructure.research.search import load_study_config
+    from backend.interfaces.cli.evaluate import run
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = load_settings(Path("configs/popularity-plays.json"))
+    raw = load_settings(Path("configs/popularity/plays.json"))
     raw["model"] = {"name": model, "parameters": {"basis": basis} if basis else {"neighbors": 3}}
     if model == "als":
         raw["model"]["parameters"] = dict(
@@ -56,7 +56,7 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, mo
     )
     export_path = tmp_path / "deployed"
     output = run(path, export_path=export_path, model_version="integration-v1")
-    from src.infrastructure.models.artifacts import load_model
+    from backend.infrastructure.models.artifacts import load_model
 
     spec, deployed = load_model(export_path)
     assert spec.version_id == "integration-v1"
@@ -89,7 +89,7 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, mo
         (r["request"]["user_id"], r["request"]["task"], list(r["response"]["item_ids"]))
         for r in report.runs
     ]
-    from src.domain.recommendation.contracts import RecommendationRequest
+    from backend.domain.recommendation.contracts import RecommendationRequest
 
     for run_record in report.runs:
         request = RecommendationRequest(
@@ -107,10 +107,13 @@ def test_streaming_matches_reference_all_conditions_and_populations(tmp_path, mo
 
 
 def test_vector_scores_match_reference_random_histories():
-    from src.domain.evaluation.listening import ListeningConfig, PlaybackObservation
-    from src.domain.evaluation.listening_metrics import PreparedListeningResponse
-    from src.domain.recommendation.contracts import RecommendationRequest, RecommendationResponse
-    from src.infrastructure.evaluation.streaming_metrics import accuracy_vectors
+    from backend.domain.evaluation.listening import ListeningConfig, PlaybackObservation
+    from backend.domain.evaluation.listening_metrics import PreparedListeningResponse
+    from backend.domain.recommendation.contracts import (
+        RecommendationRequest,
+        RecommendationResponse,
+    )
+    from backend.infrastructure.evaluation.streaming_metrics import accuracy_vectors
 
     config = ListeningConfig(day_weights=(0.0, 0.5, 1.0, 2.0))
     rng = np.random.default_rng(18)
@@ -150,9 +153,9 @@ def test_vector_scores_match_reference_random_histories():
 
 
 def test_unique_users_reverse_play_count_ranking():
-    from src.domain.evaluation.dataset import Interaction
-    from src.domain.recommendation.contracts import RecommendationRequest
-    from src.infrastructure.recommenders.popularity import PopularityRecommender
+    from backend.domain.evaluation.dataset import Interaction
+    from backend.domain.recommendation.contracts import RecommendationRequest
+    from backend.infrastructure.recommenders.popularity import PopularityRecommender
 
     events = [Interaction("u1", "a")] * 10 + [Interaction("u1", "b"), Interaction("u2", "b")]
     request = RecommendationRequest("r", "new-user", (), ("a", "b"), 2)

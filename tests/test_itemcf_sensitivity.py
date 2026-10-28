@@ -7,7 +7,7 @@ import pytest
 
 
 def test_binary_pearson_matches_correlation_and_excludes_constant_columns():
-    from src.infrastructure.recommenders.binary_similarity import pearson
+    from backend.infrastructure.recommenders.binary_similarity import pearson
 
     rng = np.random.default_rng(83)
     values = rng.integers(0, 2, (31, 9))
@@ -24,8 +24,8 @@ def test_binary_pearson_matches_correlation_and_excludes_constant_columns():
 
 
 def test_itemcf_pearson_has_no_edges_for_universal_item_and_drops_negative_edges():
-    from src.domain.evaluation.dataset import Interaction
-    from src.infrastructure.recommenders.itemcf import ItemCFRecommender
+    from backend.domain.evaluation.dataset import Interaction
+    from backend.infrastructure.recommenders.itemcf import ItemCFRecommender
 
     rows = [Interaction(f"u{i}", "all") for i in range(6)]
     rows += [
@@ -44,7 +44,7 @@ def test_itemcf_pearson_has_no_edges_for_universal_item_and_drops_negative_edges
 def test_heatmap_discrete_cells_keep_measured_zero_and_missing():
     import matplotlib.pyplot as plt
 
-    from src.interfaces.notebook.itemcf_heatmaps import heatmaps
+    from backend.interfaces.notebook.itemcf_heatmaps import heatmaps
 
     frame = pd.DataFrame(
         [
@@ -84,18 +84,18 @@ def test_prefix_scoring_matches_cpu_including_short_histories_and_zero_neighbors
 
     import cupy as cp
 
-    from src.infrastructure.datasets.features import load_features
-    from src.infrastructure.datasets.listening_data import validate_bundle
-    from src.infrastructure.evaluation.full_scoring import score_cpu
-    from src.infrastructure.evaluation.itemcf_sensitivity import prefix_models, score_prefixes
-    from src.infrastructure.recommenders.full_itemcf import FullItemCF
-    from src.infrastructure.research.configuration import load_settings
-    from src.infrastructure.research.search import load_study_config
-    from src.infrastructure.research.store import atomic_json
+    from backend.infrastructure.datasets.features import load_features
+    from backend.infrastructure.datasets.listening_data import validate_bundle
+    from backend.infrastructure.evaluation.full_scoring import score_cpu
+    from backend.infrastructure.evaluation.itemcf_sensitivity import prefix_models, score_prefixes
+    from backend.infrastructure.recommenders.full_itemcf import FullItemCF
+    from backend.infrastructure.research.configuration import load_settings
+    from backend.infrastructure.research.search import load_study_config
+    from backend.infrastructure.research.store import atomic_json
 
     create = runpy.run_path("tests/fixtures/examples/toy/create_listening.py")["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = load_settings("configs/itemcf-sensitivity.json")
+    raw = load_settings("configs/itemcf/sensitivity.json")
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(bundle / "test"),

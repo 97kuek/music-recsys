@@ -21,21 +21,21 @@ import pytest
 def test_als_final_test_preserves_validation_and_fixed_factor_comparison(tmp_path, gpu):
     import matplotlib.pyplot as plt
 
-    from src.infrastructure.datasets.features import load_features
-    from src.infrastructure.datasets.listening_data import load_listening_dataset
-    from src.infrastructure.evaluation.listening_benchmark import run_listening_benchmark
-    from src.infrastructure.evaluation.tracking import TrackingConfig
-    from src.infrastructure.recommenders import create_recommender
-    from src.infrastructure.research.configuration import load_settings
-    from src.interfaces.cli.fixed_test import _plan, run
-    from src.interfaces.cli.grid import run_grid
-    from src.interfaces.notebook.als_test_figures import figures
+    from backend.infrastructure.datasets.features import load_features
+    from backend.infrastructure.datasets.listening_data import load_listening_dataset
+    from backend.infrastructure.evaluation.listening_benchmark import run_listening_benchmark
+    from backend.infrastructure.evaluation.tracking import TrackingConfig
+    from backend.infrastructure.recommenders import create_recommender
+    from backend.infrastructure.research.configuration import load_settings
+    from backend.interfaces.cli.fixed_test import _plan, run
+    from backend.interfaces.cli.grid import run_grid
+    from backend.interfaces.notebook.als_test_figures import figures
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = load_settings("configs/als.json")
+    raw = load_settings("configs/als/base.json")
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(bundle / "test"),
@@ -123,12 +123,12 @@ def test_als_final_test_preserves_validation_and_fixed_factor_comparison(tmp_pat
 
 
 def test_factor_plan_rejects_changed_hyperparameters_before_scoring(tmp_path):
-    from src.infrastructure.research.configuration import load_settings
-    from src.infrastructure.research.grid import grid_variants as variants
-    from src.infrastructure.research.search import load_study_config
-    from src.interfaces.cli.fixed_test import _plan
+    from backend.infrastructure.research.configuration import load_settings
+    from backend.infrastructure.research.grid import grid_variants as variants
+    from backend.infrastructure.research.search import load_study_config
+    from backend.interfaces.cli.fixed_test import _plan
 
-    raw = load_settings("configs/als.json")
+    raw = load_settings("configs/als/base.json")
     raw["experiment"]["output"] = str(tmp_path / "als")
     path = tmp_path / "als.json"
     path.write_text(json.dumps(raw), encoding="utf-8")

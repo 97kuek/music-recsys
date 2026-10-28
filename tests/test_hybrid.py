@@ -12,14 +12,14 @@ import pytest
 def test_full_hybrid_validation_pairs_seeds_keeps_sources_and_never_reads_test(
     tmp_path, monkeypatch
 ):
-    from src.application.hybrid import run_study
-    from src.infrastructure.datasets.listening_data import file_sha256
-    from src.infrastructure.research.configuration import load_settings
-    from src.infrastructure.research.hybrid import HybridStudy
-    from src.infrastructure.research.search import load_study_config
-    from src.interfaces.cli.evaluate import run
-    from src.interfaces.cli.hybrid_report import publish
-    from src.interfaces.notebook.full_analysis import curves
+    from backend.application.hybrid import run_study
+    from backend.infrastructure.datasets.listening_data import file_sha256
+    from backend.infrastructure.research.configuration import load_settings
+    from backend.infrastructure.research.hybrid import HybridStudy
+    from backend.infrastructure.research.search import load_study_config
+    from backend.interfaces.cli.evaluate import run
+    from backend.interfaces.cli.hybrid_report import publish
+    from backend.interfaces.notebook.full_analysis import curves
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
@@ -29,7 +29,7 @@ def test_full_hybrid_validation_pairs_seeds_keeps_sources_and_never_reads_test(
     for model in ("ease", "bpr", "bm25", "content"):
         for seed in (42, 43, 44) if model == "bpr" else (0,):
             name = f"{model}-{seed}"
-            raw = load_settings("configs/content.json")
+            raw = load_settings("configs/content/base.json")
             parameters = {
                 "ease": dict(
                     regularization=10.0, use_gpu=True, block_size=2, memory_budget_mb=4096
@@ -70,7 +70,7 @@ def test_full_hybrid_validation_pairs_seeds_keeps_sources_and_never_reads_test(
         for p in source.rglob("*")
         if p.is_file()
     }
-    raw = load_settings("configs/hybrid.json")
+    raw = load_settings("configs/hybrid/base.json")
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(tmp_path / "MUST_NOT_READ_TEST"),
@@ -121,11 +121,11 @@ def test_full_hybrid_validation_pairs_seeds_keeps_sources_and_never_reads_test(
 
 
 def test_fixed_hybrid_plan_uses_validation_versions_and_exactly_ten_groups(tmp_path):
-    from src.infrastructure.research.configuration import load_settings
-    from src.infrastructure.research.hybrid import plan
-    from src.infrastructure.research.search import load_study_config
+    from backend.infrastructure.research.configuration import load_settings
+    from backend.infrastructure.research.hybrid_config import plan
+    from backend.infrastructure.research.search import load_study_config
 
-    raw = load_settings("configs/hybrid.json")
+    raw = load_settings("configs/hybrid/base.json")
     expected = {
         "ease": dict(regularization=500.0),
         "bpr": dict(factors=128, iterations=500),
@@ -134,6 +134,8 @@ def test_fixed_hybrid_plan_uses_validation_versions_and_exactly_ten_groups(tmp_p
     }
     for model, source in raw["pipeline"]["sources"].items():
         assert "test" not in Path(source["validation"]).parts
+        directory = (Path("configs/hybrid") / source["validation"]).resolve()
+        assert directory.is_relative_to(Path("data/experiments").resolve())
         source["validation"] = str(tmp_path / ("bpr-{seed}" if model == "bpr" else model))
         for seed in (42, 43, 44) if model == "bpr" else (0,):
             directory = Path(source["validation"].format(seed=seed))

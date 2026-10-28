@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from src.infrastructure.research.configuration import load_settings
-from src.infrastructure.research.grid import factor_conditions
-from src.infrastructure.research.search import load_study_config
-from src.interfaces.cli.factor_study import run_study
+from backend.infrastructure.research.configuration import load_settings
+from backend.infrastructure.research.grid import factor_conditions
+from backend.infrastructure.research.search import load_study_config
+from backend.interfaces.cli.factor_study import run_study
 
 
 def small_study(tmp_path, model="bpr"):
@@ -15,7 +15,7 @@ def small_study(tmp_path, model="bpr"):
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = load_settings("configs/bpr-30epoch.json")
+    raw = load_settings("configs/bpr/30epoch.json")
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(tmp_path / "test-must-not-be-opened"),
@@ -36,7 +36,7 @@ def small_study(tmp_path, model="bpr"):
 
 
 def test_studies_separate_epochs_and_share_factors_seeds_and_inputs():
-    configs = [load_study_config(f"configs/bpr-{epoch}epoch.json") for epoch in (30, 100, 200, 500)]
+    configs = [load_study_config(f"configs/bpr/{epoch}epoch.json") for epoch in (30, 100, 200, 500)]
     assert configs[0].evaluation == configs[1].evaluation
     assert configs[0].validation_dataset == configs[1].validation_dataset
     assert configs[0].features == configs[1].features
@@ -60,7 +60,7 @@ def test_studies_separate_epochs_and_share_factors_seeds_and_inputs():
 def test_mixed_epoch_study_keeps_distinct_condition_directories():
     from dataclasses import replace
 
-    config = load_study_config("configs/bpr-30epoch.json")
+    config = load_study_config("configs/bpr/30epoch.json")
     config = replace(config, grid={**config.grid, "iterations": [30, 100]}, max_trials=24)
     planned = list(factor_conditions(config))
     assert len(planned) == len({trial.output for _, trial in planned}) == 24
@@ -77,7 +77,7 @@ def test_study_executes_exports_and_resumes_without_retraining(tmp_path, model):
         pytest.skip("CLI study has a 5 GiB free-space guard")
     path = small_study(tmp_path, model)
     subprocess.run(
-        [sys.executable, "-m", "src.interfaces.cli.factor_study", "--config", str(path)],
+        [sys.executable, "-m", "backend.interfaces.cli.factor_study", "--config", str(path)],
         check=True,
         capture_output=True,
         text=True,
@@ -132,8 +132,8 @@ def test_small_study_adapter_runs_and_verifies_saved_conditions(tmp_path, model)
 
 
 def test_als_sensitivity_keeps_shared_population_metrics_and_distinct_conditions():
-    config = load_study_config("configs/als-sensitivity.json")
-    base = load_study_config("configs/bpr-200epoch.json")
+    config = load_study_config("configs/als/sensitivity.json")
+    base = load_study_config("configs/bpr/200epoch.json")
     trials = list(factor_conditions(config))
     assert len(trials) == len({name for name, _ in trials}) == 27
     assert config.evaluation == base.evaluation
@@ -144,4 +144,4 @@ def test_als_sensitivity_keeps_shared_population_metrics_and_distinct_conditions
     assert all(
         trial.parameters["use_gpu"] and trial.parameters["cg_steps"] == 20 for _, trial in trials
     )
-    assert len(list(factor_conditions(load_study_config("configs/bpr-500epoch.json")))) == 12
+    assert len(list(factor_conditions(load_study_config("configs/bpr/500epoch.json")))) == 12

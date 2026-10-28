@@ -17,12 +17,13 @@
 
 ## 実装
 
-- Python 3.12とuv.lockを維持し、src自体をPythonパッケージとしてコードを直下へ配置する
-- 再利用する処理は `src/` のDomain・Application・Infrastructure・Interfacesへ分け、Notebookには操作・分析・可視化を置く
+- Python 3.12とuv.lockを維持し、backend自体をPythonパッケージとしてコードを直下へ配置する
+- 再利用する処理は `backend/` のDomain・Application・Infrastructure・Interfacesへ分け、Notebookには操作・分析・可視化を置く
 - Domainは標準ライブラリとDomain、ApplicationはDomainとApplicationにのみ依存する / 具象Adapterは起動時に注入する
 - 推薦モデルにValidation/Testの正解・未来の観測を渡さない
 - 同じ実験JSONをCLIとNotebookで共有する
 - 共通条件は`configs/common.json`へ集約し、GPU・比較・一括実行のためだけに設定や出力先を増やさない
+- 手法別の設定は`configs/<手法>/`へ置き、継承元・相対パス・CLI・Notebookの参照を揃える
 - 実験結果は`data/experiments/<手法>/<条件>/`へ集約する / BPRはepoch別、ItemCFは類似度→近傍数、ALSは因子数・感度分析別、Popularityは集計方法別に置き、手法名を付けた条件フォルダを直下へ並べない
 - 保存済み入力・分割・結果は上書きしない / 明示された形式移行では評価値・出典を保持
 - 全件評価の個別推薦・スコアはParquetへ保存し、JSONへの巨大な重複展開を避ける
@@ -69,8 +70,8 @@
 ```bash
 uv sync --locked --group data --group models --group notebook --group tracking
 .venv/bin/pytest
-.venv/bin/ruff check src tests notebooks migrations
-.venv/bin/ruff format --check src tests notebooks migrations
+.venv/bin/ruff check backend tests notebooks migrations
+.venv/bin/ruff format --check backend tests notebooks migrations
 ```
 
 - 変更に対応するテストから実行し、必要に応じて全体を確認する

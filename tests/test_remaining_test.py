@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from src.infrastructure.datasets.listening_data import file_sha256
-from src.infrastructure.research.configuration import load_settings
-from src.infrastructure.research.search import load_study_config
+from backend.infrastructure.datasets.listening_data import file_sha256
+from backend.infrastructure.research.configuration import load_settings
+from backend.infrastructure.research.search import load_study_config
 
 
 def small_case(tmp_path, model, *, gpu=False):
@@ -16,7 +16,7 @@ def small_case(tmp_path, model, *, gpu=False):
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = load_settings("configs/content.json")
+    raw = load_settings("configs/content/base.json")
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(bundle / "test"),
@@ -39,7 +39,7 @@ def small_case(tmp_path, model, *, gpu=False):
 
 
 def test_recommended_recipe_has_exactly_the_agreed_37_validation_conditions():
-    from src.interfaces.cli.final_test import plan
+    from backend.interfaces.cli.final_test import plan
 
     p = plan()
     assert {m: len(c) for m, c in p.items()} == dict(bpr=21, ease=3, content=4, bm25=9)
@@ -72,9 +72,9 @@ def test_recommended_recipe_has_exactly_the_agreed_37_validation_conditions():
     ],
 )
 def test_full_final_test_preserves_validation_and_recomputes_accuracy(tmp_path, model, gpu):
-    from src.infrastructure.research.als_report import score_audit
-    from src.infrastructure.research.full_test import restore
-    from src.interfaces.cli.evaluate import run
+    from backend.infrastructure.research.als_report import score_audit
+    from backend.infrastructure.research.full_test import restore
+    from backend.interfaces.cli.evaluate import run
 
     config = small_case(tmp_path, model, gpu=gpu)
     run(config)
@@ -104,10 +104,10 @@ def test_full_final_test_preserves_validation_and_recomputes_accuracy(tmp_path, 
 
 
 def test_freeze_and_cpu_report_are_immutable_and_publish_all_aspects(tmp_path, monkeypatch):
-    from src.interfaces.cli import final_test as cli
-    from src.interfaces.cli.evaluate import run
-    from src.interfaces.cli.final_report import summarize
-    from src.paths import PROJECT_ROOT
+    from backend.interfaces.cli import final_test as cli
+    from backend.interfaces.cli.evaluate import run
+    from backend.interfaces.cli.final_report import summarize
+    from backend.paths import PROJECT_ROOT
 
     config = small_case(tmp_path, "content")
     run(config)
@@ -138,7 +138,7 @@ def test_freeze_and_cpu_report_are_immutable_and_publish_all_aspects(tmp_path, m
 
 
 def test_seed_summary_does_not_average_intervals_or_hide_ild_population_changes():
-    from src.interfaces.cli.final_report import average_rows
+    from backend.interfaces.cli.final_report import average_rows
 
     def result(value, n):
         return dict(
@@ -184,8 +184,8 @@ def test_seed_summary_does_not_average_intervals_or_hide_ild_population_changes(
 
 
 def test_test_input_provenance_is_checked_before_model_fit(tmp_path, monkeypatch):
-    from src.infrastructure.recommenders.full_content import FullContent
-    from src.interfaces.cli.evaluate import run
+    from backend.infrastructure.recommenders.full_content import FullContent
+    from backend.interfaces.cli.evaluate import run
 
     config = small_case(tmp_path, "content")
     run(config)

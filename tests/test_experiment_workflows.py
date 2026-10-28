@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from src.application.experiments import Evaluation, FactorStudy
-from src.domain.experiments import ConditionResult, RunStatus
+from backend.application.experiments import Evaluation, FactorStudy
+from backend.domain.experiments import ConditionResult, RunStatus
 
 
 class MemoryEvaluation:

@@ -9,11 +9,11 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.domain.study.online_analysis import analyze_online
-from src.domain.study.plan import Condition, StudyPlan
-from src.infrastructure.persistence.sessions import LocalStore
-from src.infrastructure.research.online import OnlineStudyReader
-from src.interfaces.online_export import TABLES, analysis_csv
+from backend.domain.study.online_analysis import analyze_online
+from backend.domain.study.plan import Condition, StudyPlan
+from backend.infrastructure.persistence.sessions import LocalStore
+from backend.infrastructure.research.online import OnlineStudyReader
+from backend.interfaces.online_export import TABLES, analysis_csv
 
 NOW = datetime(2026, 10, 18, tzinfo=UTC)
 
@@ -223,7 +223,7 @@ def test_csv_all_tables_and_privacy_and_empty_protocol():
 
 
 def test_analysis_cli_read_only_private_exclusive(tmp_path, monkeypatch):
-    from src.interfaces.cli.online_analysis import main
+    from backend.interfaces.cli.online_analysis import main
 
     source, target = tmp_path / "session.json", tmp_path / "analysis.json"
     source.write_text(json.dumps(session_payload("p", "s", dict(A=[4]))))
@@ -240,13 +240,13 @@ def test_analysis_cli_read_only_private_exclusive(tmp_path, monkeypatch):
     )
     from unittest.mock import patch
 
-    with patch("src.interfaces.cli.online_analysis.datetime") as clock:
+    with patch("backend.interfaces.cli.online_analysis.datetime") as clock:
         clock.now.return_value = NOW
         main()
     assert stat.S_IMODE(target.stat().st_mode) == 0o600
     assert json.loads(target.read_text())["experiments"][0]["participants"] == 1
     with pytest.raises(FileExistsError):
-        with patch("src.interfaces.cli.online_analysis.datetime") as clock:
+        with patch("backend.interfaces.cli.online_analysis.datetime") as clock:
             clock.now.return_value = NOW
             main()
     assert before == source.read_bytes()

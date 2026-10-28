@@ -8,7 +8,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from src.infrastructure.research.complementarity import (
+from backend.infrastructure.research.complementarity import (
     Complementarity,
     FeaturePrefixes,
     load_sources,
@@ -220,20 +220,20 @@ def test_stream_aligns_gpu_task_batches_with_cpu_interleaved_order(tmp_path):
 
 
 def test_cli_small_full_population_provenance_no_overwrite_and_null_details(tmp_path, monkeypatch):
-    from src.infrastructure.research.configuration import load_settings
-    from src.interfaces.cli import audit, evaluate
+    from backend.infrastructure.research.configuration import load_settings
+    from backend.interfaces.cli import audit, evaluate
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
     sources = {}
-    from src.infrastructure.research.reports import FullReport
+    from backend.infrastructure.research.reports import FullReport
 
     monkeypatch.setattr(FullReport, "write", lambda *args: None)
     monkeypatch.setattr(audit, "render", lambda *args: [])
     for basis in ("play_count", "user_count"):
-        raw = load_settings(Path("configs/popularity-plays.json"))
+        raw = load_settings(Path("configs/popularity/plays.json"))
         raw["model"]["parameters"] = dict(basis=basis)
         raw["experiment"].update(
             validation_dataset=str(bundle / "validation"),
@@ -264,7 +264,7 @@ def test_cli_small_full_population_provenance_no_overwrite_and_null_details(tmp_
 
 
 def test_null_only_parquet_batch_keeps_float_list_schema(tmp_path):
-    from src.interfaces.cli.audit import AuditDetails
+    from backend.interfaces.cli.audit import AuditDetails
 
     writer = AuditDetails(tmp_path / "users.parquet")
     row = dict(user_id="u", task="new", window_days=90, positive_items=0, union_recall=[None])
@@ -281,7 +281,7 @@ def test_null_only_parquet_batch_keeps_float_list_schema(tmp_path):
 def test_cuda_matches_cpu_for_complementarity_and_paired_intervals(tmp_path):
     import cupy as cp
 
-    from src.infrastructure.research.complementarity import percentile_interval
+    from backend.infrastructure.research.complementarity import percentile_interval
 
     for columns in (1, 2, 19):
         values = np.linspace(-0.5, 0.8, 40 * columns).reshape(40, columns)
@@ -312,7 +312,7 @@ def test_cuda_matches_cpu_for_complementarity_and_paired_intervals(tmp_path):
                 if isinstance(left[key], float)
                 else right[key] == left[key]
             )
-    from src.infrastructure.evaluation.gpu_metrics import GPUDiversity
+    from backend.infrastructure.evaluation.gpu_metrics import GPUDiversity
 
     rankings = cp.asarray(fixture_rankings())
     audited = analyzers[1].finish()

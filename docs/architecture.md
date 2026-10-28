@@ -11,7 +11,7 @@
 | bootstrap | 具象adapterの生成・注入と構成 | 起動に必要な各層 |
 
 - 推薦と参加者実験を別の文脈として扱う。学習済みモデルの版・カタログ・入力種別を契約で結び付ける
-- Pythonは`src/domain`・`application`・`infrastructure`・`interfaces`。フロントエンドは`domain`・`application`・`infrastructure`・`presentation`
+- Pythonは`backend/domain`・`application`・`infrastructure`・`interfaces`。フロントエンドは`domain`・`application`・`infrastructure`・`presentation`
 - DomainへNumPy/CuPy・DB・HTTPを入れず、ApplicationはProtocol等のportを使う
 - InfrastructureからInterfacesをimportしない。描画はInterfacesから関数を渡し、永続化・数値処理へ表示依存を戻さない
 - `tests/test_architecture.py`がPythonとフロントエンドの依存方向、adapter交換時の契約を確認する
@@ -28,12 +28,12 @@
 - `LocalEvaluation`・`LocalStudy`はProtocolを満たすAdapter。実行中のモデル・設定・ログは非公開のsessionへ保持し、Applicationから直接操作しない
 - `LocalSensitivity`は感度分析の入力照合・保存・子プロセス実行を担当する。条件展開と過去結果の検証は`research/parameters.py`を共有し、他のCLIから感度分析CLIをimportしない
 - `Sensitivity`はBM25共有バッチ、比較対象の検証、未完了条件の実行、評価定義の一致確認、公開の順序を管理する。過去の比較対象は再学習せず、公開済み比較は出典の再検証だけを行う
-- 感度分析の表・図生成は注入された`notebook/sensitivity_report.py`が担い、比較の成功マーカーはAdapterが最後に公開する
+- 感度分析の表・対応差分計算・CSV/PNG/PDF保存はInfrastructureの`SensitivityReport`が担う。Notebookの`sensitivity_report`・`parameter_figures`は図を生成し、比較の成功マーカーはAdapterが最後に公開する
 - `FactorStudy`の進捗はDomainの`Progress`で管理する。計画外・重複した条件完了、未完了での成功、終了後の更新を拒否し、完了件数は検証済み`ConditionResult`の数から求める
 - 保存portへ渡す`ProgressSnapshot`は変更不可。`research/studies.py`が既存の`music-recsys-factor-study-v1`形式へ変換する。再開時は保存済み条件を再検証して進捗を組み直す
 - 多態性はProtocolと依存注入で実現する。共通の状態や振る舞いがないクラスに継承を追加せず、図の保存は`FigureWriter`を組み込んで共有する
 - `FactorReport`・`ItemCFReport`・`FullReport`・`StudyReport`はInfrastructureで保存する。対応するNotebookの`draw`は入力済みの表から図を作り、成功・例外のいずれでも作成した図を解放する
-- ItemCF比較レポートのコマンド入口は`python -m src.interfaces.cli.itemcf_report --config <JSON>`。Notebookモジュールは描画だけを担当する
+- ItemCF比較レポートのコマンド入口は`python -m backend.interfaces.cli.itemcf_report --config <JSON>`。Notebookモジュールは描画だけを担当する
 - 評価結果は描画・出典再照合・指定されたモデル保存の成功後に公開する。条件探索の進捗JSONはrunning/failedを区別し、既存の成功条件も再利用前に出典を確認する
 - メモリAdapterによる実行順・失敗・再開試験と、保存物を使う統合試験を併用する。他の研究用CLIには実行順制御が残り、全ユースケースのApplication分離が完了した構成ではない
 
@@ -74,7 +74,9 @@ stateDiagram-v2
 | モジュール | 担当 |
 | --- | --- |
 | `config` | 設定読込み・検証とStudyConfig |
-| `runner` | Smoke・予算付きValidation探索 |
+| `runner` | 公開操作からApplicationのSearchへ渡す入口 |
+| `backend` | LocalSearch / 入力・排他ロック・試行・保存のAdapter |
+| `progress` | 試行履歴と型付き状態の変換 |
 | `trials` | 1試行の学習・評価・保存・再利用時の検証 |
 | `state` | 比較条件・進捗読込み・排他ロック・固定後の書込み制限 |
 | `selection` | 順位付け・選択・確認記録・固定 |
@@ -82,7 +84,8 @@ stateDiagram-v2
 | `artifacts` | 内容hashと選択記録の改変検知 |
 
 - JSONの保存と読込みは既存の`research/store.py`を共有する
-- 探索の実行制御はInfrastructureにあり、Applicationへの分離は未実施
+- Applicationの`Search`がSmoke確認・件数/時間予算・試行・途中保存を制御する。計画は遅延生成し、予算を超えて候補を読み進めない
+- Domainの`SearchProgress`は成功・失敗・予算切れを区別し、再利用数と実行数を記録する。`TrialProgress`は中断を失敗履歴へ残し、成功済み試行の再学習と終了後の結果変更を拒否する
 
 ```mermaid
 flowchart LR
@@ -134,7 +137,7 @@ flowchart LR
 ```
 
 - 初期10条件は単独4方式、EASE+BPR/BM25+ContentのRRF 2構成、各構成のMMR 2条件
-- 比較版は`configs/hybrid.json`へ記録する。EASE λ500、BPR128因子/500epoch/seed42・43・44、BM25 n20/k1.2/b0.75、Content IDFあり/log_count
+- 比較版は`configs/hybrid/base.json`へ記録する。EASE λ500、BPR128因子/500epoch/seed42・43・44、BM25 n20/k1.2/b0.75、Content IDFあり/log_count
 - これらはValidationに基づく比較版。研究上の採用モデル・主指標を決定したものではない
 - 同じ学習済み重みを単独・RRF・MMRで共有し、BPRのseedを対応させる
 - 候補生成は元順位・raw score・版・実経路をParquetへ保持する。未取得scoreはnullであり、0へ補わない

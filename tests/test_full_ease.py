@@ -8,7 +8,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from src.infrastructure.recommenders.full_ease import FullEASE
+from backend.infrastructure.recommenders.full_ease import FullEASE
 
 
 def learning(tmp_path):
@@ -67,14 +67,14 @@ def test_ease_matches_constrained_ridge_and_candidate_rules(tmp_path):
 
 
 def test_ease_cpu_full_validation_is_complete_and_never_opens_test(tmp_path):
-    from src.infrastructure.research.configuration import load_settings
-    from src.interfaces.cli.evaluate import run
+    from backend.infrastructure.research.configuration import load_settings
+    from backend.interfaces.cli.evaluate import run
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = load_settings(Path("configs/ease.json"))
+    raw = load_settings(Path("configs/ease/base.json"))
     raw["model"]["parameters"].update(use_gpu=False, memory_budget_mb=128)
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
@@ -103,7 +103,7 @@ def test_ease_cpu_full_validation_is_complete_and_never_opens_test(tmp_path):
 def test_ease_gpu_coefficients_scores_and_rankings_match_oracle(tmp_path, monkeypatch):
     import cupy as cp
 
-    from src.infrastructure.evaluation.gpu_evaluation import GPURanker
+    from backend.infrastructure.evaluation.gpu_evaluation import GPURanker
 
     path = learning(tmp_path)
     gpu = FullEASE(path, regularization=2, use_gpu=True, block_size=2, progress=lambda _: None)

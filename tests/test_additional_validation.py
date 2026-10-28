@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from src.infrastructure.datasets.listening_data import file_sha256
-from src.interfaces.cli.additional_validation import run
+from backend.infrastructure.datasets.listening_data import file_sha256
+from backend.interfaces.cli.additional_validation import run
 
 
 def write(path, value):

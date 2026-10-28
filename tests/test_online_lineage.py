@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.domain.recommendation.contracts import RecommendationRequest, RecommendationResponse
-from src.domain.recommendation.models import ModelSpec, RecommendationExecution, Selection
-from src.domain.study.events import SessionLog, StudySession
+from backend.domain.recommendation.contracts import RecommendationRequest, RecommendationResponse
+from backend.domain.recommendation.models import ModelSpec, RecommendationExecution, Selection
+from backend.domain.study.events import SessionLog, StudySession
 
 
 def test_parent_conditions_and_session_adjustment_limit():

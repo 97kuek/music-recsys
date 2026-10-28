@@ -3,13 +3,13 @@ from pathlib import Path
 
 import pytest
 
-from src.infrastructure.datasets.listening_data import file_sha256
-from src.infrastructure.research.figure_retention import (
+from backend.infrastructure.datasets.listening_data import file_sha256
+from backend.infrastructure.research.figure_retention import (
     figure_references,
     prune_figures,
     retention_record,
 )
-from src.infrastructure.research.store import atomic_json
+from backend.infrastructure.research.store import atomic_json
 
 
 def example(tmp_path):
@@ -168,7 +168,7 @@ def test_external_and_unmeasured_figures_are_not_prunable(tmp_path):
 def test_redraw_to_new_output_uses_saved_values_without_mutating_source(tmp_path):
     import matplotlib.pyplot as plt
 
-    from src.interfaces.cli.figure_redraw import redraw
+    from backend.interfaces.cli.figure_redraw import redraw
 
     directory, plan = example(tmp_path)
     result_path = directory / "result.json"
@@ -223,7 +223,7 @@ def test_redraw_to_new_output_uses_saved_values_without_mutating_source(tmp_path
 
 
 def test_catalog_and_additional_validation_publish_explicit_pruned_references(tmp_path):
-    from src.interfaces.cli.additional_validation import _Sources
+    from backend.interfaces.cli.additional_validation import _Sources
 
     directory, plan = example(tmp_path)
     prune(directory, plan)
@@ -239,7 +239,7 @@ def test_catalog_and_additional_validation_publish_explicit_pruned_references(tm
 def test_catalog_keeps_pruned_conditions_without_rewriting_original_result(tmp_path):
     import runpy
 
-    from src.interfaces.cli.catalog import run
+    from backend.interfaces.cli.catalog import run
 
     create = runpy.run_path("tests/test_experiment_catalog.py")["experiments"]
     method = create(tmp_path)

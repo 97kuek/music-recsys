@@ -1,5 +1,5 @@
 {
-  "extends": "../bm25.json",
+  "extends": "base.json",
   "experiment": {
     "name": "music4all-bm25-50",
     "output": "../../data/experiments/bm25/50"

@@ -6,11 +6,11 @@ import pytest
 from fastapi.testclient import TestClient
 from participant_support import start_session
 
-from src.domain.study.events import InteractionEvent
-from src.infrastructure.datasets.listening_data import file_sha256
-from src.interfaces.cli.online_media import prepare
-from src.interfaces.cli.online_prepare import demo
-from src.interfaces.http.server import create_app
+from backend.domain.study.events import InteractionEvent
+from backend.infrastructure.datasets.listening_data import file_sha256
+from backend.interfaces.cli.online_media import prepare
+from backend.interfaces.cli.online_prepare import demo
+from backend.interfaces.http.server import create_app
 
 pytestmark = pytest.mark.usefixtures("participant_retention")
 

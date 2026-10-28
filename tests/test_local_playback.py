@@ -4,8 +4,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.domain.catalog import PlaybackContext, TrackRef
-from src.infrastructure.media.playback import AudioAsset, LocalPlayback, parse_expiry
+from backend.domain.catalog import PlaybackContext, TrackRef
+from backend.infrastructure.media.playback import AudioAsset, LocalPlayback, parse_expiry
 
 
 @pytest.mark.parametrize("offset, available", [(None, True), (1, True), (0, False), (-1, False)])

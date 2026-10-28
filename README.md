@@ -23,8 +23,8 @@
 ```bash
 uv sync --locked --group data --group models --group notebook --group tracking
 # GPU実行を使う環境は --group gpu も指定する
-.venv/bin/python -m src.interfaces.cli.lab_data
-.venv/bin/python -m src.interfaces.cli.evaluate --config configs/popularity-plays.json
+.venv/bin/python -m backend.interfaces.cli.lab_data
+.venv/bin/python -m backend.interfaces.cli.evaluate --config configs/popularity/plays.json
 .venv/bin/jupyter lab --no-browser --ip=127.0.0.1 --port=8888
 ```
 
@@ -49,20 +49,22 @@ flowchart LR
 
 | 目的 | モジュール・指定 |
 | --- | --- |
-| 入力取得・照合・分割 | `src.interfaces.cli.lab_data` |
-| 単独方式の全件評価 | `src.interfaces.cli.evaluate --config <JSON>` |
+| 入力取得・照合・分割 | `backend.interfaces.cli.lab_data` |
+| 単独方式の全件評価 | `backend.interfaces.cli.evaluate --config <JSON>` |
 | 因子数/epoch・感度 | `factor_study` / `sensitivity` / `bm25_grid` |
 | 保存結果・対応差・共通ILD | `catalog` / `audit` / `als_report` |
 | 保存済みItemCF Gridの比較図を作成 | `itemcf_report --config <JSON>`（評価は開始しない） |
 | 固定済み単独Test | `popularity_test` / `itemcf_test` / `als_test` / `final_test` |
-| 固定Hybridの計画 | `hybrid --config configs/hybrid.json`、既定は計画表示のみ |
+| 固定Hybridの計画 | `hybrid --config configs/hybrid/base.json`、既定は計画表示のみ |
 | 固定HybridのValidation | 同じ引数へ`--run`を追加。Testや採用選択は行わない |
 | 元値を変えず図を再生成 | `figure_redraw --result <JSON> --output <新規保存先>` |
 | 表示metadata・配信用bundle | `music4all_metadata` / `online_bundle` / `online_distribution` |
 | ローカルログ管理・集計 | `online_logs` / `online_metrics` / `online_analysis` |
 
-- モジュールは`python -m src.interfaces.cli.<名前>`で起動し、詳細は各`--help`を使う
+- モジュールは`python -m backend.interfaces.cli.<名前>`で起動し、詳細は各`--help`を使う
 - JSON共通条件は`configs/common.json`。比較・GPU・一括実行のためだけに設定や出力先を増やさない
+- 手法別設定は`configs/<手法>/`へ配置する。`base.json`は基本条件、`sensitivity.json`は感度分析、BPRは`30epoch.json`〜`500epoch.json`、Popularityは`plays.json`・`users.json`
+- Pythonパッケージは`backend/`、画面は`frontend/`。設定の配置を変えても入力データ・結果の保存先は変えない
 - CLI・Notebook・HTTP・配布スクリプトからの参照を更新して命名を揃える。外部CLIや動的登録を未使用コードと誤判定しない
 
 ## Notebook
@@ -110,8 +112,8 @@ flowchart LR
 
 ```bash
 .venv/bin/pytest
-.venv/bin/ruff check src tests notebooks migrations
-.venv/bin/ruff format --check src tests notebooks migrations
+.venv/bin/ruff check backend tests notebooks migrations
+.venv/bin/ruff format --check backend tests notebooks migrations
 # 空きGPUでのみ明示実行
 MUSIC_RECSYS_TEST_GPU=1 CUDA_PATH=/usr .venv/bin/pytest tests/test_gpu_evaluation.py tests/test_pipeline.py tests/test_hybrid.py
 ```

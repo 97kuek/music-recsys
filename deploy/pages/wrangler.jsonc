@@ -1,6 +1,6 @@
 {
   "name": "music-recsys-app",
-  "pages_build_output_dir": "../../src/interfaces/http/static",
+  "pages_build_output_dir": "../../backend/interfaces/http/static",
   "compatibility_date": "2026-10-18",
   "kv_namespaces": [
     { "binding": "TUNNEL_ORIGINS", "id": "44570409aea142d8bb8019d31fb5d3c1" }

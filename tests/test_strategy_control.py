@@ -7,23 +7,23 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.application.recommendation import RecommendationService
-from src.application.strategy_control import StrategyControl
-from src.domain.recommendation.contracts import (
+from backend.application.recommendation import RecommendationService
+from backend.application.strategy_control import StrategyControl
+from backend.domain.recommendation.contracts import (
     RecommendationRequest,
     RecommendationResponse,
     RecommendationUsage,
 )
-from src.domain.recommendation.control import (
+from backend.domain.recommendation.control import (
     ControlBudget,
     ControlFeedback,
     DecisionAnswer,
     DecisionInput,
     ExternalPermission,
 )
-from src.domain.recommendation.models import ModelSpec
-from src.domain.study.events import SessionLog, StudySession
-from src.infrastructure.research.decision_providers import OpenAIDecisions, ScriptedDecisions
+from backend.domain.recommendation.models import ModelSpec
+from backend.domain.study.events import SessionLog, StudySession
+from backend.infrastructure.research.decision_providers import OpenAIDecisions, ScriptedDecisions
 
 
 class Ranker:
@@ -366,7 +366,7 @@ def test_langgraph_real_local_execution_disables_ambient_tracing(monkeypatch):
     langsmith = pytest.importorskip("langsmith")
     from langsmith.run_helpers import get_tracing_context
 
-    from src.infrastructure.research.control_graph import LangGraphControl
+    from backend.infrastructure.research.control_graph import LangGraphControl
 
     monkeypatch.setenv("LANGSMITH_TRACING", "true")
 
@@ -414,7 +414,7 @@ def test_openai_sdk_failure_has_no_hidden_retry_or_content_in_audit():
 
 
 def test_langsmith_uses_explicit_client_and_rejects_extra_content():
-    from src.infrastructure.research.control_traces import LangSmithControlTrace
+    from backend.infrastructure.research.control_traces import LangSmithControlTrace
 
     captured = []
     trace = LangSmithControlTrace(
@@ -431,7 +431,7 @@ def test_langsmith_uses_explicit_client_and_rejects_extra_content():
 def test_synthetic_rehearsal_has_no_fabricated_ratings_or_cost(engine):
     if engine == "langgraph":
         pytest.importorskip("langgraph")
-    from src.interfaces.cli.control_rehearsal import rehearse
+    from backend.interfaces.cli.control_rehearsal import rehearse
 
     result = rehearse(engine=engine)
     assert result["synthetic"] is True and len(result["steps"]) == 9

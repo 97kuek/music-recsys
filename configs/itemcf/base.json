@@ -1,0 +1,25 @@
+{
+  "extends": "../common.json",
+  "experiment": {
+    "name": "music4all-itemcf",
+    "output": "../../data/experiments/itemcf"
+  },
+  "model": {
+    "name": "itemcf"
+  },
+  "search": {
+    "stage": "B",
+    "max_trials": 6,
+    "grid": {
+      "similarity": [
+        "cosine",
+        "jaccard"
+      ],
+      "neighbors": [
+        20,
+        50,
+        100
+      ]
+    }
+  }
+}

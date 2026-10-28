@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from src.interfaces.notebook.config import ConfigPicker
+from backend.interfaces.notebook.config import ConfigPicker
 
 
 def test_picker_requires_explicit_click_and_invalidates_changes(listening_study, monkeypatch):
@@ -60,17 +60,22 @@ def test_picker_empty_directory(tmp_path):
 def test_picker_hides_nested_generated_conditions_until_requested(tmp_path):
     import json
 
-    from src.infrastructure.research.configuration import load_settings
+    from backend.infrastructure.research.configuration import load_settings
 
-    raw = load_settings("configs/popularity-plays.json")
+    raw = load_settings("configs/popularity/plays.json")
     generated = [
         "itemcf/cosine/20.json",
         "itemcf/jaccard/100.json",
         "als/32.json",
     ]
     visible = [
-        "bpr-500epoch.json",
+        "bpr/500epoch.json",
         "als/256.json",
+        "als/base.json",
+        "als/sensitivity.json",
+        "als/boundary.json",
+        "itemcf/base.json",
+        "itemcf/sensitivity.json",
         "als/512.json",
         "bm25/50.json",
     ]
@@ -93,7 +98,7 @@ def test_notebooks_do_not_use_environment_as_selection(name, monkeypatch):
 
     monkeypatch.setenv(
         "MUSIC_RECSYS_EXPERIMENT_CONFIG",
-        str(Path("configs/popularity-plays.json").resolve()),
+        str(Path("configs/popularity/plays.json").resolve()),
     )
     with pytest.raises(ValueError, match="未指定"):
         _run_notebook_cells(name + ".ipynb", 3)

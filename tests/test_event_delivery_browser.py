@@ -11,7 +11,7 @@ import httpx
 import pytest
 from playwright.sync_api import sync_playwright
 
-from src.interfaces.cli.online_prepare import demo
+from backend.interfaces.cli.online_prepare import demo
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("MUSIC_RECSYS_TEST_LIFECYCLE_UI") != "1",
@@ -25,7 +25,7 @@ class LiveApp(str):
 
 @pytest.fixture(scope="module")
 def live_app(tmp_path_factory):
-    if not Path("src/interfaces/http/static/index.html").is_file():
+    if not Path("backend/interfaces/http/static/index.html").is_file():
         pytest.fail("Build frontend before enabling lifecycle browser tests")
     directory = tmp_path_factory.mktemp("lifecycle-browser")
     config = demo(directory / "bundle")
@@ -38,7 +38,7 @@ def live_app(tmp_path_factory):
         [
             sys.executable,
             "-m",
-            "src.interfaces.http.server",
+            "backend.interfaces.http.server",
             "--config",
             str(config),
             "--database",

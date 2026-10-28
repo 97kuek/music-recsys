@@ -6,12 +6,12 @@ from pathlib import Path
 import pyarrow.parquet as pq
 import pytest
 
-from src.infrastructure.research.configuration import load_settings
+from backend.infrastructure.research.configuration import load_settings
 
 
 @pytest.fixture
 def final_configs(tmp_path):
-    from src.interfaces.cli.evaluate import run
+    from backend.interfaces.cli.evaluate import run
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
@@ -19,7 +19,7 @@ def final_configs(tmp_path):
     bundle = create(tmp_path / "bundle")
     configs = []
     for name in ("plays", "users"):
-        raw = load_settings(Path(f"configs/popularity-{name}.json"))
+        raw = load_settings(Path(f"configs/popularity/{name}.json"))
         raw["experiment"].update(
             validation_dataset=str(bundle / "validation"),
             test_dataset=str(bundle / "test"),
@@ -48,13 +48,13 @@ def final_configs(tmp_path):
 def test_final_test_matches_test_reference_preserves_validation_and_refuses_repeat(
     final_configs, gpu
 ):
-    from src.infrastructure.datasets.features import load_features
-    from src.infrastructure.datasets.listening_data import load_listening_dataset
-    from src.infrastructure.evaluation.listening_benchmark import run_listening_benchmark
-    from src.infrastructure.evaluation.tracking import TrackingConfig
-    from src.infrastructure.recommenders import create_recommender
-    from src.infrastructure.research.search import load_study_config
-    from src.interfaces.cli.popularity_test import run
+    from backend.infrastructure.datasets.features import load_features
+    from backend.infrastructure.datasets.listening_data import load_listening_dataset
+    from backend.infrastructure.evaluation.listening_benchmark import run_listening_benchmark
+    from backend.infrastructure.evaluation.tracking import TrackingConfig
+    from backend.infrastructure.recommenders import create_recommender
+    from backend.infrastructure.research.search import load_study_config
+    from backend.interfaces.cli.popularity_test import run
 
     configs = [load_study_config(p) for p in final_configs]
     original = [(c.output / "result.json").read_bytes() for c in configs]
@@ -62,7 +62,7 @@ def test_final_test_matches_test_reference_preserves_validation_and_refuses_repe
     summary = json.loads((output / "result.json").read_text())
     assert summary["phase"] == "test" and summary["status"] == "succeeded"
     assert summary["paired_differences"]
-    from src.interfaces.cli.catalog import collect
+    from backend.interfaces.cli.catalog import collect
 
     _, records = collect(output.parent)
     assert {e["condition"] for e, _ in records} == {"plays", "users"}
@@ -112,9 +112,9 @@ def test_final_test_matches_test_reference_preserves_validation_and_refuses_repe
 def test_final_training_rejects_changed_provenance_and_missing_history(final_configs):
     from copy import deepcopy
 
-    from src.infrastructure.datasets.listening_data import validate_bundle
-    from src.infrastructure.research.full_test import validate_training
-    from src.infrastructure.research.search import load_study_config
+    from backend.infrastructure.datasets.listening_data import validate_bundle
+    from backend.infrastructure.research.full_test import validate_training
+    from backend.infrastructure.research.search import load_study_config
 
     config = load_study_config(final_configs[0])
     manifest, paths, counts = validate_bundle(config.test_dataset)
@@ -130,8 +130,8 @@ def test_final_training_rejects_changed_provenance_and_missing_history(final_con
 
 
 def test_failed_aggregate_finishes_without_rescoring_or_changing_test(final_configs, monkeypatch):
-    from src.infrastructure.research.search import load_study_config
-    from src.interfaces.cli import evaluate, popularity_test
+    from backend.infrastructure.research.search import load_study_config
+    from backend.interfaces.cli import evaluate, popularity_test
 
     configs = [load_study_config(p) for p in final_configs]
     output = configs[0].output.parent / "test"
@@ -164,9 +164,9 @@ def test_replot_preserves_scoring_evidence_and_archives_old_figures(
 ):
     from matplotlib.figure import Figure
 
-    from src.infrastructure.datasets.listening_data import file_sha256
-    from src.interfaces.cli import evaluate, popularity_test
-    from src.interfaces.cli.popularity_replot import replot
+    from backend.infrastructure.datasets.listening_data import file_sha256
+    from backend.interfaces.cli import evaluate, popularity_test
+    from backend.interfaces.cli.popularity_replot import replot
 
     output = popularity_test.run(final_configs, gpu=False)
     directories = [output, output.parent / "plays/test", output.parent / "users/test"]

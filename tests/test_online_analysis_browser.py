@@ -9,9 +9,9 @@ from fastapi.testclient import TestClient
 from playwright.sync_api import expect, sync_playwright
 from test_online_analysis import session_payload
 
-from src.infrastructure.persistence.sessions import LocalStore
-from src.interfaces.cli.online_prepare import demo
-from src.interfaces.http.server import create_app
+from backend.infrastructure.persistence.sessions import LocalStore
+from backend.interfaces.cli.online_prepare import demo
+from backend.interfaces.http.server import create_app
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("MUSIC_RECSYS_TEST_ONLINE_UI") != "1", reason="explicit online UI test"
@@ -20,7 +20,7 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.mark.parametrize("width", [1440, 390])
 def test_actual_researcher_analysis_and_download(tmp_path, width):
-    if not Path("src/interfaces/http/static/index.html").is_file():
+    if not Path("backend/interfaces/http/static/index.html").is_file():
         pytest.fail("Build frontend first")
     config = demo(tmp_path / "bundle")
     store = LocalStore(tmp_path / "sessions.sqlite")

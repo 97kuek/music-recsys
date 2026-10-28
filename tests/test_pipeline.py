@@ -3,14 +3,14 @@ import os
 import numpy as np
 import pytest
 
-from src.domain.recommendation.pipeline import (
+from backend.domain.recommendation.pipeline import (
     Candidate,
     FusionSpec,
     HybridCondition,
     mmr_reference,
     rrf_pool,
 )
-from src.infrastructure.recommenders.pipeline import BatchedPipeline
+from backend.infrastructure.recommenders.pipeline import BatchedPipeline
 
 
 def test_full_union_keeps_shared_middle_candidate_and_nullable_scores():
@@ -80,7 +80,7 @@ def test_batched_union_and_mmr_match_independent_domain_reference(gpu):
 
 
 def test_study_prepares_shared_sources_once_and_keeps_failures_visible():
-    from src.application.hybrid import run_study
+    from backend.application.hybrid import run_study
 
     events = []
 
@@ -108,7 +108,7 @@ def test_study_prepares_shared_sources_once_and_keeps_failures_visible():
 
 
 def test_candidate_io_preserves_empty_lists_and_nullable_free_raw_scores(tmp_path):
-    from src.infrastructure.datasets.candidates import CandidateWriter, candidate_batches
+    from backend.infrastructure.datasets.candidates import CandidateWriter, candidate_batches
 
     directory = tmp_path / "source"
     directory.mkdir()

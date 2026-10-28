@@ -7,8 +7,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from src.application.recommendation import RecommendationService
-from src.domain.catalog import (
+from backend.application.recommendation import RecommendationService
+from backend.domain.catalog import (
     CatalogTrack,
     PlaybackAvailability,
     PlaybackContext,
@@ -17,16 +17,16 @@ from src.domain.catalog import (
     TrackRef,
     TrackSource,
 )
-from src.domain.recommendation.contracts import RecommendationRequest
-from src.domain.recommendation.models import FixedStrategy
-from src.domain.recommendation.profiles import InitialProfile
-from src.domain.study.events import SessionLog, StudySession
-from src.infrastructure.models.artifacts import export_model, load_model
-from src.infrastructure.recommenders.als import als_solve
-from src.infrastructure.recommenders.full_als import FullALS
-from src.infrastructure.recommenders.full_bpr import FullBPR
-from src.infrastructure.recommenders.full_itemcf import FullItemCF
-from src.infrastructure.recommenders.full_popularity import FullPopularity
+from backend.domain.recommendation.contracts import RecommendationRequest
+from backend.domain.recommendation.models import FixedStrategy
+from backend.domain.recommendation.profiles import InitialProfile
+from backend.domain.study.events import SessionLog, StudySession
+from backend.infrastructure.models.artifacts import export_model, load_model
+from backend.infrastructure.recommenders.als import als_solve
+from backend.infrastructure.recommenders.full_als import FullALS
+from backend.infrastructure.recommenders.full_bpr import FullBPR
+from backend.infrastructure.recommenders.full_itemcf import FullItemCF
+from backend.infrastructure.recommenders.full_popularity import FullPopularity
 
 
 @pytest.fixture
@@ -116,7 +116,7 @@ def test_full_model_roundtrip_matches_benchmark_rank_without_training(
     "tamper", ["array", "manifest", "missing", "dimensions", "catalog", "path"]
 )
 def test_load_rejects_corruption(tamper, learning, tmp_path):
-    from src.infrastructure.datasets.listening_data import file_sha256
+    from backend.infrastructure.datasets.listening_data import file_sha256
 
     directory = tmp_path / "model"
     checksum = export_model(trained("als", learning), directory, version_id="v1")

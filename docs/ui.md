@@ -93,7 +93,7 @@ bash deploy/mac.sh researcher
 ```bash
 bash deploy/mac.sh sessions
 bash deploy/mac.sh export SESSION_ID
-.venv/bin/python -m src.interfaces.cli.online_logs \
+.venv/bin/python -m backend.interfaces.cli.online_logs \
   --database /private/sessions.sqlite list
 ```
 

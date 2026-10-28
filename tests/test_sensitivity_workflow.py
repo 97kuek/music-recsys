@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src.application.experiments import Sensitivity
+from backend.application.experiments import Sensitivity
 
 
 class MemorySensitivity:

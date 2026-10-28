@@ -9,20 +9,20 @@ from pathlib import Path
 
 import pytest
 
-from src.application.study.participants import Participants
-from src.application.study.runtime import Runtime
-from src.domain.catalog import PlaybackAvailability
-from src.domain.recommendation.candidates import eligible_candidates
-from src.domain.recommendation.contracts import RecommendationResponse
-from src.domain.recommendation.models import ModelSpec
-from src.domain.study.plan import Condition, StudyPlan
-from src.infrastructure.config.study import ConditionPayload, StudyPlanPayload
+from backend.application.study.participants import Participants
+from backend.application.study.runtime import Runtime
+from backend.domain.catalog import PlaybackAvailability
+from backend.domain.recommendation.candidates import eligible_candidates
+from backend.domain.recommendation.contracts import RecommendationResponse
+from backend.domain.recommendation.models import ModelSpec
+from backend.domain.study.plan import Condition, StudyPlan
+from backend.infrastructure.config.study import ConditionPayload, StudyPlanPayload
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_notebook_helpers_do_not_import_cli_entrypoints():
-    for path in (ROOT / "src/interfaces/notebook").glob("*.py"):
+    for path in (ROOT / "backend/interfaces/notebook").glob("*.py"):
         for node in ast.walk(ast.parse(path.read_text())):
             if isinstance(node, ast.Import):
                 modules = [alias.name for alias in node.names]
@@ -31,12 +31,22 @@ def test_notebook_helpers_do_not_import_cli_entrypoints():
                 modules.extend(f"{node.module}.{alias.name}" for alias in node.names)
             else:
                 continue
-            assert not any(module.startswith("src.interfaces.cli") for module in modules), path
+            assert not any(module.startswith("backend.interfaces.cli") for module in modules), path
 
 
-@pytest.mark.parametrize("name", ["factor_report", "itemcf_report", "full_report", "study_report"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "factor_report",
+        "itemcf_report",
+        "full_report",
+        "study_report",
+        "sensitivity_report",
+        "parameter_figures",
+    ],
+)
 def test_report_renderers_do_not_read_or_write_artifacts(name):
-    path = ROOT / "src/interfaces/notebook" / f"{name}.py"
+    path = ROOT / "backend/interfaces/notebook" / f"{name}.py"
     forbidden = {
         "savefig",
         "to_csv",
@@ -62,7 +72,7 @@ def test_report_renderers_do_not_read_or_write_artifacts(name):
 
 @pytest.mark.parametrize("layer", ["domain", "application", "infrastructure"])
 def test_python_dependencies_point_inward(layer):
-    for path in (ROOT / "src" / layer).rglob("*.py"):
+    for path in (ROOT / "backend" / layer).rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text())):
             modules = (
                 [node.module or ""]
@@ -73,10 +83,12 @@ def test_python_dependencies_point_inward(layer):
             )
             for module in modules:
                 if layer == "infrastructure":
-                    assert not module.startswith(("src.interfaces", "src.bootstrap")), path
-                elif module.startswith("src."):
+                    assert not module.startswith(("backend.interfaces", "backend.bootstrap")), path
+                elif module.startswith("backend."):
                     allowed = (
-                        ("src.domain",) if layer == "domain" else ("src.domain", "src.application")
+                        ("backend.domain",)
+                        if layer == "domain"
+                        else ("backend.domain", "backend.application")
                     )
                     assert module.startswith(allowed), (path, module)
                 else:
@@ -108,7 +120,7 @@ def test_frontend_boundaries_keep_transport_and_react_outside_core():
 def test_python_modules_have_no_import_cycles():
     modules = {
         ".".join(path.relative_to(ROOT).with_suffix("").parts): path
-        for path in (ROOT / "src").rglob("*.py")
+        for path in (ROOT / "backend").rglob("*.py")
     }
     graph = {}
     for module, path in modules.items():

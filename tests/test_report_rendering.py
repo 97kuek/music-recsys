@@ -5,8 +5,8 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from src.infrastructure.research.reports import FigureWriter
-from src.interfaces.notebook.itemcf_report import draw
+from backend.infrastructure.research.reports import FigureWriter
+from backend.interfaces.notebook.itemcf_report import draw
 
 
 def comparison_frame(value, *, similarity="cosine"):

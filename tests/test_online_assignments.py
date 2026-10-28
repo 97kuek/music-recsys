@@ -9,7 +9,7 @@ from datetime import timedelta
 import pytest
 from test_online_analysis import NOW, plan
 
-from src.infrastructure.persistence.sessions import LocalStore
+from backend.infrastructure.persistence.sessions import LocalStore
 
 
 @pytest.mark.parametrize("design", ["exploratory_standard", "exploratory_strategy"])
@@ -79,7 +79,7 @@ def test_cli_preview_and_explicit_existing_participant_enrollment(
 ):
     from datetime import UTC, datetime
 
-    from src.interfaces.cli.online_assignment import main
+    from backend.interfaces.cli.online_assignment import main
 
     study = plan(design)
     source = tmp_path / "study.json"

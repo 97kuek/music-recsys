@@ -10,8 +10,8 @@ def test_failed_trial_also_creates_failed_mlflow_run(study, tmp_path):
     pytest.importorskip("mlflow")
     from mlflow import MlflowClient
 
-    from src.infrastructure.evaluation.tracking import TrackingConfig
-    from src.infrastructure.research.search import run_search, smoke
+    from backend.infrastructure.evaluation.tracking import TrackingConfig
+    from backend.infrastructure.research.search import run_search, smoke
 
     tracking = TrackingConfig(
         enabled=True,
@@ -39,9 +39,9 @@ def test_failed_trial_also_creates_failed_mlflow_run(study, tmp_path):
 def test_storage_failure_marks_mlflow_trial_failed(study, tmp_path, monkeypatch):
     from mlflow import MlflowClient
 
-    import src.infrastructure.research.search as search
-    from src.infrastructure.evaluation.tracking import TrackingConfig
-    from src.infrastructure.research.search import trials
+    import backend.infrastructure.research.search as search
+    from backend.infrastructure.evaluation.tracking import TrackingConfig
+    from backend.infrastructure.research.search import trials
 
     tracking = TrackingConfig(
         enabled=True,

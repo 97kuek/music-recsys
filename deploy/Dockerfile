@@ -14,11 +14,11 @@ ARG RESEARCH_CONTROL=0
 COPY pyproject.toml uv.lock README.md LICENSE NOTICE ./
 # 推論のみ。implicit/CUDA・Notebook・学習入力は不要。
 RUN if [ "$RESEARCH_CONTROL" = "1" ]; then uv sync --locked --no-dev --group app --group llm --no-install-project; else uv sync --locked --no-dev --group app --no-install-project; fi
-COPY src/ src/
-COPY --from=ui /build/src/interfaces/http/static/ src/interfaces/http/static/
+COPY backend/ backend/
+COPY --from=ui /build/backend/interfaces/http/static/ backend/interfaces/http/static/
 RUN if [ "$RESEARCH_CONTROL" = "1" ]; then uv sync --locked --no-dev --group app --group llm; else uv sync --locked --no-dev --group app; fi
 RUN useradd --uid 10001 --create-home music-recsys
 ENV PATH="/app/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 USER music-recsys
-CMD ["python", "-m", "src.interfaces.http.container"]
+CMD ["python", "-m", "backend.interfaces.http.container"]

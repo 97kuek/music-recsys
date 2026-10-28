@@ -1,0 +1,14 @@
+{
+  "extends": "200epoch.json",
+  "experiment": {
+    "name": "music4all-bpr-500epoch",
+    "output": "../../data/experiments/bpr/500epoch"
+  },
+  "search": {
+    "grid": {
+      "iterations": [
+        500
+      ]
+    }
+  }
+}

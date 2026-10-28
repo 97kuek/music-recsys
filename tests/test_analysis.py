@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from src.domain.datasets import Catalog, TrackRecord, UserRecord
-from src.infrastructure.datasets.json_dataset import load_dataset
-from src.infrastructure.evaluation.benchmark import run_experiment, save_report
-from src.infrastructure.evaluation.tracking import TrackingConfig
-from src.interfaces.notebook import analysis
+from backend.domain.datasets import Catalog, TrackRecord, UserRecord
+from backend.infrastructure.datasets.json_dataset import load_dataset
+from backend.infrastructure.evaluation.benchmark import run_experiment, save_report
+from backend.infrastructure.evaluation.tracking import TrackingConfig
+from backend.interfaces.notebook import analysis
 
 ROOT = Path(__file__).resolve().parents[1]
 

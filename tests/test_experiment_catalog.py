@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from src.infrastructure.datasets.listening_data import file_sha256
-from src.infrastructure.research.configuration import load_settings
-from src.interfaces.cli.catalog import collect, run
-from src.interfaces.cli.evaluate import run as evaluate
+from backend.infrastructure.datasets.listening_data import file_sha256
+from backend.infrastructure.research.configuration import load_settings
+from backend.interfaces.cli.catalog import collect, run
+from backend.interfaces.cli.evaluate import run as evaluate
 
 
 def experiments(tmp_path):
@@ -18,7 +18,7 @@ def experiments(tmp_path):
     bundle = create(tmp_path / "bundle")
     method = tmp_path / "popularity"
     for name, basis in [("plays", "play_count"), ("users", "user_count")]:
-        raw = load_settings("configs/popularity-plays.json")
+        raw = load_settings("configs/popularity/plays.json")
         raw["experiment"].update(
             validation_dataset=str(bundle / "validation"),
             features=str(bundle / "features.json"),
@@ -65,8 +65,8 @@ def test_catalog_rejects_changed_recommendations_before_publication(tmp_path):
 
 
 def test_catalog_verifies_a_model_exported_outside_the_experiment_directory(tmp_path):
-    from src.infrastructure.models.artifacts import export_model
-    from src.infrastructure.recommenders.full_popularity import FullPopularity
+    from backend.infrastructure.models.artifacts import export_model
+    from backend.infrastructure.recommenders.full_popularity import FullPopularity
 
     method = experiments(tmp_path)
     config = json.loads((method / "plays/config.json").read_text())

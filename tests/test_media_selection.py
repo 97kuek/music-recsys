@@ -4,10 +4,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.bootstrap import create_runtime
-from src.interfaces.cli.online_bundle import package, verify
-from src.interfaces.cli.online_media import prepare
-from src.interfaces.cli.online_prepare import demo
+from backend.bootstrap import create_runtime
+from backend.interfaces.cli.online_bundle import package, verify
+from backend.interfaces.cli.online_media import prepare
+from backend.interfaces.cli.online_prepare import demo
 
 
 @pytest.fixture

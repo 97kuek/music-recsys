@@ -118,7 +118,7 @@ flowchart LR
 - 最大5人、通常3条件の探索的比較。参加者内平均・対応差・順序/重複曲/休憩を記述し、一般的優位や有意差を断定しない
 
 ```bash
-.venv/bin/python -m src.interfaces.cli.online_metrics \
+.venv/bin/python -m backend.interfaces.cli.online_metrics \
   --input /private/exports/SESSION_ID.json --output /private/metrics-new.json
 ```
 

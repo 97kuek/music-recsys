@@ -3,10 +3,10 @@ import os
 
 import pytest
 
-from src.domain.recommendation.profiles import InitialProfile
-from src.infrastructure.models.artifacts import load_model
-from src.interfaces.cli.online_prepare import demo
-from src.interfaces.cli.online_public_demo import export
+from backend.domain.recommendation.profiles import InitialProfile
+from backend.infrastructure.models.artifacts import load_model
+from backend.interfaces.cli.online_prepare import demo
+from backend.interfaces.cli.online_public_demo import export
 
 
 @pytest.fixture(scope="module")

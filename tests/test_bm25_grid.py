@@ -9,10 +9,10 @@ import pytest
 
 
 def test_shared_grid_requires_gpu_bm25_before_creating_outputs(tmp_path):
-    from src.infrastructure.research.configuration import load_settings
-    from src.interfaces.cli.bm25_grid import run
+    from backend.infrastructure.research.configuration import load_settings
+    from backend.interfaces.cli.bm25_grid import run
 
-    raw = load_settings("configs/bm25-grid.json")
+    raw = load_settings("configs/bm25/grid.json")
     raw["model"]["parameters"]["use_gpu"] = False
     raw["experiment"]["output"] = str(tmp_path / "never-created")
     path = tmp_path / "plan.json"
@@ -29,19 +29,19 @@ def test_shared_prefixes_match_independent_bm25_cpu_rankings_and_scores(tmp_path
     import duckdb
     import pyarrow.parquet as pq
 
-    from src.infrastructure.datasets.features import load_features
-    from src.infrastructure.datasets.listening_data import validate_bundle
-    from src.infrastructure.evaluation.full_scoring import score_cpu
-    from src.infrastructure.recommenders.full_bm25 import FullBM25
-    from src.infrastructure.research.configuration import load_settings
-    from src.infrastructure.research.parameters import conditions, verify
-    from src.infrastructure.research.search import load_study_config
-    from src.interfaces.cli.bm25_grid import run
+    from backend.infrastructure.datasets.features import load_features
+    from backend.infrastructure.datasets.listening_data import validate_bundle
+    from backend.infrastructure.evaluation.full_scoring import score_cpu
+    from backend.infrastructure.recommenders.full_bm25 import FullBM25
+    from backend.infrastructure.research.configuration import load_settings
+    from backend.infrastructure.research.parameters import conditions, verify
+    from backend.infrastructure.research.search import load_study_config
+    from backend.interfaces.cli.bm25_grid import run
 
     bundle = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"](tmp_path / "bundle")
-    raw = load_settings("configs/bm25-grid.json")
+    raw = load_settings("configs/bm25/grid.json")
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(tmp_path / "never-test"),

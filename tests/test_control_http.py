@@ -6,11 +6,11 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 
-from src.application.study.sessions import token_key
-from src.domain.recommendation.control import DecisionAnswer
-from src.infrastructure.config.control import build_control
-from src.interfaces.cli.online_prepare import demo
-from src.interfaces.http.server import create_app
+from backend.application.study.sessions import token_key
+from backend.domain.recommendation.control import DecisionAnswer
+from backend.infrastructure.config.control import build_control
+from backend.interfaces.cli.online_prepare import demo
+from backend.interfaces.http.server import create_app
 
 
 class Decisions:

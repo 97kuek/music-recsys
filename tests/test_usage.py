@@ -1,11 +1,11 @@
 import pytest
 
-from src.domain.recommendation.contracts import RecommendationResponse
+from backend.domain.recommendation.contracts import RecommendationResponse
 
 
 def test_usage_totals_are_measured_and_partial_fields_remain_unknown():
-    from src.domain.recommendation.contracts import RecommendationUsage
-    from src.infrastructure.research.usage import summarize_usage
+    from backend.domain.recommendation.contracts import RecommendationUsage
+    from backend.infrastructure.research.usage import summarize_usage
 
     first = RecommendationResponse(
         "a",
@@ -40,7 +40,7 @@ def test_usage_totals_are_measured_and_partial_fields_remain_unknown():
     ],
 )
 def test_invalid_usage_facts_are_rejected(kwargs):
-    from src.domain.recommendation.contracts import RecommendationUsage
+    from backend.domain.recommendation.contracts import RecommendationUsage
 
     with pytest.raises(ValueError):
         RecommendationUsage(**kwargs)
@@ -51,11 +51,11 @@ def test_real_runner_search_metrics_and_mlflow_aggregate_usage(tmp_path):
 
     from mlflow import MlflowClient
 
-    from src.domain.recommendation.contracts import RecommendationUsage
-    from src.infrastructure.datasets.json_dataset import load_dataset
-    from src.infrastructure.evaluation.benchmark import run_benchmark
-    from src.infrastructure.evaluation.tracking import TrackingConfig
-    from src.infrastructure.research.search_metrics import ranking_metrics
+    from backend.domain.recommendation.contracts import RecommendationUsage
+    from backend.infrastructure.datasets.json_dataset import load_dataset
+    from backend.infrastructure.evaluation.benchmark import run_benchmark
+    from backend.infrastructure.evaluation.tracking import TrackingConfig
+    from backend.infrastructure.research.search_metrics import ranking_metrics
 
     dataset = load_dataset(
         Path(__file__).resolve().parents[1] / "tests/fixtures/examples/toy/dataset.json", top_k=20
@@ -94,10 +94,10 @@ def test_real_runner_search_metrics_and_mlflow_aggregate_usage(tmp_path):
 def test_listening_runner_measures_generation_once_across_scoring_conditions(tmp_path):
     from listening_support import write_bundle
 
-    from src.domain.evaluation.listening import ListeningConfig
-    from src.domain.recommendation.contracts import RecommendationUsage
-    from src.infrastructure.datasets.listening_data import load_listening_dataset
-    from src.infrastructure.evaluation.listening_benchmark import run_listening_benchmark
+    from backend.domain.evaluation.listening import ListeningConfig
+    from backend.domain.recommendation.contracts import RecommendationUsage
+    from backend.infrastructure.datasets.listening_data import load_listening_dataset
+    from backend.infrastructure.evaluation.listening_benchmark import run_listening_benchmark
 
     config = ListeningConfig(window_days=(90,), day_weights=(0.0, 1.0, 2.0))
     data = load_listening_dataset(write_bundle(tmp_path / "bundle"), config)

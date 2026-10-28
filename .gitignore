@@ -30,29 +30,32 @@ node_modules/
 .wrangler/
 .dev.vars*
 !.dev.vars.example
-/src/interfaces/http/static/assets/
-/src/interfaces/http/static/index.html
+/backend/interfaces/http/static/assets/
+/backend/interfaces/http/static/index.html
 
 # Notebook・OSの生成物
 .ipynb_checkpoints/
 .DS_Store
 
 # Grid設定から自動展開する実行用JSON
-/configs/itemcf/
+/configs/itemcf/*/
 /configs/als/*.json
 !/configs/als/256.json
 !/configs/als/512.json
 !/configs/als/1024.json
 !/configs/als/256-bridge.json
 !/configs/als/512-bridge.json
+!/configs/als/base.json
+!/configs/als/sensitivity.json
+!/configs/als/boundary.json
 
 # ローカル確認用の合成デモ生成物
 /frontend/public/demo/
-/src/interfaces/http/static/demo/
+/backend/interfaces/http/static/demo/
 
 /frontend/public/license.txt
 /frontend/public/notice.txt
 /frontend/public/third-party-licenses.txt
-/src/interfaces/http/static/license.txt
-/src/interfaces/http/static/notice.txt
-/src/interfaces/http/static/third-party-licenses.txt
+/backend/interfaces/http/static/license.txt
+/backend/interfaces/http/static/notice.txt
+/backend/interfaces/http/static/third-party-licenses.txt

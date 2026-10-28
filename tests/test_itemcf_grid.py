@@ -3,14 +3,14 @@ from pathlib import Path
 
 import pytest
 
-from src.infrastructure.research.configuration import load_settings
+from backend.infrastructure.research.configuration import load_settings
 
 
 def test_grid_expands_conditions_and_reuses_completed_outputs(tmp_path, monkeypatch):
-    import src.interfaces.cli.grid as grid
-    from src.infrastructure.research.search import load_study_config
+    import backend.interfaces.cli.grid as grid
+    from backend.infrastructure.research.search import load_study_config
 
-    raw = load_settings(Path("configs/itemcf.json"))
+    raw = load_settings(Path("configs/itemcf/base.json"))
     raw["experiment"].update(
         validation_dataset=str(tmp_path / "data/benchmarks/music4all/validation"),
         test_dataset=str(tmp_path / "data/benchmarks/music4all/test"),
@@ -59,14 +59,14 @@ def test_grid_expands_conditions_and_reuses_completed_outputs(tmp_path, monkeypa
 def test_itemcf_report_failure_reuse_and_artifact_guard(tmp_path, monkeypatch):
     import runpy
 
-    from src.interfaces.cli import grid
-    from src.interfaces.notebook import itemcf_report
+    from backend.interfaces.cli import grid
+    from backend.interfaces.notebook import itemcf_report
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = load_settings("configs/itemcf.json")
+    raw = load_settings("configs/itemcf/base.json")
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(tmp_path / "never-test"),

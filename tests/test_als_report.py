@@ -8,7 +8,7 @@ import pytest
 
 
 def test_paper_groups_reject_mixed_solver_and_phase():
-    from src.infrastructure.research.als_report import select_groups
+    from backend.infrastructure.research.als_report import select_groups
 
     records = []
     names = [
@@ -46,7 +46,7 @@ def test_paper_groups_reject_mixed_solver_and_phase():
 
 
 def test_score_audit_recomputes_individual_means_and_detects_tampering(tmp_path):
-    from src.infrastructure.research.als_report import score_audit
+    from backend.infrastructure.research.als_report import score_audit
 
     pq.write_table(
         pa.Table.from_pylist(
@@ -92,9 +92,9 @@ def test_score_audit_recomputes_individual_means_and_detects_tampering(tmp_path)
 
 
 def test_common_ild_excludes_missing_features_from_both_conditions(tmp_path):
-    from src.infrastructure.datasets.features import write_features
-    from src.infrastructure.datasets.listening_data import file_sha256
-    from src.infrastructure.research.als_report import common_ild
+    from backend.infrastructure.datasets.features import write_features
+    from backend.infrastructure.datasets.listening_data import file_sha256
+    from backend.infrastructure.research.als_report import common_ild
 
     features = tmp_path / "features.json"
     write_features(
@@ -152,7 +152,7 @@ def test_common_ild_excludes_missing_features_from_both_conditions(tmp_path):
 def test_discrete_factor_plot_keeps_null_and_measured_zero():
     import matplotlib.pyplot as plt
 
-    from src.interfaces.notebook.als_report_figures import factor_plot
+    from backend.interfaces.notebook.als_report_figures import factor_plot
 
     frame = pd.DataFrame(
         dict(
@@ -178,8 +178,8 @@ def test_discrete_factor_plot_keeps_null_and_measured_zero():
 def test_sensitivity_heatmaps_preserve_unmeasured_cells():
     import matplotlib.pyplot as plt
 
-    from src.interfaces.notebook.als_report_figures import sensitivity_figures
-    from src.interfaces.notebook.evaluation_figures import ACCURACY_NAMES
+    from backend.interfaces.notebook.als_report_figures import sensitivity_figures
+    from backend.interfaces.notebook.evaluation_figures import ACCURACY_NAMES
 
     records = []
     for alpha, reg in ((0.1, 0.1), (1, 0.1), (1, 1)):

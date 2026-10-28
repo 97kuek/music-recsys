@@ -1,0 +1,10 @@
+{
+  "extends": "../common.json",
+  "experiment": {
+    "name": "music4all-popularity-plays",
+    "output": "../../data/experiments/popularity/plays"
+  },
+  "model": {
+    "name": "popularity"
+  }
+}

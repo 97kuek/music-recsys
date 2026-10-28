@@ -6,8 +6,8 @@ import pytest
 from fastapi.testclient import TestClient
 from participant_support import start_session
 
-from src.interfaces.cli.online_prepare import demo
-from src.interfaces.http.server import create_app
+from backend.interfaces.cli.online_prepare import demo
+from backend.interfaces.http.server import create_app
 
 pytestmark = pytest.mark.usefixtures("participant_retention")
 

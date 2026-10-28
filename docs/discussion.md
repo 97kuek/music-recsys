@@ -174,7 +174,7 @@
 
 ## HybridのValidation
 
-- [実験JSON](../configs/hybrid.json) / [凍結設定](../data/experiments/hybrid/validation/config.json) / [結果と出典](../data/experiments/hybrid/validation/result.json) / [全K・4観点CSV](../data/experiments/hybrid/validation/metrics.csv) / [監査](../data/provenance/cleanup-20261025T122738Z/hybrid-verification.json)
+- [実験JSON](../configs/hybrid/base.json) / [凍結設定](../data/experiments/hybrid/validation/config.json) / [結果と出典](../data/experiments/hybrid/validation/result.json) / [全K・4観点CSV](../data/experiments/hybrid/validation/metrics.csv) / [監査](../data/provenance/cleanup-20261025T122738Z/hybrid-verification.json)
 - 全119,133人・45,888曲・10条件/18実行。以下は90日/K20/重み1、新規精度18,601人、再聴19,268人。新規共通ILDはEASE/BPR群85,254人、BM25/Content群117,386人で、群間の直接順位付けはしない
 
 | 条件 | 新規Binary NDCG | 新規Recall (%) | 再聴Graded NDCG | Repeat Recall (%) | 新規共通ILD |

@@ -5,26 +5,26 @@ from pathlib import Path
 
 import pytest
 
-from src.infrastructure.research.configuration import load_settings
-from src.infrastructure.research.parameters import conditions, controls, verify
-from src.infrastructure.research.search import load_study_config
-from src.interfaces.cli.sensitivity import run_study
+from backend.infrastructure.research.configuration import load_settings
+from backend.infrastructure.research.parameters import conditions, controls, verify
+from backend.infrastructure.research.search import load_study_config
+from backend.interfaces.cli.sensitivity import run_study
 
 
 @pytest.mark.parametrize(
     ("name", "count", "controls_count"),
     [
-        ("ease-sensitivity", 2, 1),
-        ("als-boundary", 3, 3),
-        ("bpr-sensitivity", 12, 3),
-        ("bm25-sensitivity", 3, 1),
+        ("ease/sensitivity", 2, 1),
+        ("als/boundary", 3, 3),
+        ("bpr/sensitivity", 12, 3),
+        ("bm25/sensitivity", 3, 1),
     ],
 )
 def test_plans_preserve_shared_evaluation_and_only_add_requested_conditions(
     name, count, controls_count
 ):
     config = load_study_config(f"configs/{name}.json")
-    common = load_study_config("configs/ease.json")
+    common = load_study_config("configs/ease/base.json")
     planned = list(conditions(config))
     assert len(planned) == len({trial.output for _, trial in planned}) == count
     assert len(list(controls(config))) == controls_count
@@ -33,7 +33,7 @@ def test_plans_preserve_shared_evaluation_and_only_add_requested_conditions(
     assert config.features == common.features
     assert all(trial.parameters["use_gpu"] and not trial.grid for _, trial in planned)
     assert config.task is config.metric is None
-    if name == "bpr-sensitivity":
+    if name == "bpr/sensitivity":
         assert {
             (trial.parameters["learning_rate"], trial.parameters["regularization"])
             for _, trial in planned
@@ -46,7 +46,7 @@ def small_study(tmp_path, *, include_control=False):
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
-    raw = load_settings("configs/bm25-sensitivity.json")
+    raw = load_settings("configs/bm25/sensitivity.json")
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(tmp_path / "test-must-not-open"),
@@ -58,7 +58,7 @@ def small_study(tmp_path, *, include_control=False):
     path = tmp_path / "study.json"
     path.write_text(json.dumps(raw))
     if include_control:
-        from src.interfaces.cli.evaluate import run
+        from backend.interfaces.cli.evaluate import run
 
         base = replace(load_study_config(path), output=tmp_path / "control")
         run(base)
@@ -130,7 +130,7 @@ def test_incomplete_trial_and_changed_plan_require_inspection(tmp_path):
 
 
 def test_duplicate_deterministic_seeds_are_rejected():
-    config = load_study_config("configs/ease-sensitivity.json")
+    config = load_study_config("configs/ease/sensitivity.json")
     with pytest.raises(ValueError, match="duplicate"):
         list(conditions(replace(config, seeds=(0, 1), max_trials=4)))
 
@@ -142,7 +142,7 @@ def test_historical_control_parameters_are_still_checked(tmp_path):
         verify(replace(trial, parameters={**trial.parameters, "b": 0.0}), historical=True)
 
 
-@pytest.mark.parametrize(("name", "count"), [("content-sensitivity", 4), ("bm25-grid", 75)])
+@pytest.mark.parametrize(("name", "count"), [("content/sensitivity", 4), ("bm25/grid", 75)])
 def test_publication_plans_are_complete_unselected_and_have_a_same_source_baseline(name, count):
     config = load_study_config(f"configs/{name}.json")
     planned = list(conditions(config))
@@ -166,7 +166,7 @@ def test_publication_plans_are_complete_unselected_and_have_a_same_source_baseli
 
 
 def test_content_publication_evaluates_all_settings_and_never_opens_test(tmp_path):
-    raw = load_settings("configs/content-sensitivity.json")
+    raw = load_settings("configs/content/sensitivity.json")
     bundle = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"](tmp_path / "bundle")
@@ -210,9 +210,9 @@ def test_shared_neighbor_group_keeps_partial_evidence_and_refuses_reexecution(tm
 
 
 def test_report_failure_preserves_trial_without_publishing_comparison(tmp_path):
-    from src.application.experiments import Sensitivity
-    from src.bootstrap import create_evaluation
-    from src.infrastructure.research.sensitivity import LocalSensitivity
+    from backend.application.experiments import Sensitivity
+    from backend.bootstrap import create_evaluation
+    from backend.infrastructure.research.sensitivity import LocalSensitivity
 
     path = small_study(tmp_path)
     config = load_study_config(path)

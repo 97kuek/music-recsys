@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from src.interfaces.cli.lab_data import prepare_files, verify_prepared
+from backend.interfaces.cli.lab_data import prepare_files, verify_prepared
 
 
 def test_file_preparation_train_only_selection_reuse_and_tamper(tmp_path):
@@ -47,7 +47,7 @@ def test_file_preparation_train_only_selection_reuse_and_tamper(tmp_path):
     assert ready["evaluation_executed"] is False
     from matplotlib import pyplot as plt
 
-    from src.interfaces.notebook.split_figures import load_split_frame, split_figure
+    from backend.interfaces.notebook.split_figures import load_split_frame, split_figure
 
     split_frame = load_split_frame(output / "validation")
     # Count repeated listening events, rather than unique user-track pairs or days.
@@ -72,11 +72,11 @@ def test_file_preparation_train_only_selection_reuse_and_tamper(tmp_path):
         load_split_frame(output / "validation")
     summary_path.write_bytes(original_summary)
     # 共通Runnerで読めることと、TestのTrain+Validation出典の一致を確認する。
-    from src.infrastructure.research.search import load_study_config
-    from src.infrastructure.research.search_protocols import load_data, validate_test_training
+    from backend.infrastructure.research.search import load_study_config
+    from backend.infrastructure.research.search_protocols import load_data, validate_test_training
 
     config = replace(
-        load_study_config(Path(__file__).parents[1] / "configs/popularity-plays.json"),
+        load_study_config(Path(__file__).parents[1] / "configs/popularity/plays.json"),
         validation_dataset=output / "validation",
         test_dataset=output / "test",
         features=output / "features.json",

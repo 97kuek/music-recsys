@@ -6,7 +6,7 @@ import stat
 
 import pytest
 
-from src.domain.study.online_metrics import summarize_online
+from backend.domain.study.online_metrics import summarize_online
 
 
 @pytest.fixture
@@ -216,7 +216,7 @@ def test_legacy_skip_cannot_establish_zero_new_switches(payload):
 
 
 def test_cli_is_private_exclusive_and_does_not_modify_input(payload, tmp_path, monkeypatch):
-    from src.interfaces.cli.online_metrics import main
+    from backend.interfaces.cli.online_metrics import main
 
     source, target = tmp_path / "export.json", tmp_path / "metrics.json"
     original = json.dumps({"format": "music-recsys-log-v1", "payload": payload})

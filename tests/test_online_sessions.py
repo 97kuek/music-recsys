@@ -6,10 +6,10 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from src.application.study.sessions import token_key
-from src.domain.study.online_metrics import summarize_online
-from src.interfaces.cli.online_prepare import demo
-from src.interfaces.http.server import create_app
+from backend.application.study.sessions import token_key
+from backend.domain.study.online_metrics import summarize_online
+from backend.interfaces.cli.online_prepare import demo
+from backend.interfaces.http.server import create_app
 
 
 @pytest.fixture(scope="module")
@@ -304,8 +304,8 @@ def test_expiry_removes_participants_sessions_and_exports(app, monkeypatch):
         store = app.state.runtime.sessions.store
         exported = store.export_session(first["session_id"], datetime.now(UTC))
         future = datetime.now(UTC) + timedelta(days=31)
-        monkeypatch.setattr("src.application.study.clock.utc_now", lambda: future)
-        monkeypatch.setattr("src.interfaces.http.server.now", lambda: future)
+        monkeypatch.setattr("backend.application.study.clock.utc_now", lambda: future)
+        monkeypatch.setattr("backend.interfaces.http.server.now", lambda: future)
         assert c.get("/api/session/state").status_code == 401
         assert not exported.exists()
         with store.connect() as db:

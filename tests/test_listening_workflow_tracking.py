@@ -5,8 +5,8 @@ from pathlib import Path
 def test_v2_grid_records_real_mlflow_runs_and_reuses_success(listening_study, tmp_path):
     from mlflow import MlflowClient
 
-    from src.infrastructure.evaluation.tracking import TrackingConfig
-    from src.infrastructure.research.search import run_search, smoke
+    from backend.infrastructure.evaluation.tracking import TrackingConfig
+    from backend.infrastructure.research.search import run_search, smoke
 
     tracking = TrackingConfig(
         enabled=True,

@@ -8,7 +8,7 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from src.infrastructure.datasets.temporal import TemporalConfig
+from backend.infrastructure.datasets.temporal import TemporalConfig
 
 LEARNING_SCHEMA = pa.schema(
     [

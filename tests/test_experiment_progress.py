@@ -4,8 +4,8 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from src.domain.experiments import ConditionResult, Progress, RunStatus
-from src.infrastructure.research.studies import progress_document
+from backend.domain.experiments import ConditionResult, Progress, RunStatus
+from backend.infrastructure.research.studies import progress_document
 
 
 def result(name):

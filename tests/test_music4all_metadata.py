@@ -5,8 +5,8 @@ import json
 
 import pytest
 
-from src.infrastructure.datasets.listening_data import file_sha256
-from src.infrastructure.datasets.music4all_metadata import prepare_metadata
+from backend.infrastructure.datasets.listening_data import file_sha256
+from backend.infrastructure.datasets.music4all_metadata import prepare_metadata
 
 pq = pytest.importorskip("pyarrow.parquet", reason="install the data dependency group")
 

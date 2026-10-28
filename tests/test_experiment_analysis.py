@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from src.infrastructure.evaluation.benchmark import run_experiment
-from src.infrastructure.evaluation.tracking import TrackingConfig
-from src.interfaces.notebook import experiment_analysis as analysis
+from backend.infrastructure.evaluation.benchmark import run_experiment
+from backend.infrastructure.evaluation.tracking import TrackingConfig
+from backend.interfaces.notebook import experiment_analysis as analysis
 
 ROOT = Path(__file__).resolve().parents[1]
 

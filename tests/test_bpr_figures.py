@@ -7,7 +7,7 @@ import pytest
 
 matplotlib.use("Agg")
 
-from src.interfaces.notebook.bpr_figures import figures, render
+from backend.interfaces.notebook.bpr_figures import figures, render
 
 
 def points():
@@ -63,9 +63,9 @@ def test_unmeasured_or_incomplete_seed_conditions_are_not_plotted_as_zero():
 def test_render_preserves_results_and_guards_source_changes(tmp_path):
     from test_factor_study import small_study
 
-    from src.infrastructure.datasets.listening_data import file_sha256
-    from src.infrastructure.research.search import load_study_config
-    from src.interfaces.cli.factor_study import run_study
+    from backend.infrastructure.datasets.listening_data import file_sha256
+    from backend.infrastructure.research.search import load_study_config
+    from backend.interfaces.cli.factor_study import run_study
 
     path = small_study(tmp_path)
     output = run_study(path, minimum_free_gb=0)

@@ -1,0 +1,27 @@
+{
+  "extends": "../common.json",
+  "experiment": {
+    "name": "music4all-als",
+    "output": "../../data/experiments/als"
+  },
+  "model": {
+    "name": "als",
+    "parameters": {
+      "iterations": 20,
+      "regularization": 0.1,
+      "alpha": 10.0,
+      "confidence_transform": "log1p",
+      "memory_budget_mb": 4096
+    }
+  },
+  "search": {
+    "max_trials": 3,
+    "grid": {
+      "factors": [
+        32,
+        64,
+        128
+      ]
+    }
+  }
+}

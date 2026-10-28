@@ -4,7 +4,7 @@ import pytest
 
 
 def test_report_filter_keeps_zero_and_missing_estimates_without_mutation():
-    from src.interfaces.notebook.report_data import accuracy_rows
+    from backend.interfaces.notebook.report_data import accuracy_rows
 
     rows = [
         dict(
@@ -30,7 +30,7 @@ def test_report_filter_keeps_zero_and_missing_estimates_without_mutation():
 
 
 def test_shared_observations_reject_changed_counts_and_missing_bins():
-    from src.interfaces.notebook.report_data import shared_observations
+    from backend.interfaces.notebook.report_data import shared_observations
 
     rows = [
         dict(
@@ -49,7 +49,7 @@ def test_shared_observations_reject_changed_counts_and_missing_bins():
 def test_discrete_cutoffs_preserve_missing_values_and_pointwise_intervals():
     import matplotlib.pyplot as plt
 
-    from src.interfaces.notebook.evaluation_figures import accuracy_figures
+    from backend.interfaces.notebook.evaluation_figures import accuracy_figures
 
     frame = pd.DataFrame(
         [
@@ -86,7 +86,7 @@ def test_discrete_cutoffs_preserve_missing_values_and_pointwise_intervals():
 def test_binned_distributions_use_task_denominators_and_require_measured_bins():
     import matplotlib.pyplot as plt
 
-    from src.interfaces.notebook.evaluation_figures import observation_figures
+    from backend.interfaces.notebook.evaluation_figures import observation_figures
 
     bins = ["1", "2", "3–4", "5–9", "10–19", "20+"]
     frame = pd.DataFrame(
@@ -123,7 +123,7 @@ def test_binned_distributions_use_task_denominators_and_require_measured_bins():
 def test_heatmap_is_not_interpolated_and_missing_cells_remain_missing():
     import matplotlib.pyplot as plt
 
-    from src.interfaces.notebook.evaluation_figures import accuracy_heatmaps
+    from backend.interfaces.notebook.evaluation_figures import accuracy_heatmaps
 
     frame = pd.DataFrame(
         [

@@ -5,8 +5,8 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from src.interfaces.cli.online_prepare import demo
-from src.interfaces.http.server import create_app
+from backend.interfaces.cli.online_prepare import demo
+from backend.interfaces.http.server import create_app
 
 
 @pytest.fixture(scope="module")

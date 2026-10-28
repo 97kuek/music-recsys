@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from src.infrastructure.datasets.listening_data import file_sha256
-from src.interfaces.cli.online_distribution import ROOT_FILES, archive
+from backend.infrastructure.datasets.listening_data import file_sha256
+from backend.interfaces.cli.online_distribution import ROOT_FILES, archive
 
 
 @pytest.mark.parametrize("mode", ["demo", "music4all"])
@@ -16,7 +16,7 @@ def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path, mode)
     root, bundle = tmp_path / "source", tmp_path / "bundle"
     for name in (
         *ROOT_FILES,
-        "src/new.py",
+        "backend/new.py",
         "frontend/src/app/App.tsx",
         "docs/diagrams/app.svg",
         "docs/architecture.html",
@@ -28,7 +28,7 @@ def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path, mode)
     for name in (
         ".env",
         "frontend/.env",
-        "src/private.key",
+        "backend/private.key",
         "data/learning.parquet",
         "state/log.sqlite",
     ):
@@ -48,7 +48,7 @@ def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path, mode)
     output = archive(root, bundle, tmp_path / "app.zip", version="0.2.0")
     with zipfile.ZipFile(output) as package:
         names = package.namelist()
-        assert "music-recsys-mac-0.2.0/src/new.py" in names
+        assert "music-recsys-mac-0.2.0/backend/new.py" in names
         assert "music-recsys-mac-0.2.0/docs/diagrams/app.svg" not in names
         assert "music-recsys-mac-0.2.0/docs/architecture.html" not in names
         assert "music-recsys-mac-0.2.0/frontend/tests/study.test.mjs" not in names

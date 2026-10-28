@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.interfaces.http import container
+from backend.interfaces.http import container
 
 
 @pytest.mark.parametrize("audience", ["participant", "researcher"])

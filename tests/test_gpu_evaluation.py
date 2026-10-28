@@ -15,8 +15,8 @@ def test_gpu_popularity_matches_reference_with_ties_and_empty_candidates(tmp_pat
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from src.infrastructure.evaluation.gpu_evaluation import GPURanker
-    from src.infrastructure.recommenders.full_popularity import FullPopularity
+    from backend.infrastructure.evaluation.gpu_evaluation import GPURanker
+    from backend.infrastructure.recommenders.full_popularity import FullPopularity
 
     path = tmp_path / "learning.parquet"
     pq.write_table(
@@ -46,13 +46,13 @@ def test_gpu_popularity_matches_reference_with_ties_and_empty_candidates(tmp_pat
 def test_gpu_rank_accuracy_diversity_matches_cpu():
     import cupy as cp
 
-    from src.infrastructure.evaluation.gpu_evaluation import GPURanker
-    from src.infrastructure.evaluation.gpu_metrics import GPUAccuracy, GPUDiversity
-    from src.infrastructure.evaluation.streaming_metrics import (
+    from backend.infrastructure.evaluation.gpu_evaluation import GPURanker
+    from backend.infrastructure.evaluation.gpu_metrics import GPUAccuracy, GPUDiversity
+    from backend.infrastructure.evaluation.streaming_metrics import (
         DiversityAccumulator,
         accuracy_vectors,
     )
-    from src.infrastructure.recommenders.full_factors import FullFactorModel
+    from backend.infrastructure.recommenders.full_factors import FullFactorModel
 
     model = FullFactorModel()
     model.items = np.array(["a", "b", "c", "d", "e"])
@@ -140,8 +140,8 @@ def test_gpu_rank_accuracy_diversity_matches_cpu():
 def test_gpu_ild_wide_sparse_features_match_independent_dense_pair_reference():
     import cupy as cp
 
-    from src.domain.recommendation.features import unit_vector
-    from src.infrastructure.evaluation.gpu_metrics import GPUDiversity
+    from backend.domain.recommendation.features import unit_vector
+    from backend.infrastructure.evaluation.gpu_metrics import GPUDiversity
 
     rng = np.random.default_rng(5626)
     items = [f"i{i:04}" for i in range(300)]
@@ -187,10 +187,10 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
 
     import duckdb
 
-    from src.infrastructure.datasets.features import load_features
-    from src.infrastructure.datasets.listening_data import validate_bundle
-    from src.infrastructure.evaluation.full_scoring import score_cpu
-    from src.infrastructure.recommenders import (
+    from backend.infrastructure.datasets.features import load_features
+    from backend.infrastructure.datasets.listening_data import validate_bundle
+    from backend.infrastructure.evaluation.full_scoring import score_cpu
+    from backend.infrastructure.recommenders import (
         full_als,
         full_bm25,
         full_bpr,
@@ -198,16 +198,16 @@ def test_full_gpu_pipeline_matches_cpu_scoring(tmp_path, monkeypatch, model_name
         full_ease,
         full_itemcf,
     )
-    from src.infrastructure.research.configuration import load_settings
-    from src.infrastructure.research.search import load_study_config
-    from src.interfaces.cli.evaluate import run
+    from backend.infrastructure.research.configuration import load_settings
+    from backend.infrastructure.research.search import load_study_config
+    from backend.interfaces.cli.evaluate import run
 
     create = runpy.run_path(
         str(Path(__file__).parent / "fixtures/examples/toy/create_listening.py")
     )["create_example"]
     bundle = create(tmp_path / "bundle")
     config_path = (
-        "configs/bpr-30epoch.json" if model_name == "bpr" else f"configs/{model_name}.json"
+        "configs/bpr/30epoch.json" if model_name == "bpr" else f"configs/{model_name}/base.json"
     )
     raw = load_settings(Path(config_path))
     raw["experiment"].update(
@@ -288,8 +288,8 @@ def test_gpu_itemcf_neighbors_ranking_and_cache_match_cpu(tmp_path, similarity):
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from src.infrastructure.evaluation.gpu_evaluation import GPURanker
-    from src.infrastructure.recommenders.full_itemcf import FullItemCF
+    from backend.infrastructure.evaluation.gpu_evaluation import GPURanker
+    from backend.infrastructure.recommenders.full_itemcf import FullItemCF
 
     rng = np.random.default_rng(73)
     records, histories = [], []
