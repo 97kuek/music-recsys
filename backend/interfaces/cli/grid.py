@@ -6,13 +6,13 @@ import json
 from contextlib import ExitStack
 from pathlib import Path
 
+from backend.bootstrap import run_evaluation as run
 from backend.infrastructure.datasets.listening_data import file_sha256
 from backend.infrastructure.research.configuration import load_settings
 from backend.infrastructure.research.grid import grid_variants
 from backend.infrastructure.research.results import read_result
 from backend.infrastructure.research.search import load_study_config, study_lock
 from backend.infrastructure.research.store import atomic_json
-from backend.interfaces.cli.evaluate import run
 from backend.paths import PROJECT_ROOT
 
 

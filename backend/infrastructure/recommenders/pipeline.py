@@ -4,6 +4,7 @@ import numpy as np
 
 from backend.domain.recommendation.pipeline import FusionSpec
 from backend.infrastructure.evaluation.features import FeaturePrefixes
+from backend.infrastructure.evaluation.sparse import row_sum
 
 
 class BatchedPipeline:
@@ -101,9 +102,9 @@ class BatchedPipeline:
             )
             available[rows, choice] &= ~active
             repeated = xp.repeat(xp.maximum(selected, 0), width)
-            similar = xp.asarray(
-                vectors.multiply(self.features.matrix[repeated]).sum(axis=1)
-            ).reshape(pool.shape)
+            similar = row_sum(vectors.multiply(self.features.matrix[repeated]), xp).reshape(
+                pool.shape
+            )
             maximum = xp.where(
                 active[:, None], xp.maximum(maximum, xp.clip(similar, 0, 1)), maximum
             )

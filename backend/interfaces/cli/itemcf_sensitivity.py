@@ -246,7 +246,7 @@ def publish(parent):
     from backend.infrastructure.provenance import source_hash
     from backend.infrastructure.research.als_report import score_audit, write_csv
     from backend.infrastructure.research.complementarity import paired_score_differences
-    from backend.interfaces.cli.catalog import metric_rows
+    from backend.infrastructure.research.metrics import metric_rows
     from backend.interfaces.notebook.itemcf_heatmaps import save_heatmaps
 
     report = parent.output / "sensitivity"

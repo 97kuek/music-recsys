@@ -145,7 +145,7 @@ def export_split(
         "preprocessing": saved["config"],
     }
     if protocol == "listening-v2":
-        from backend.interfaces.cli.listening_export import export_listening_phase
+        from backend.infrastructure.datasets.listening_export import export_listening_phase
 
         roles = (
             ("train", "validation") if phase == "validation" else ("train", "validation", "test")

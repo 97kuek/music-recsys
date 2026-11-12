@@ -6,7 +6,7 @@ import re
 import zipfile
 from pathlib import Path
 
-from backend.interfaces.cli.online_bundle import verify
+from backend.infrastructure.models.bundle import verify
 
 ROOT_FILES = (
     "pyproject.toml",

@@ -9,6 +9,39 @@ import pytest
 matplotlib.use("Agg")
 
 
+def test_comparison_curves_keep_zero_omit_null_and_use_common_ild():
+    from backend.interfaces.notebook.parameter_figures import comparison_curves
+    from backend.interfaces.notebook.plots import figure_scope
+
+    frame = pd.DataFrame(
+        [
+            dict(
+                condition="fixed",
+                task=task,
+                metric=metric,
+                k=20,
+                mean=value,
+                window_days=window,
+                day_weight=weight,
+            )
+            for task, metric, value, window, weight in (
+                ("discovery", "recall", 0.0, 90, None),
+                ("discovery", "recall", 0.8, 30, None),
+                ("discovery", "binary_ndcg", None, 90, None),
+                ("repeat", "graded_ndcg", 0.2, 90, 1),
+                ("repeat", "graded_ndcg", 0.9, 90, 2),
+                ("new", "ild", 0.9, None, None),
+            )
+        ]
+    )
+    shared = pd.DataFrame([dict(condition="fixed", task="new", k=20, mean=0.4)])
+    with figure_scope():
+        figures = dict(comparison_curves(frame, shared, ["fixed"]))
+        assert set(figures) == {"recall", "graded_repeat", "ild_new"}
+        for name, expected in (("recall", 0), ("graded_repeat", 0.2), ("ild_new", 0.4)):
+            assert figures[name].axes[0].lines[0].get_ydata().tolist() == [expected]
+
+
 def test_grid_draws_only_measured_metric_and_keeps_missing_cell(tmp_path):
     from PIL import Image
 

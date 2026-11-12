@@ -7,7 +7,7 @@ from pathlib import Path
 import uvicorn
 
 from backend.infrastructure.config.settings import setting
-from backend.interfaces.cli.online_bundle import verify
+from backend.infrastructure.models.bundle import verify
 from backend.interfaces.http.server import create_app
 
 

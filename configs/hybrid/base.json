@@ -2,7 +2,7 @@
   "extends": "../common.json",
   "experiment": {
     "name": "music4all-hybrid",
-    "output": "../../data/experiments/hybrid/validation"
+    "output": "../../data/experiments/hybrid/validation-corrected"
   },
   "model": {
     "name": "hybrid",

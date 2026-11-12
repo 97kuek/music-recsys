@@ -1,4 +1,4 @@
-"""Keep the requested five-document structure and local source links usable."""
+"""Keep the current documentation structure and local source links usable."""
 
 import re
 from pathlib import Path
@@ -7,7 +7,7 @@ from urllib.parse import unquote
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_documentation_has_five_current_documents_and_bounded_size():
+def test_documentation_has_current_documents_and_bounded_size():
     documents = list((ROOT / "docs").rglob("*.md"))
     assert {p.name for p in documents} == {
         "architecture.md",
@@ -15,6 +15,7 @@ def test_documentation_has_five_current_documents_and_bounded_size():
         "ui.md",
         "todo.md",
         "discussion.md",
+        "selector-study.md",
     }
     for path in documents + [ROOT / "README.md", ROOT / "README.en.md", ROOT / "AGENTS.md"]:
         assert len(path.read_text(encoding="utf-8").splitlines()) <= 200, path

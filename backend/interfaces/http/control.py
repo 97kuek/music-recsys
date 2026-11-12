@@ -3,13 +3,13 @@
 from typing import Literal
 
 from fastapi import Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 from backend.domain.recommendation.control import ControlFeedback, ExternalPermission
+from backend.interfaces.http.schemas import Body
 
 
-class ControlCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
+class ControlCommand(Body):
     request_id: str = Field(min_length=1, max_length=100)
     mode: Literal["fixed", "llm_once", "reactive"]
     top_k: int = Field(ge=2, le=20)

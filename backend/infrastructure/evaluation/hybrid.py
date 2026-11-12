@@ -13,6 +13,7 @@ from backend.infrastructure.datasets.candidates import candidate_batches
 from backend.infrastructure.datasets.full_io import DetailWriter, user_rows
 from backend.infrastructure.datasets.listening_data import file_sha256
 from backend.infrastructure.evaluation.gpu_metrics import GPUAccuracy, GPUDiversity
+from backend.infrastructure.evaluation.sparse import row_sum
 from backend.infrastructure.recommenders.pipeline import BatchedPipeline
 from backend.infrastructure.research.metrics import metric_rows
 from backend.infrastructure.research.store import atomic_json
@@ -273,10 +274,11 @@ def evaluate(study, condition, references):
                             & engine.features.valid[safe_one]
                             & engine.features.valid[safe_two]
                         )
-                        cosine = cp.asarray(
-                            engine.features.matrix[safe_one.ravel()]
-                            .multiply(engine.features.matrix[safe_two.ravel()])
-                            .sum(axis=1)
+                        cosine = row_sum(
+                            engine.features.matrix[safe_one.ravel()].multiply(
+                                engine.features.matrix[safe_two.ravel()]
+                            ),
+                            cp,
                         ).reshape(one.shape)
                         statistics["sampled_cosine"].append(
                             cp.where(valid, cp.clip(cosine, 0, 1), cp.nan)
@@ -368,7 +370,7 @@ def evaluate(study, condition, references):
     result = dict(
         format="music-recsys-full-result-v1",
         status="succeeded",
-        phase="validation",
+        phase=study.phase,
         model="hybrid",
         model_parameters={},
         condition=condition_record,

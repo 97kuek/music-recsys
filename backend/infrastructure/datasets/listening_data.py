@@ -108,13 +108,13 @@ def read_bundle(bundle):
     return manifest, paths
 
 
-def validate_bundle(bundle):
+def validate_bundle(bundle, *, memory_limit="2GB"):
     """観測をPython化せず、一意性・warm条件・回数の整合性を確認する。"""
     import duckdb
 
     manifest, paths = read_bundle(bundle)
     windows = manifest["window_days"]
-    with duckdb.connect(config={"memory_limit": "2GB", "threads": 2}) as connection:
+    with duckdb.connect(config={"memory_limit": memory_limit, "threads": 2}) as connection:
         for role, path in paths.items():
             connection.read_parquet(str(path)).create_view(role)
         for role in paths:

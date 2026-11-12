@@ -9,8 +9,8 @@ def create_example(output):
     import pyarrow as pa
     import pyarrow.parquet as pq
 
+    from backend.infrastructure.datasets.listening_export import export_listening_phase
     from backend.infrastructure.datasets.temporal import TemporalConfig
-    from backend.interfaces.cli.listening_export import export_listening_phase
 
     output = Path(output)
     output.mkdir(parents=True)  # 既存のイベント・bundleへの上書きを拒否する。

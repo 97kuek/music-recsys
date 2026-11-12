@@ -21,13 +21,14 @@ import pytest
 def test_als_final_test_preserves_validation_and_fixed_factor_comparison(tmp_path, gpu):
     import matplotlib.pyplot as plt
 
+    from backend.bootstrap import run_fixed_test as run
     from backend.infrastructure.datasets.features import load_features
     from backend.infrastructure.datasets.listening_data import load_listening_dataset
     from backend.infrastructure.evaluation.listening_benchmark import run_listening_benchmark
     from backend.infrastructure.evaluation.tracking import TrackingConfig
     from backend.infrastructure.recommenders import create_recommender
     from backend.infrastructure.research.configuration import load_settings
-    from backend.interfaces.cli.fixed_test import _plan, run
+    from backend.infrastructure.research.fixed_test import _plan
     from backend.interfaces.cli.grid import run_grid
     from backend.interfaces.notebook.als_test_figures import figures
 
@@ -124,9 +125,9 @@ def test_als_final_test_preserves_validation_and_fixed_factor_comparison(tmp_pat
 
 def test_factor_plan_rejects_changed_hyperparameters_before_scoring(tmp_path):
     from backend.infrastructure.research.configuration import load_settings
+    from backend.infrastructure.research.fixed_test import _plan
     from backend.infrastructure.research.grid import grid_variants as variants
     from backend.infrastructure.research.search import load_study_config
-    from backend.interfaces.cli.fixed_test import _plan
 
     raw = load_settings("configs/als/base.json")
     raw["experiment"]["output"] = str(tmp_path / "als")

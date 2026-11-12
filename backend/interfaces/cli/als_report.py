@@ -6,9 +6,9 @@ from pathlib import Path
 
 
 def complete_validation(method):
+    from backend.bootstrap import run_evaluation as run
     from backend.infrastructure.recommenders.gpu_runtime import require_idle_gpu
     from backend.infrastructure.research.search import load_study_config
-    from backend.interfaces.cli.evaluate import run
     from backend.paths import PROJECT_ROOT
 
     for factors in (32, 64, 128):
@@ -35,7 +35,7 @@ def main():
     if args.complete_validation:
         complete_validation(method)
     from backend.infrastructure.research.als_report import publish
-    from backend.interfaces.cli.catalog import metric_rows
+    from backend.infrastructure.research.metrics import metric_rows
     from backend.interfaces.notebook.als_report_figures import save_figures
 
     print(publish(method, metric_rows=metric_rows, save_figures=save_figures), flush=True)

@@ -104,9 +104,9 @@ def test_full_final_test_preserves_validation_and_recomputes_accuracy(tmp_path, 
 
 
 def test_freeze_and_cpu_report_are_immutable_and_publish_all_aspects(tmp_path, monkeypatch):
+    from backend.bootstrap import publish_final_test as summarize
     from backend.interfaces.cli import final_test as cli
     from backend.interfaces.cli.evaluate import run
-    from backend.interfaces.cli.final_report import summarize
     from backend.paths import PROJECT_ROOT
 
     config = small_case(tmp_path, "content")
@@ -138,7 +138,7 @@ def test_freeze_and_cpu_report_are_immutable_and_publish_all_aspects(tmp_path, m
 
 
 def test_seed_summary_does_not_average_intervals_or_hide_ild_population_changes():
-    from backend.interfaces.cli.final_report import average_rows
+    from backend.infrastructure.research.metrics import average_rows
 
     def result(value, n):
         return dict(

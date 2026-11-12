@@ -7,16 +7,15 @@ from backend.infrastructure.datasets.listening_data import file_sha256
 from backend.infrastructure.research.als_report import write_csv
 from backend.infrastructure.research.comparison import staged_report
 from backend.infrastructure.research.complementarity import paired_score_differences
+from backend.infrastructure.research.distributions import observation_distribution
 from backend.infrastructure.research.diversity import common_ild
 from backend.infrastructure.research.metrics import average_rows
 from backend.infrastructure.research.results import verify_artifacts
 from backend.infrastructure.research.store import atomic_json
-from backend.interfaces.notebook.hybrid_figures import figures
-from backend.interfaces.notebook.listening_analysis import observation_distribution
 
 
-def publish(study, results):
-    import cupy as cp
+def publish(study, results, *, xp, render):
+    cp = xp
 
     groups = defaultdict(list)
     for result in results:
@@ -24,7 +23,9 @@ def publish(study, results):
         groups[result["condition"]["group"]].append(result)
     rows = []
     evidence = {}
-    observations = observation_distribution(study.config).to_dict(orient="records")
+    observations = observation_distribution(study.config, phase=study.phase).to_dict(
+        orient="records"
+    )
     for name, runs in groups.items():
         rows.extend(
             average_rows(
@@ -131,7 +132,7 @@ def publish(study, results):
             common,
             first=("pair", "condition", "task", "k", "mean", "n_evaluated", "n_excluded"),
         )
-        from backend.interfaces.cli.hybrid_pool import summarize as pool_summary
+        from backend.infrastructure.research.hybrid_pool import summarize as pool_summary
 
         pool = pool_summary(results, cp=cp, population=study.counts["users"])
         write_csv(
@@ -139,23 +140,14 @@ def publish(study, results):
             pool,
             first=("group", "task", "window_days", "scope", "mean"),
         )
-        names = figures(temporary, rows, common)
-        import pandas as pd
-
-        from backend.infrastructure.research.figures import save
-        from backend.interfaces.notebook.evaluation_figures import observation_figures
-
-        names.extend(
-            save(fig, temporary, name)
-            for name, fig in observation_figures(pd.DataFrame(observations)).items()
-        )
+        names = render(temporary, rows, common, observations)
         study.check()
         atomic_json(
             temporary / "result.json",
             dict(
                 format="music-recsys-hybrid-comparison-v1",
                 status="succeeded",
-                phase="validation",
+                phase=study.phase,
                 model="hybrid",
                 population=study.counts,
                 primary=study.signature["settings"]["evaluation"],

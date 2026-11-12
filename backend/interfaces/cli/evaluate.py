@@ -3,35 +3,7 @@
 import argparse
 from pathlib import Path
 
-
-def run(
-    config_path,
-    *,
-    model_cache=None,
-    export_path=None,
-    model_version=None,
-    phase="validation",
-    gpu_popularity=False,
-    gpu_itemcf=False,
-    als_backend=None,
-    ease_memory_budget_mb=None,
-):
-    from backend.application.ports.experiments import EvaluationOptions
-    from backend.bootstrap import create_evaluation
-
-    return create_evaluation().run(
-        config_path,
-        EvaluationOptions(
-            model_cache=model_cache,
-            export_path=export_path,
-            model_version=model_version,
-            phase=phase,
-            gpu_popularity=gpu_popularity,
-            gpu_itemcf=gpu_itemcf,
-            als_backend=als_backend,
-            ease_memory_budget_mb=ease_memory_budget_mb,
-        ),
-    )
+from backend.bootstrap import run_evaluation as run
 
 
 def main():

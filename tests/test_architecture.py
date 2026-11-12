@@ -21,8 +21,9 @@ from backend.infrastructure.config.study import ConditionPayload, StudyPlanPaylo
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_notebook_helpers_do_not_import_cli_entrypoints():
-    for path in (ROOT / "backend/interfaces/notebook").glob("*.py"):
+@pytest.mark.parametrize("adapter", ["notebook", "http"])
+def test_adapters_do_not_import_cli_entrypoints(adapter):
+    for path in (ROOT / "backend/interfaces" / adapter).rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text())):
             if isinstance(node, ast.Import):
                 modules = [alias.name for alias in node.names]

@@ -14,8 +14,9 @@
 | 参加者操作・Mac起動・共有・認証・削除 | [UIと運用](docs/ui.md) |
 | 未実装・未確認・次に決める事項 | [TODO](docs/todo.md) |
 | Validation/Test・図・対応差・限界 | [結果と考察](docs/discussion.md) |
+| 固定・ルール・LLM単発の比較設計・接続前監査 | [選択器比較](docs/selector-study.md) |
 
-- `docs/`のMarkdownは上の5本だけ、各200行以内。仕様を重複させず、正確な数値・出典は保存結果へリンクする
+- `docs/`のMarkdownは上の6本、各200行以内。仕様を重複させず、正確な数値・出典は保存結果へリンクする
 - 過去の詳細仕様・処理版は`data/provenance/`に保持する。現在の操作と過去の記録を混在させない
 
 ## 実行と確認
@@ -57,6 +58,12 @@ flowchart LR
 | 固定済み単独Test | `popularity_test` / `itemcf_test` / `als_test` / `final_test` |
 | 固定Hybridの計画 | `hybrid --config configs/hybrid/base.json`、既定は計画表示のみ |
 | 固定HybridのValidation | 同じ引数へ`--run`を追加。Testや採用選択は行わない |
+| 固定HybridのTest | `hybrid --config configs/hybrid/base.json --phase test --run`。[実行条件](docs/evaluation.md#hybridの固定条件test)を確認 |
+| 選択器の共通入力 | `hybrid_selection --config configs/hybrid/base.json --prepare`。学習集計のみを保存。[境界](docs/architecture.md#選択器の共通入力) |
+| 固定4群とタスク別ルール | `hybrid_selection --config configs/hybrid/base.json --run-local --rule-new ease --rule-repeat ease-bpr-rrf`。[保存結果の比較・制約](docs/selector-study.md#ローカル比較の実行と読込み) |
+| 保存Hybrid候補の層別Recall | `hybrid_strata --config configs/hybrid/base.json`、`--run`で集計。[定義・保存先](docs/evaluation.md#保存候補の層別診断) |
+| 同一unionのEASE/RRF対照 | `hybrid_union --config configs/hybrid/base.json`、`--run`で全件照合・層別TopK集計。[順位同値性と制約](docs/evaluation.md#同一unionの順位対照) |
+| 保存候補でのGPU段階費用 | `hybrid_timing --config configs/hybrid/base.json`は計画表示、`--run`で全員・3seed・3反復の実測。単発応答時間は測らない |
 | 元値を変えず図を再生成 | `figure_redraw --result <JSON> --output <新規保存先>` |
 | 表示metadata・配信用bundle | `music4all_metadata` / `online_bundle` / `online_distribution` |
 | ローカルログ管理・集計 | `online_logs` / `online_metrics` / `online_analysis` |
@@ -105,6 +112,8 @@ flowchart LR
 - 元データ・分割・結果・モデル・参加者ログを通常の掃除へ混ぜない。稼働中ジョブやMacのstateと競合する削除・移動をしない
 - 重みの明示削減は元manifestとretention.jsonを残す。BPR500epochの12モデル等の保持対象を維持し、CSVから重みを復元した扱いにしない
 - 削減済み重みは推論時に明確に拒否し、別モデルへ自動切替しない。図も削減記録と原本数値があるものだけ新規出力先へ再生成する
+- 図は比較・論文・本文参照・代表条件を保持し、再描画できる個別条件図は`figures.retention.json`と元数値のhashを照合して削減する。[削減対象と出典](data/provenance/figure-retention-20261112/plan.json)を参照
+- 容量確認は`df -h . /tmp`と`du -h --max-depth=2 data`。実験出力だけでなく一時領域も見積もり、空き不足なら新規評価を開始しない。画像削減だけで数十GBの入力・結果を小さくできるとは見込まない
 - 配布物は`data/app/releases/`、配信原本は`data/app/music4all/`、デモは`demo/`、非公開設定は`private/`へ分ける
 - 配布ZIPの整理は後継版の検証後に行い、固有のmetadata・許諾・モデルを失わないこととchecksumを記録する
 

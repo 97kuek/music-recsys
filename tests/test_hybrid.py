@@ -13,12 +13,12 @@ def test_full_hybrid_validation_pairs_seeds_keeps_sources_and_never_reads_test(
     tmp_path, monkeypatch
 ):
     from backend.application.hybrid import run_study
+    from backend.bootstrap import publish_hybrid_report as publish
     from backend.infrastructure.datasets.listening_data import file_sha256
     from backend.infrastructure.research.configuration import load_settings
     from backend.infrastructure.research.hybrid import HybridStudy
     from backend.infrastructure.research.search import load_study_config
     from backend.interfaces.cli.evaluate import run
-    from backend.interfaces.cli.hybrid_report import publish
     from backend.interfaces.notebook.full_analysis import curves
 
     create = runpy.run_path(

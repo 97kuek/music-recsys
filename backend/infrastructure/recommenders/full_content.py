@@ -5,6 +5,7 @@ from collections import Counter
 
 import numpy as np
 
+from backend.infrastructure.evaluation.sparse import row_sum
 from backend.infrastructure.recommenders.full_factors import FullFactorModel
 
 
@@ -109,7 +110,7 @@ class FullContent(FullFactorModel):
             self._gpu = (csr_matrix(self.history_weights), csr_matrix(self.vectors))
         histories, vectors = self._gpu
         profiles = histories[cp.asarray(user_ids)] @ vectors
-        norms = cp.sqrt(cp.asarray(profiles.multiply(profiles).sum(axis=1)).ravel())
+        norms = cp.sqrt(row_sum(profiles.multiply(profiles), cp))
         inverse = 1.0 / cp.where(norms > 0, norms, 1.0)
         profiles = profiles.multiply(inverse[:, None]).tocsr()
         return (profiles @ vectors.T).toarray()

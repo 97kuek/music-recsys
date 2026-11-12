@@ -1,11 +1,12 @@
 """研究者向けのセッション内要望記録。"""
 
 from fastapi import Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from backend.interfaces.http.schemas import Body
 
 
-class Context(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
+class Context(Body):
     choices: list[str] = Field(default_factory=list, max_length=3)
     text: str = Field(default="", max_length=500)
 

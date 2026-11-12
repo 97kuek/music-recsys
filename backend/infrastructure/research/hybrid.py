@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import sys
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from itertools import islice
 from pathlib import Path
 from types import SimpleNamespace
@@ -15,22 +15,40 @@ import numpy as np
 
 from backend.infrastructure.datasets.candidates import CandidateWriter
 from backend.infrastructure.datasets.full_io import user_rows
-from backend.infrastructure.datasets.listening_data import file_sha256, validate_bundle
+from backend.infrastructure.datasets.listening_data import file_sha256, read_bundle, validate_bundle
 from backend.infrastructure.provenance import source_hash
-from backend.infrastructure.research.hybrid_config import plan, read, verify_references
+from backend.infrastructure.research.hybrid_config import plan, read, reference, verify_references
 from backend.infrastructure.research.results import verify_artifacts
 from backend.infrastructure.research.store import atomic_json
 from backend.paths import PROJECT_ROOT
 
 
 class HybridStudy:
-    def __init__(self, config, *, report=None):
-        self.config, self.report = config, report
+    def __init__(self, config, *, report=None, phase="validation", ease_memory_budget_mb=None):
+        if phase not in {"validation", "test"}:
+            raise ValueError("Hybrid phase must be validation or test")
+        self.phase, self.report = phase, report
+        if ease_memory_budget_mb is not None:
+            from backend.infrastructure.recommenders.factors import number
+
+            number(ease_memory_budget_mb, "ease_memory_budget_mb", positive=True)
+        self.ease_memory_budget_mb = ease_memory_budget_mb
         self.spec, self.retrieval, self.sources, self.conditions = plan(config)
-        self.output = config.output
-        self.manifest, self.paths, self.counts = validate_bundle(config.validation_dataset)
-        if self.manifest["phase"] != "validation":
-            raise ValueError("Hybrid study only reads Validation")
+        self.validation_reference = None
+        if phase == "test":
+            from backend.infrastructure.research.results import read_result
+
+            previous = read_result(config)
+            if previous["status"] != "succeeded" or previous["phase"] != "validation":
+                raise ValueError("Test requires the unchanged successful Validation plan")
+            self.validation_reference = reference(config.output)
+            config = replace(config, output=config.output.parent / "test")
+        self.config, self.output = config, config.output
+        dataset = config.test_dataset if phase == "test" else config.validation_dataset
+        self.manifest, self.paths, self.counts = validate_bundle(dataset)
+        if self.manifest["phase"] != phase:
+            raise ValueError("Hybrid input phase differs")
+        self.input_hashes = {str(p): file_sha256(p) for p in self.paths.values()}
         self.features_sha = file_sha256(config.features)
         self.signature = dict(
             settings=json.loads(json.dumps(asdict(config), default=str)),
@@ -38,10 +56,16 @@ class HybridStudy:
             features_sha256=self.features_sha,
             source_sha256=source_hash(),
         )
+        if self.validation_reference is not None:
+            self.signature["validation_reference"] = self.validation_reference
+            self.signature["input_sha256"] = self.input_hashes
+        if ease_memory_budget_mb is not None:
+            self.signature["execution_options"] = dict(ease_memory_budget_mb=ease_memory_budget_mb)
+        validation_manifest, _ = read_bundle(config.validation_dataset)
         for source in self.sources.values():
             saved = read(Path(source["directory"]) / "config.json")
             if (
-                saved["manifest"] != self.manifest
+                saved["manifest"] != validation_manifest
                 or saved["features_sha256"] != self.features_sha
                 or saved["settings"]["evaluation"] != self.signature["settings"]["evaluation"]
             ):
@@ -52,7 +76,7 @@ class HybridStudy:
         import duckdb
 
         if (self.output / "result.json").exists():
-            raise FileExistsError("Completed Hybrid Validation is immutable")
+            raise FileExistsError("Completed Hybrid evaluation is immutable")
         target = self.output / "config.json"
         document = dict(
             format="music-recsys-full-config-v1",
@@ -63,8 +87,8 @@ class HybridStudy:
             conditions=[asdict(c) for c in self.conditions],
             dependency_lock_sha256=file_sha256(PROJECT_ROOT / "uv.lock"),
             selection="not_selected",
-            phase="validation",
-            policy="No Test selection; all learning users; same source weights across single/RRF/MMR; four aspects and K2-20",
+            phase=self.phase,
+            policy="No Test selection; all learning users; same source weights across single/RRF/MMR; four aspects and K2-20; Test refits every source on Test learning only; existing single-model Test has already been inspected",
         )
         document = json.loads(json.dumps(document))
         if target.exists():
@@ -115,6 +139,10 @@ class HybridStudy:
         verify_references(s["evidence"] for s in self.sources.values())
         if file_sha256(self.config.features) != self.features_sha:
             raise ValueError("Feature artifact changed")
+        if self.validation_reference is not None:
+            verify_references([self.validation_reference])
+            if any(file_sha256(p) != digest for p, digest in self.input_hashes.items()):
+                raise ValueError("Frozen Test input changed")
 
     def prepare(self, source_id):
         self.check()
@@ -131,8 +159,15 @@ class HybridStudy:
                     "backend.interfaces.cli.hybrid",
                     "--config",
                     str(self.config.path),
+                    "--phase",
+                    self.phase,
                     "--source",
                     source_id,
+                    *(
+                        ["--ease-memory-budget-mb", str(self.ease_memory_budget_mb)]
+                        if self.ease_memory_budget_mb is not None
+                        else []
+                    ),
                 ],
                 check=True,
             )
@@ -166,7 +201,7 @@ class HybridStudy:
             )
             items, plays, _ = self.catalog()
             started = time.perf_counter()
-            if source["model"] == "bpr":
+            if source["model"] == "bpr" and self.phase == "validation":
                 from backend.infrastructure.models.artifacts import load_model
 
                 path = Path(source["directory"]) / "model"
@@ -198,16 +233,31 @@ class HybridStudy:
                 )
             else:
                 from backend.infrastructure.recommenders.full_bm25 import FullBM25
+                from backend.infrastructure.recommenders.full_bpr import FullBPR
                 from backend.infrastructure.recommenders.full_content import FullContent
                 from backend.infrastructure.recommenders.full_ease import FullEASE
 
-                cls = {"ease": FullEASE, "bm25": FullBM25, "content": FullContent}[source["model"]]
+                cls = {"ease": FullEASE, "bm25": FullBM25, "content": FullContent, "bpr": FullBPR}[
+                    source["model"]
+                ]
                 extra = dict(features=self.features()) if source["model"] == "content" else {}
-                model = cls(
-                    self.paths["learning"], **source["parameters"], **extra, progress=progress
-                )
+                if source["model"] == "bpr":
+                    extra["seed"] = source["seed"]
+                parameters = dict(source["parameters"])
+                if source["model"] == "ease" and self.ease_memory_budget_mb is not None:
+                    if not parameters.get("use_gpu"):
+                        raise ValueError("EASE memory override requires GPU EASE")
+                    parameters["memory_budget_mb"] = self.ease_memory_budget_mb
+                model = cls(self.paths["learning"], **parameters, **extra, progress=progress)
                 training_seconds = model.training_seconds
-                execution = dict(training_reused=False, training_execution=model.execution)
+                execution = dict(
+                    training_reused=False,
+                    training_execution=model.execution,
+                    training_parameters={
+                        **parameters,
+                        **({"seed": source["seed"]} if source["model"] == "bpr" else {}),
+                    },
+                )
             if not np.array_equal(model.items, items) or not np.array_equal(model.plays, plays):
                 raise ValueError("Source catalog/popularity differs")
             model_ready = time.perf_counter() - started
@@ -254,7 +304,7 @@ class HybridStudy:
             os.replace(directory / "candidates.parquet.partial", directory / "candidates.parquet")
             result = dict(
                 status="succeeded",
-                phase="validation",
+                phase=self.phase,
                 signature=self.signature,
                 source=source,
                 population=self.counts,

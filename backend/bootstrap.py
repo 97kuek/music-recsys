@@ -148,3 +148,82 @@ def create_runtime(config_path, *, database, study=None, scope=None):
         study=study,
         scope=scope,
     )
+
+
+def run_evaluation(
+    config_path,
+    *,
+    model_cache=None,
+    export_path=None,
+    model_version=None,
+    phase="validation",
+    gpu_popularity=False,
+    gpu_itemcf=False,
+    als_backend=None,
+    ease_memory_budget_mb=None,
+):
+    from backend.application.ports.experiments import EvaluationOptions
+
+    return create_evaluation().run(
+        config_path,
+        EvaluationOptions(
+            model_cache=model_cache,
+            export_path=export_path,
+            model_version=model_version,
+            phase=phase,
+            gpu_popularity=gpu_popularity,
+            gpu_itemcf=gpu_itemcf,
+            als_backend=als_backend,
+            ease_memory_budget_mb=ease_memory_budget_mb,
+        ),
+    )
+
+
+def _fixed_test_figures(model, output, records):
+    if model == "als":
+        from backend.interfaces.notebook.als_test_figures import save_figures
+    else:
+        from backend.interfaces.notebook.itemcf_test_figures import save_figures
+    return save_figures(output, records)
+
+
+def run_fixed_test(config_path, *, gpu=True, extra=()):
+    from backend.infrastructure.research.fixed_test import run
+
+    return run(
+        config_path, evaluate=run_evaluation, render=_fixed_test_figures, gpu=gpu, extra=extra
+    )
+
+
+def finish_fixed_test(config_path, *, extra=()):
+    from backend.infrastructure.research.fixed_test import finish
+
+    return finish(config_path, render=_fixed_test_figures, extra=extra)
+
+
+def publish_final_test(output, protocol):
+    from backend.infrastructure.research.final_report import summarize
+    from backend.interfaces.notebook.model_figures import save_figures
+
+    return summarize(output, protocol, render=save_figures)
+
+
+def publish_hybrid_report(study, results):
+    import cupy as cp
+
+    from backend.infrastructure.research.hybrid_report import publish
+    from backend.interfaces.notebook.hybrid_figures import report_figures
+
+    return publish(study, results, xp=cp, render=report_figures)
+
+
+def package_bundle(config_path, output, *, study_path=None, max_bytes=None):
+    from backend.infrastructure.models.bundle import package
+
+    return package(
+        config_path,
+        output,
+        runtime_factory=create_runtime,
+        study_path=study_path,
+        max_bytes=max_bytes,
+    )

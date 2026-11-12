@@ -5,6 +5,7 @@ import shlex
 from collections import defaultdict
 from statistics import fmean
 
+from backend.domain.evaluation.uncertainty import BootstrapConfig, cluster_statistics
 from backend.infrastructure.research.search import (
     context,
     load_final_test,
@@ -17,7 +18,6 @@ from backend.infrastructure.research.search import (
     trial_rows,
     verify_trial,
 )
-from backend.interfaces.notebook.experiment_analysis import BootstrapConfig, cluster_statistics
 
 
 def validation_overview(config):

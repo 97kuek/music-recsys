@@ -35,6 +35,30 @@ def primary(frame, config):
     ]
 
 
+def comparison_curves(frame, shared, conditions):
+    """Saved comparisons at 90 days/weight 1, using the common-user ILD rows."""
+    for task, metric, name in (*ACCURACY, *DIVERSITY):
+        values = (
+            shared[shared.task == task]
+            if metric == "ild"
+            else frame[(frame.task == task) & (frame.metric == metric)]
+        )
+        if "window_days" in values:
+            values = values[
+                values.window_days.isna()
+                | (values.window_days.eq(90) & values.day_weight.fillna(1).eq(1))
+            ]
+        if values.empty or not values["mean"].notna().any():
+            continue
+        label, scale = metric_label(metric, task)
+        fig, ax = axes(figsize=(8, 4.5))
+        for index, condition in enumerate(conditions):
+            group = values[values.condition == condition]
+            plot_k(ax, group, "mean", index=index, label=condition, scale=scale, interval=False)
+        finish_k(ax, sorted(values.k.unique()), label)
+        yield name, fig
+
+
 def draw_grid(frame):
     import numpy as np
 

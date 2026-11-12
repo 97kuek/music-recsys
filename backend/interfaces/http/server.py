@@ -1,115 +1,28 @@
-"""FastAPI + React UI。CLIはloopback専用で起動する。"""
+"""Compose the FastAPI runtime, HTTP boundary and route adapters; CLI defaults to loopback."""
 
 import argparse
 import asyncio
 import os
-import secrets
-from collections import deque
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from time import monotonic
-from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field
-from starlette.concurrency import run_in_threadpool
 
 from backend.application.study.clock import utc_now as now
 from backend.bootstrap import create_runtime
-from backend.infrastructure.auth.access import AccessVerifier
 from backend.infrastructure.config.settings import setting
 from backend.infrastructure.config.study import read_study_plan
-
-
-class Body(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
-
-
-class Start(Body):
-    consent_version: (
-        Literal[
-            "local-ui-v2",
-            "local-ui-v3",
-            "local-ui-v4",
-            "local-ui-v5",
-            "local-ui-v6",
-            "local-ui-v7",
-            "local-ui-v8",
-        ]
-        | None
-    ) = None
-    persist: bool = False
-    allow_text: bool = False
-
-
-class Profile(Body):
-    items: list[str] = Field(default_factory=list, max_length=30)
-    artists: list[str] = Field(default_factory=list, max_length=10)
-
-
-class Recommend(Body):
-    version: str | None = Field(default=None, max_length=200)
-    goal: Literal["discover", "familiar", "auto"] = "auto"
-    top_k: int = Field(default=10, ge=2, le=20)
-    text: str = Field(default="", max_length=500)
-
-
-class Event(Body):
-    event_id: str = Field(min_length=1, max_length=100)
-    request_id: str = Field(min_length=1, max_length=100)
-    kind: Literal[
-        "impression",
-        "play",
-        "pause",
-        "playback_progress",
-        "ended",
-        "error",
-        "skip",
-        "save",
-        "like",
-        "rating",
-        "track_switch",
-        "evaluation_shown",
-        "list_evaluation",
-        "observation_gap",
-    ]
-    item_id: str | None = Field(default=None, max_length=200)
-    rating: int | None = Field(default=None, ge=1, le=5)
-    playback_id: str | None = Field(default=None, max_length=100)
-    position_seconds: float | None = Field(default=None, ge=0, le=86400, allow_inf_nan=False)
-
-    listened_seconds: float | None = Field(default=None, ge=0, le=86400, allow_inf_nan=False)
-    response_latency_ms: float | None = Field(default=None, ge=0, le=3600000, allow_inf_nan=False)
-    display_latency_ms: float | None = Field(default=None, ge=0, le=3600000, allow_inf_nan=False)
-    event_version: Literal[1, 2] = 1
-    movement: Literal["next", "previous", "direct"] | None = None
-    target_item_id: str | None = Field(default=None, max_length=200)
-    was_playing: bool | None = None
-    discovery_status: Literal["unanswered", "none", "selected"] | None = None
-    discovery_item_ids: list[str] = Field(default_factory=list, max_length=20)
-    observation_complete: bool | None = None
-
-
-class Preview(Body):
-    item_id: str = Field(min_length=1, max_length=200)
-
-
-class Playback(Body):
-    request_id: str = Field(max_length=100)
-    item_id: str = Field(max_length=200)
-
-
-class Progress(Body):
-    phase: Literal["profile", "listen", "evaluate"]
-    kind: Literal["enter", "hidden", "visible", "exit"] = "enter"
-
-
-class Advance(Body):
-    period: int = Field(ge=1)
+from backend.interfaces.http.boundary import install_boundary
+from backend.interfaces.http.catalog import register_catalog_routes
+from backend.interfaces.http.control import register_control_routes
+from backend.interfaces.http.online_analysis import register_analysis_routes
+from backend.interfaces.http.playback import register_playback_routes
+from backend.interfaces.http.session_views import SessionViews
+from backend.interfaces.http.sessions import register_session_routes
 
 
 def create_app(
@@ -154,71 +67,6 @@ def create_app(
     if model_version is not None and model_version not in runtime.recommendations.models:
         raise ValueError("normal-mode model is not ready")
     researcher = audience == "researcher"
-    api_token = setting("API_TOKEN")
-    access_team = setting("ACCESS_TEAM")
-    access_aud = setting("ACCESS_AUD")
-    access = AccessVerifier(access_team, access_aud) if access_team or access_aud else None
-    allowed_origins = set(filter(None, setting("ALLOWED_ORIGINS").split(",")))
-    allowed_hosts = {"localhost", "127.0.0.1", "testserver"} | set(
-        filter(None, setting("ALLOWED_HOSTS").split(","))
-    )
-    if api_token and (len(api_token) < 32 or not allowed_origins or researcher):
-        raise ValueError(
-            "external API requires a strong token, explicit origins and participant audience"
-        )
-    if access and (
-        researcher
-        or not allowed_origins
-        or any(not o.startswith("https://") for o in allowed_origins)
-    ):
-        raise ValueError("Access requires HTTPS origins and participant audience")
-    if allowed_origins and not (api_token or access):
-        raise ValueError("external origins require server-side authentication")
-
-    def require_researcher():
-        if not researcher:
-            raise HTTPException(404, "not found")
-
-    def public_reply(reply):
-        if researcher:
-            return reply
-        return {key: reply[key] for key in ("request_id", "tracks", "notice")}
-
-    def session_state(current):
-        reply = current.replies.get(current.period)
-        events = current.log.export(now=now())["events"]
-        answers = [e for e in events if reply and e["request_id"] == reply["request_id"]]
-        list_evaluation = next((e for e in answers if e["kind"] == "list_evaluation"), None)
-        legacy = [e for e in answers if e["kind"] == "rating" and e.get("item_id") is None]
-        if list_evaluation is None and legacy:
-            list_evaluation = {
-                "rating": legacy[0]["rating"] if len(legacy) == 1 else None,
-                "discovery_status": "unanswered",
-                "discovery_item_ids": [],
-                "observation_complete": False,
-            }
-        return {
-            "session_id": current.log.session.session_id,
-            "registered": current.registered,
-            "consent_version": current.log.session.consent_version,
-            "expires_at": current.log.session.retain_until.isoformat(),
-            "phase": current.phase,
-            "period": current.period + 1,
-            "periods": len(current.order) or 1,
-            "finished": current.finished,
-            "profile": {
-                "items": current.profile.selected_item_ids,
-                "artists": current.profile.selected_artist_ids,
-            },
-            "recommendation": public_reply(reply) if reply else None,
-            "actions": [
-                f"like:{row['item_id']}"
-                for row in events
-                if reply and row["request_id"] == reply["request_id"] and row["kind"] == "like"
-            ],
-            "list_evaluation": list_evaluation,
-            "profile_locked": current.assignment.get("input") is not None,
-        }
 
     @asynccontextmanager
     async def lifespan(app):
@@ -246,368 +94,22 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.runtime = runtime
-    from backend.interfaces.http.online_analysis import register_analysis_routes
-
-    register_analysis_routes(app, runtime, require_researcher)
     app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
-
-    failed_entries = deque()
-
-    @app.middleware("http")
-    async def local_boundary(request, call_next):
-        host = request.url.hostname
-        if host not in allowed_hosts:
-            return JSONResponse({"detail": "localhost専用です"}, 403)
-        request.state.access_identity = None
-        if access:
-            request.state.access_identity = await run_in_threadpool(
-                access.identity, request.headers.get("cf-access-jwt-assertion", "")
-            )
-            if request.state.access_identity is None:
-                return JSONResponse(
-                    {"detail": "unauthorized"}, 401, headers={"Cache-Control": "no-store"}
-                )
-        if request.url.path.startswith("/api/") and api_token:
-            if not secrets.compare_digest(
-                request.headers.get("authorization", ""), f"Bearer {api_token}"
-            ):
-                return JSONResponse(
-                    {"detail": "unauthorized"}, 401, headers={"Cache-Control": "no-store"}
-                )
-        if request.method in {"POST", "PUT", "DELETE"}:
-            origin = request.headers.get("origin")
-            if request.headers.get("x-music-app") != "1" or (
-                origin and origin not in (allowed_origins or {str(request.base_url).rstrip("/")})
-            ):
-                return JSONResponse({"detail": "同一画面から操作してください"}, 403)
-            if len(await request.body()) > 16384:
-                return JSONResponse({"detail": "入力が大きすぎます"}, 413)
-        entry = request.method == "POST" and request.url.path == "/api/sessions"
-        if entry and not researcher:
-            while failed_entries and failed_entries[0] <= monotonic() - 60:
-                failed_entries.popleft()
-            if len(failed_entries) >= 10:
-                return JSONResponse(
-                    {"detail": "入力の試行が多いため、1分待ってから再試行してください"},
-                    429,
-                    headers={"Retry-After": "60", "Cache-Control": "no-store"},
-                )
-        response = await call_next(request)
-        if entry and not researcher and response.status_code in {400, 401, 422}:
-            failed_entries.append(monotonic())
-        response.headers.update(
-            {
-                "Cache-Control": "public, max-age=31536000, immutable"
-                if request.url.path.startswith("/assets/")
-                else "no-store",
-                "X-Content-Type-Options": "nosniff",
-                "Referrer-Policy": "no-referrer",
-                "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
-            }
-        )
-        return response
-
-    @app.exception_handler(ValueError)
-    async def invalid(request, exception):
-        return JSONResponse({"detail": str(exception)}, 400)
-
-    @app.exception_handler(PermissionError)
-    async def denied(request, exception):
-        return JSONResponse({"detail": str(exception)}, 401)
-
-    def session(request):
-        token = request.cookies.get("music_session", "")
-        current = runtime.sessions.get(token)
-        if access:
-            if not current.registered:
-                raise PermissionError("利用説明への同意が必要です")
-            runtime.sessions.participants.bind(
-                current.profile.user_id, request.state.access_identity, now()
-            )
-        return token, current
-
-    from backend.interfaces.http.control import register_control_routes
-
-    register_control_routes(app, runtime, require_researcher, session)
-
-    @app.get("/healthz")
-    def health():
-        return {"status": "ok"}
-
-    @app.get("/availability")
-    def availability():
-        return {
-            "state": "online" if study or model_version or researcher else "unconfigured",
-            "mode": runtime.catalog.mode,
-            "checked_at": now().isoformat(),
-            "next_open_at": next_open_at,
-        }
-
-    @app.get("/api/status")
-    def status():
-        public = {
-            "mode": runtime.catalog.mode,
-            "audience": audience,
-            "experience": "experiment" if study else "normal",
-            "ready": bool(study or model_version or researcher),
-            "catalog_key": runtime.config["catalog"]["sha256"],
-            "study_status": "local-development-only",
-            "retention_days": retention_days,
-        }
-        if not researcher:
-            return public
-        return {
-            **public,
-            "mode": runtime.catalog.mode,
-            "study_status": "local-development-only",
-            "selection": "comparison-only",
-            "models": [
-                {
-                    "version": spec.version_id,
-                    "algorithm": spec.algorithm,
-                    "parameters": spec.parameters,
-                    "als_fold_in": model.als_fold_in,
-                }
-                for spec, model in runtime.recommendations.models.values()
-            ],
-            "unavailable": [
-                name
-                for name in ("popularity", "itemcf", "als", "bpr")
-                if name
-                not in {spec.algorithm for spec, _ in runtime.recommendations.models.values()}
-            ],
-        }
-
-    @app.get("/api/comparison")
-    def comparison():
-        require_researcher()
-        return runtime.config.get("comparison", [])
-
-    @app.get("/api/catalog")
-    def catalog(q: str = "", offset: int = 0):
-        if len(q) > 200 or offset < 0:
-            raise ValueError("検索条件が不正です")
-        query = q.casefold()
-        matches = [
-            item
-            for item, row in runtime.catalog.tracks.items()
-            if query
-            in (
-                item + " " + (row.get("title") or "") + " " + " ".join(row.get("artists", []))
-            ).casefold()
-        ]
-        return {
-            "tracks": [runtime.catalog.track(item) for item in matches[offset : offset + 24]],
-            "total": len(matches),
-            "artists": [artist for artist in runtime.catalog.artists if query in artist.casefold()][
-                :24
-            ],
-        }
-
-    @app.post("/api/sessions")
-    def start(body: Start, request: Request):
-        with runtime.lock:
-            if not researcher:
-                if (
-                    body.consent_version
-                    not in {
-                        "local-ui-v4",
-                        "local-ui-v5",
-                        "local-ui-v6",
-                        "local-ui-v7",
-                        "local-ui-v8",
-                    }
-                    or not body.persist
-                ):
-                    raise ValueError("利用説明を確認し、保存に同意してください")
-            token, current = runtime.sessions.open_session(
-                old_token=request.cookies.get("music_session"),
-                persist=body.persist,
-                allow_text=body.allow_text,
-                consent_version=body.consent_version,
-                retention_days=retention_days,
-                identity_key=request.state.access_identity,
-            )
-            response = JSONResponse(
-                {
-                    **session_state(current),
-                    "persist": current.persist,
-                }
-            )
-            response.set_cookie(
-                "music_session",
-                token,
-                httponly=True,
-                samesite="strict",
-                secure=bool(api_token or access),
-                max_age=max(1, int((current.log.session.retain_until - now()).total_seconds())),
-            )
-            return response
-
-    @app.put("/api/profile")
-    def profile(body: Profile, request: Request):
-        with runtime.lock:
-            token, current = session(request)
-            return runtime.sessions.set_profile(token, body.items, body.artists)
-
-    from backend.interfaces.http.session_context import register_context_routes
-
-    if researcher:
-        register_context_routes(app, runtime, session)
-
-    @app.post("/api/recommendations")
-    def recommend(body: Recommend, request: Request):
-        with runtime.lock:
-            token, current = session(request)
-            if not researcher and body.version is not None:
-                raise ValueError("推薦条件はサーバーで割り当てます")
-            reply = runtime.recommendations.assigned_recommendation(
-                token,
-                body.version if researcher else model_version,
-                body.goal,
-                body.top_k,
-                body.text,
-            )
-            return public_reply(reply)
-
-    @app.post("/api/events")
-    def event(body: Event, request: Request):
-        with runtime.lock:
-            token, _ = session(request)
-            runtime.playback.event(token, body.model_dump())
-            return {"accepted": True}
-
-    @app.post("/api/previews")
-    def preview(body: Preview, request: Request):
-        with runtime.lock:
-            token, current = session(request)
-
-            preview_id, external = runtime.playback.bind_preview(token, body.item_id)
-            return {
-                "url": external["audio"] if external else f"/api/preview-audio/{preview_id}",
-                "external": external is not None,
-                "license_url": external["license_ccurl"] if external else None,
-            }
-
-    @app.get("/api/preview-audio/{preview_id}")
-    def preview_audio(preview_id: str, request: Request):
-        with runtime.lock:
-            _, current = session(request)
-            try:
-                path = runtime.playback.preview_file(
-                    request.cookies.get("music_session", ""), preview_id
-                )
-            except LookupError as error:
-                raise HTTPException(404, str(error)) from error
-            return FileResponse(path)
-
-    @app.post("/api/playbacks")
-    def playback(body: Playback, request: Request):
-        with runtime.lock:
-            token, current = session(request)
-
-            playback_id, external = runtime.playback.bind_playback(
-                token, body.item_id, body.request_id
-            )
-            return {
-                "playback_id": playback_id,
-                "url": external["audio"] if external else f"/api/audio/{playback_id}",
-                "external": external is not None,
-                "license_url": external["license_ccurl"] if external else None,
-            }
-
-    @app.get("/api/audio/{playback_id}")
-    def audio(playback_id: str, request: Request):
-        with runtime.lock:
-            _, current = session(request)
-            try:
-                path = runtime.playback.playback_file(
-                    request.cookies.get("music_session", ""), playback_id
-                )
-            except LookupError as error:
-                raise HTTPException(404, str(error)) from error
-            return FileResponse(path)
-
-    @app.get("/api/session/export")
-    def export(request: Request):
-        with runtime.lock:
-            _, current = session(request)
-            payload = current.log.export(now=now())
-            if not researcher:
-                payload["requests"] = [
-                    {key: row[key] for key in ("request_id", "recorded_at", "response")}
-                    for row in payload["requests"]
-                ]
-                # 応答内にもモデル名・スコア等を出さない。
-                for row in payload["requests"]:
-                    row["response"] = {"item_ids": row["response"]["item_ids"]}
-                return {
-                    "events": payload["events"],
-                    "requests": payload["requests"],
-                    "funnel": current.funnel,
-                }
-            return {
-                **payload,
-                "goals": current.goals,
-                "mode": runtime.catalog.mode,
-                "funnel": current.funnel,
-            }
-
-    @app.post("/api/session/finish")
-    def finish(request: Request):
-        with runtime.lock:
-            token, current = session(request)
-            runtime.sessions.finish(token)
-            return {"finished": True}
-
-    @app.get("/api/session/state")
-    def state(request: Request):
-        with runtime.lock:
-            _, current = session(request)
-            return session_state(current)
-
-    @app.post("/api/session/progress")
-    def progress(body: Progress, request: Request):
-        with runtime.lock:
-            token, _ = session(request)
-            runtime.sessions.progress(token, body.phase, body.kind)
-            return {"accepted": True}
-
-    @app.post("/api/session/next")
-    def next_period(body: Advance, request: Request):
-        with runtime.lock:
-            token, current = session(request)
-            current = runtime.sessions.next_period(token, body.period)
-            return session_state(current)
-
-    @app.post("/api/session/leave")
-    def leave(request: Request):
-        with runtime.lock:
-            token, current = session(request)
-            runtime.sessions.leave(token)
-            return {"finished": True}
-
-    @app.post("/api/session/logout")
-    def logout(request: Request):
-        with runtime.lock:
-            token, current = session(request)
-            if not current.finished:
-                runtime.sessions.leave(token)
-            response = JSONResponse({"signed_out": True})
-            response.delete_cookie("music_session")
-            return response
-
-    @app.delete("/api/session")
-    def delete(request: Request):
-        with runtime.lock:
-            if access and request.cookies.get("music_session"):
-                session(request)
-            runtime.sessions.delete(request.cookies.get("music_session", ""))
-            if runtime.control is not None:
-                runtime.control.expire()
-            response = JSONResponse({"deleted": True})
-            response.delete_cookie("music_session")
-            return response
+    access, secure_cookie = install_boundary(app, researcher=researcher)
+    views = SessionViews(
+        runtime=runtime,
+        audience=audience,
+        model_version=model_version,
+        retention_days=retention_days,
+        access=bool(access),
+        secure_cookie=secure_cookie,
+        clock=lambda: now(),
+    )
+    register_analysis_routes(app, runtime, views.require_researcher)
+    register_control_routes(app, runtime, views.require_researcher, views.owner)
+    register_catalog_routes(app, views, study=study, next_open_at=next_open_at)
+    register_session_routes(app, views)
+    register_playback_routes(app, views)
 
     static = Path(__file__).parent / "static"
     if (static / "index.html").is_file():

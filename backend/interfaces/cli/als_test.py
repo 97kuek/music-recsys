@@ -3,7 +3,8 @@
 import argparse
 from pathlib import Path
 
-from backend.interfaces.cli.fixed_test import finish, run
+from backend.bootstrap import finish_fixed_test as finish
+from backend.bootstrap import run_fixed_test as run
 
 
 def main():

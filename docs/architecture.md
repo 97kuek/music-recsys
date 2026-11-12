@@ -20,22 +20,27 @@
 
 ## 共通処理の配置と命名
 
-- パッケージ名で分かる接頭辞は重ねない。Notebook補助は`config.ConfigPicker`・`display`・`inspection.Inspection`・`plots`を使う
-- 実験条件の展開は`infrastructure/research/grid.py`、保存結果の比較・出典照合・公開処理は`comparison.py`に置く
-- Notebook補助からCLIをimportしない。CLIとNotebookは共通のInfrastructureを利用し、描画用の結果抽出は`interfaces/notebook/report_data.py`へ置く
-- DDDの中心は推薦条件・候補規則と参加者セッションの文脈。DomainとApplicationの依存制約、adapter差替え、循環importは自動テストで確認する
-- `evaluate`・`factor_study`・`sensitivity`の実行順はApplicationの`Evaluation`・`FactorStudy`・`Sensitivity`が管理する。CLIは引数処理と起動、bootstrapは具象Adapterの注入を担当する
-- `LocalEvaluation`・`LocalStudy`はProtocolを満たすAdapter。実行中のモデル・設定・ログは非公開のsessionへ保持し、Applicationから直接操作しない
-- `LocalSensitivity`は感度分析の入力照合・保存・子プロセス実行を担当する。条件展開と過去結果の検証は`research/parameters.py`を共有し、他のCLIから感度分析CLIをimportしない
-- `Sensitivity`はBM25共有バッチ、比較対象の検証、未完了条件の実行、評価定義の一致確認、公開の順序を管理する。過去の比較対象は再学習せず、公開済み比較は出典の再検証だけを行う
-- 感度分析の表・対応差分計算・CSV/PNG/PDF保存はInfrastructureの`SensitivityReport`が担う。Notebookの`sensitivity_report`・`parameter_figures`は図を生成し、比較の成功マーカーはAdapterが最後に公開する
-- `FactorStudy`の進捗はDomainの`Progress`で管理する。計画外・重複した条件完了、未完了での成功、終了後の更新を拒否し、完了件数は検証済み`ConditionResult`の数から求める
-- 保存portへ渡す`ProgressSnapshot`は変更不可。`research/studies.py`が既存の`music-recsys-factor-study-v1`形式へ変換する。再開時は保存済み条件を再検証して進捗を組み直す
-- 多態性はProtocolと依存注入で実現する。共通の状態や振る舞いがないクラスに継承を追加せず、図の保存は`FigureWriter`を組み込んで共有する
-- `FactorReport`・`ItemCFReport`・`FullReport`・`StudyReport`はInfrastructureで保存する。対応するNotebookの`draw`は入力済みの表から図を作り、成功・例外のいずれでも作成した図を解放する
-- ItemCF比較レポートのコマンド入口は`python -m backend.interfaces.cli.itemcf_report --config <JSON>`。Notebookモジュールは描画だけを担当する
-- 評価結果は描画・出典再照合・指定されたモデル保存の成功後に公開する。条件探索の進捗JSONはrunning/failedを区別し、既存の成功条件も再利用前に出典を確認する
-- メモリAdapterによる実行順・失敗・再開試験と、保存物を使う統合試験を併用する。他の研究用CLIには実行順制御が残り、全ユースケースのApplication分離が完了した構成ではない
+- 実行順はApplication、入力照合・学習・保存はInfrastructure、引数と表示はInterfacesが担う
+- CLIとNotebookは共通処理を呼び出す。Notebook補助からCLIをimportせず、描画関数をInfrastructureへ注入する
+- HTTPもCLIへ依存しない。Parquet変換は`datasets/listening_export.py`、配布bundleの照合・梱包は`models/bundle.py`、要求単位のユーザーbootstrapは`domain/evaluation/uncertainty.py`を共有する
+- Protocolと依存注入でAdapterを交換する。状態や振る舞いを共有しないクラスには、継承を追加しない
+
+| 処理 | 実行順・規則 | 具象処理・保存 |
+| --- | --- | --- |
+| 単独評価 | `Application.Evaluation` | `LocalEvaluation`、`FullReport` |
+| 因子数・epoch比較 | `Application.FactorStudy`、`Domain.Progress` | `LocalStudy`、`FactorReport` |
+| 感度分析 | `Application.Sensitivity` | `LocalSensitivity`、`SensitivityReport` |
+| 多段階推薦 | `application/hybrid.py`、`Domain.FusionSpec` | `research/hybrid.py`、`recommenders/pipeline.py` |
+| 条件展開・過去結果照合 | `research/grid.py`、`parameters.py` | `comparison.py`、`results.py` |
+| 固定Test・保存比較 | `bootstrap`で評価器と描画を注入 | `research/fixed_test.py`、`final_report.py`、`hybrid_report.py` |
+| 保存結果の索引 | CLIは引数を渡す | `research/catalog.py`、`additional_validation.py`で出典照合・保存 |
+| 表・図 | `interfaces/notebook/report_data.py`と各描画モジュール | `FigureWriter`で保存、生成した図は成功・失敗時とも解放 |
+
+- 実行sessionはAdapter内に保持する。ApplicationはProtocolを介して操作し、モデル・設定・ログを直接変更しない
+- `Progress`は重複完了・未完了での成功・終了後の更新を拒否する。変更不可のSnapshotを保存形式へ変換し、再開時は出典を検証して進捗を再構築する
+- 過去の成功条件を再利用するときも入力・処理版・成果物を照合する。描画・指定モデルの保存・完了ログが成功した後に結果を公開する
+- メモリAdapterによる順序・失敗・再開試験と、保存物を使う統合試験を併用する。一部の研究用CLIには実行順制御が残っており、全ユースケースのApplication分離は未完了
+- ItemCF比較図は`python -m backend.interfaces.cli.itemcf_report --config <JSON>`から生成する。Notebook側は描画だけを担当する
 
 ```mermaid
 flowchart LR
@@ -98,8 +103,6 @@ flowchart LR
     T --> N
 ```
 
-- Python 3.12とuv.lockを維持する。Docker・sudo・常駐DBを研究の前提にしない
-- 設定は`configs/common.json`を継承し、CLIとNotebookで同じJSONを明示指定する
 - Notebookは既定で読込みだけ。評価開始・選択・確認・固定は明示操作で、主タスク・主指標は未指定でもよい
 - 成功マーカーは`result.json`。途中出力は公開せず、再開時は入力・設定・処理版・成果物hashを確認する
 
@@ -145,7 +148,7 @@ flowchart LR
 - raw union全体へRRFを適用する。round-robin P100やRRF後top-Pは後続の削減対照で、初期条件へ混ぜない
 - nはモデル内部近傍数、mは源ごとの取得数、Pはpool上限、Kは最終推薦数
 - 同じ候補artifactとpool hashでRRF/MMRの集合一致を確認する。pool外へのPopularity補完をしない
-- 候補源の失敗は要求失敗として保持し、片源だけの成功へ読み替えない
+- 候補源が失敗すると比較処理を停止し、途中出力を保持する。片源だけで推薦を続けず、成功結果も公開しない
 
 ## RRF・MMRの規則
 
@@ -170,8 +173,28 @@ flowchart LR
 ## アプリと将来接続
 
 - 現行はReact/TypeScript＋FastAPI、参加者状態はMacのSQLite、研究データは研究室に置く。[UIと運用](ui.md)を参照
+- HTTPの`server.py`は組立と寿命管理、`boundary.py`は認証・Origin・試行制限、`schemas.py`は厳密な入力、`session_views.py`は所有者照合と公開範囲、`sessions.py`・`playback.py`・`catalog.py`は各APIを担う
 - LLM/Agentの研究用Adapterと研究者HTTPは既存実装。参加者UI・実API運用・汎用多段階選択には未接続
 - 固定Hybridの検証後、固定・ルール・LLM単発・明示要求によるReactive Agentの順に比較する
 - 将来の選択対象は完成済みPipelineSpecの版ID。初期に内部パラメータをLLMへ自由生成させない
 - task、履歴量・偏り、特徴可用性、同意済み嗜好、観測済みfeedback、残予算を候補Contextとし、ルールにも同じ情報を渡す
-- 詳細な新registry・常設cache管理・汎用GPU runner・Agent loop・UI接続をPhase 2の前提にしない
+- 詳細な新registry・常設cache管理・汎用GPU runner・Agent loop・UI接続を、選択器比較の前提にしない
+
+### 選択器の共通入力
+
+- `hybrid_selection --config configs/hybrid/base.json`は計画表示、`--prepare`で学習期間の集計だけを作成する。CLIは`python -m backend.interfaces.cli.hybrid_selection`で起動する
+- 出力はHybrid Validation直下の`selection-context/`（config.json・result.json・contexts.parquet・run.log）。既存出力を上書きせず、全学習ユーザー×新規/再聴を保存する
+- 共通入力はtask、学習ユニーク曲数、適格曲数、学習再生回数、曲ごとの再生日数合計、最多再生曲の再生割合、非ゼロ特徴を持つ学習曲の割合。再生日数合計は曲間の重複日を含む
+- user_idはローカルParquetの照合用。`SelectionContext.payload()`にはID・曲名・元履歴・将来正解・評価値を含めない。特徴の時点可用性の制約を維持する
+- Validationは成功状態・人数・候補版の照合に使う。4論理IDをEASEの1実行と融合各3seedへ結び付け、推薦・スコア・取得候補・同一pool・処理版を照合する。入力・特徴・全参照を再照合して公開し、準備の成功を選択器評価の成功とは呼ばない
+- EASE/RRF/MMR0.8/MMR0.5の[比較設計と接続前監査](selector-study.md)を参照する。両タスク別比較・採用保留・APIなしで共通入力を準備し、7項目Contextと既存`DecisionInput`の実API接続は未実装
+- 既存Adapterは[OpenAI Decisions API](https://developers.openai.com/api/docs/guides/decisions)を使用する。実接続には`MUSIC_RECSYS_DECISION_API_KEY`が必要で、キーを保存物へ記録しない。全件LLM選択・品質比較・費用計測は未実行
+- 選択器の出力は登録済み版IDに限定する。失敗・拒否・再試行・課金の扱いを比較前に固定し、未測定の利用量を0や推測値で埋めない
+
+```mermaid
+flowchart LR
+    L[学習履歴と特徴] --> C[全ユーザーの集計Context]
+    C --> S[明示固定した条件で方式を選択]
+    V[候補版と出典] --> S
+    S --> E[将来正解を別工程で評価]
+```

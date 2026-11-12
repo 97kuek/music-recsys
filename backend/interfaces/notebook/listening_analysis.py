@@ -3,11 +3,11 @@
 from collections import defaultdict
 from statistics import fmean
 
+from backend.domain.evaluation.uncertainty import BootstrapConfig, cluster_statistics
 from backend.domain.recommendation.candidates import eligible_candidates
 from backend.infrastructure.research.distributions import (
     observation_distribution as observation_distribution,
 )
-from backend.interfaces.notebook.experiment_analysis import BootstrapConfig, cluster_statistics
 
 
 def curve_frame(bundles, model, phase, resamples):

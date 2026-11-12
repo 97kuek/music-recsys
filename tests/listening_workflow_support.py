@@ -7,8 +7,8 @@ from listening_support import write_partitions
 
 
 def make_study(root):
+    from backend.infrastructure.datasets.listening_export import export_listening_phase
     from backend.infrastructure.datasets.temporal import TemporalConfig
-    from backend.interfaces.cli.listening_export import export_listening_phase
 
     files = write_partitions(root / "source")
     validation = pq.read_table(files["validation"])

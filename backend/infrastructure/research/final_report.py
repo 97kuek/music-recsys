@@ -9,12 +9,13 @@ from backend.infrastructure.research.comparison import staged_report
 from backend.infrastructure.research.full_test import restore, verify_test
 from backend.infrastructure.research.metrics import average_rows
 from backend.infrastructure.research.parameters import condition_name
+from backend.infrastructure.research.results import test_reference as _reference
 from backend.infrastructure.research.results import verify_artifacts
+from backend.infrastructure.research.results import verify_test_references as _verify_references
 from backend.infrastructure.research.store import atomic_json
-from backend.interfaces.cli.fixed_test import _reference, _verify_references
 
 
-def summarize(output, protocol):
+def summarize(output, protocol, *, render):
     import numpy as xp
 
     if any((output / name).exists() for name in ("result.json", "metrics.csv", "paired.csv")):
@@ -24,7 +25,6 @@ def summarize(output, protocol):
     from backend.infrastructure.recommenders.gpu_runtime import require_idle_gpu
     from backend.infrastructure.research.als_report import write_csv
     from backend.infrastructure.research.complementarity import paired_score_differences
-    from backend.interfaces.notebook.model_figures import save_figures
     from backend.paths import PROJECT_ROOT
 
     if (
@@ -122,7 +122,7 @@ def summarize(output, protocol):
             differences,
             first=("model_left", "model_right", "task", "window_days", "metric", "k", "mean"),
         )
-        figures = save_figures(temporary, rows, primary_names, protocol["model"])
+        figures = render(temporary, rows, primary_names, protocol["model"])
         _verify_references(
             sources + protocol["baselines"] + [e["source"] for e in protocol["conditions"]]
         )

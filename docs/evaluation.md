@@ -5,7 +5,7 @@
 - 母集団は学習履歴のある全ユーザー。人数を暗黙に制限せず、未来に活動した人だけを推薦対象にしない
 - Train/Validation/Testは時系列分割。ValidationはTrain、最終Testは固定後のTrain＋Validationから学習する
 - 推薦器へ将来正解・将来再生回数・再生日数を渡さない。特徴は版とhashを固定し、付与日時が不明な静的タグの時点可用性は別の制約として示す
-- newは学習中に未聴の曲、repeatは学習中にも評価期間にも聴いた曲。本人が知らない曲という自己申告とは別
+- newの候補は学習中に未聴の曲、repeatの候補は学習中に聴いた曲。各候補のうち評価期間に再生された曲を正解とし、候補生成へ将来観測を使わない
 - 全方式で同じ期間・カタログ・許可候補・正解・同点規則を照合する。入力変換・solver・精度・seedの差は保持する
 - 正解なしは精度平均から除外し、`n_evaluated`・`n_excluded`を表示する。推薦生成と多様性の母集団は全学習ユーザー
 - 表示基準は90日・K20・日数重み1。選択用主タスク・主指標を確定する設定ではない
@@ -70,6 +70,70 @@ flowchart LR
 - RRF/MMR比較では候補artifact・pool hashを固定する。λ1は完全なidentityとして検査する
 - raw/正規化RRF・cosine・重み付き関連度/多様性項の分布を記録する。0〜1化だけで尺度が揃ったと判断しない
 - pool内理想順位はoracle上限診断。候補Recallやoracleの増分を、達成した最終TopKの改善と呼ばない
+
+### 保存候補の層別診断
+
+```bash
+# 既定は計画表示、--runで保存候補をGPU集計する
+.venv/bin/python -m backend.interfaces.cli.hybrid_strata --config configs/hybrid/base.json
+.venv/bin/python -m backend.interfaces.cli.hybrid_strata --config configs/hybrid/base.json --run
+```
+
+- 履歴量は学習ユニーク曲数、人気度は曲ごとの学習ユニーク人数の四分位。同値は下側の層へまとめ、空の層も保持する
+- 履歴層はユーザーを限定、人気帯は正解曲と的中曲を限定する。正解なしを除外し、層の母集団・評価人数・除外人数をCSVへ保存する
+- A100・B100・union100・A200・B200を比較。BPRはユーザー単位で3seedを等重み平均してから対応差を取る。区間は未推定で、有意差を示さない
+- 30/90/180日はCSV、90日は層別Recallと対応差を別PNGに保存。これは取得枠100/200の候補診断で、順位付きRecall@Kとは異なる
+- 4観点・K2〜20・再生回数/日数分布は元のHybrid結果を参照する。モデル学習・再採点・最終Testは開始しない
+- 保存先は実験直下の`pool-strata/`。config.json・result.json・metrics.csv・run.log・PNGと個別Parquetを保存し、値を巨大なJSONへ展開しない
+- 入力・候補・出典・処理版を照合し、成功時だけ公開。既存出力や`pool-strata.partial/`があれば拒否し、途中結果を上書きしない
+- 本番はCUDA/float64で集計し、デバイス・処理時間を記録。テスト用NumPyとの集計順序差は許容誤差で照合する
+- この診断の入力検証はDuckDBのメモリ上限16GBを使うため、実行前にホストの空きメモリを確認する。上限は実行条件へ保存し、他の入力検証の既定2GBは維持する
+
+```mermaid
+flowchart LR
+    L[学習履歴] --> B[同値を分割しない四分位]
+    C[保存候補・出典照合] --> R[GPU候補Recall]
+    O[Validation正解] --> R
+    B --> R
+    R --> P[ユーザー対応・seed平均・人数]
+    P --> V[再照合後に新規診断を公開]
+```
+
+### 同一unionの順位対照
+
+```bash
+.venv/bin/python -m backend.interfaces.cli.hybrid_union --config configs/hybrid/base.json
+# 計画を確認してから明示実行
+.venv/bin/python -m backend.interfaces.cli.hybrid_union --config configs/hybrid/base.json --run
+```
+
+- `pool-strata`の成功済み入力検証と出典を照合し、保存候補・推薦の全学習ユーザーと3seedをGPUで検証する。出力は`union-control/`、途中保存は`.partial`とし、どちらも既存時は拒否する
+- EASE上位100曲を含むunionを同じEASEスコア・同点規則で並べると、K≤100のTopKはEASE単独と同じ。保存上位200曲のスコア順・同点順、Top20、RRF順位、pool hashを全件照合する。候補外のスコア補完や再学習は行わない
+- 精度・多様性・対応差は順位の一致を条件に保存値を参照する。共通ILDは元のEASE/BPR群全条件の共通集合を維持し、この2条件だけの集合へ拡大しない
+- 履歴量別・人気帯別のRecall@2〜20を30/90/180日で集計し、3seedをユーザーごとに平均する。人気帯は正解と的中の両方を限定し、全体のRecall分母を候補poolで作り直さない
+- `rrf-bpr-only`はEASE上位100曲にない候補からの的中分。同じ帯の全正解を分母とし、RRF内の元の順位を保つ。EASEから失った的中を差し引く純増とは区別する
+- 90日/K20の層別値・RRF−EASE差はユーザー対応bootstrap 2,000回・seed42の95%区間を付ける。多重比較補正なしの探索的区間で、履歴量と人気帯を交差した分析ではない
+- RRFの既存費用は取得top200込みのバッチ償却値。EASEによるunion再採点の実行時間は未測定nullとし、照合・集計時間から補わない。全値nullの費用図は作らない
+- config/result/metrics/run.log、全Kのstrata.csv・paired.csv・ild.csv、個別推薦/層別スコアParquet、1指標1図を保存する。4観点と再生回数/日数分布を表示し、選択・最終Testは実行しない
+- `CUDA_PATH=/usr .venv/bin/python -m backend.interfaces.cli.hybrid_timing --config configs/hybrid/base.json --run`は別の明示計測。EASEを同じ学習条件で再構築し、保存候補での全件スコア・union整列・RRF・MMRをGPU同期して3反復する。全員・3seedでRRFのTop20一致を要求し、EASE再学習とMMR再実行の順位差、EASE保存候補スコア差を別記録する。元の品質値を再学習版の品質測定とみなさない。初回とwarm反復を区別し、保存先は`efficiency/`とする。取得・disk IO・オンライン応答時間は段階費用へ含めない
+
+```mermaid
+flowchart LR
+    C[保存候補・推薦・出典照合] --> V[全員・3seedのpool hashとTop20照合]
+    V --> M[順位同値な4観点の保存値]
+    V --> R[GPU層別Recall・ユーザー対応区間]
+    M --> P[入力と処理版の再照合後に公開]
+    R --> P
+```
+
+### Hybridの固定条件Test
+
+- `hybrid --config configs/hybrid/base.json --phase test`でValidationと同じ10条件・18実行を計画し、`--run`で明示実行する。主タスクや採用モデルを自動選択しない
+- 出力は`data/experiments/hybrid/test/`。全ソースをTestの学習履歴（Train＋Validation）だけで再学習し、同じ重みと候補を単独/RRF/MMRで共有する。Validationの重みや候補をTestへ流用しない
+- EASEのメモリ上限は`--ease-memory-budget-mb`で明示し、実行設定へ記録する。53,336曲のRTX 3090実行は24576MiB。正則化・精度・solverは変えず、現在の空きVRAMの検査を維持する
+- Validationの設定・結果参照、Test入力hash、処理版を固定し、再開時も一致を要求する。成功済み出力と失敗途中の候補を上書きしない
+- 4観点・全K・分布・対応差・共通ILDはValidationと同じ定義。既存の単独方式Testを確認した後の追加比較であり、完全未見の外部検証とは呼ばない
+- 保存Testの読込みは`read_result(config, phase="test")`、Notebook用の表は`full_analysis.curves(config, phase="test")`で明示する。既定はValidationで、自動切替しない
 
 ## 不確実性と選択
 

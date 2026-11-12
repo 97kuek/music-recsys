@@ -101,3 +101,16 @@ def figures(output, rows, common):
             ax.invert_yaxis()
             names.append(save(fig, output, f"{metric}_{prefix}"))
     return names
+
+
+def report_figures(output, rows, common, observations):
+    import pandas as pd
+
+    from backend.interfaces.notebook.evaluation_figures import observation_figures
+
+    names = figures(output, rows, common)
+    names.extend(
+        save(fig, output, name)
+        for name, fig in observation_figures(pd.DataFrame(observations)).items()
+    )
+    return names

@@ -15,8 +15,8 @@ def test_listening_generation_is_bounded_before_model_loading(tmp_path, monkeypa
 
     from backend.domain.evaluation.listening import ListeningConfig
     from backend.infrastructure.datasets.listening_data import load_listening_dataset
+    from backend.infrastructure.datasets.listening_export import export_listening_phase
     from backend.infrastructure.datasets.temporal import TemporalConfig
-    from backend.interfaces.cli.listening_export import export_listening_phase
 
     files = {role: tmp_path / f"{role}.parquet" for role in ("train", "validation", "test")}
     connect = duckdb.connect

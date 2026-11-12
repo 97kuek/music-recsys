@@ -223,7 +223,7 @@ def test_redraw_to_new_output_uses_saved_values_without_mutating_source(tmp_path
 
 
 def test_catalog_and_additional_validation_publish_explicit_pruned_references(tmp_path):
-    from backend.interfaces.cli.additional_validation import _Sources
+    from backend.infrastructure.research.additional_validation import _Sources
 
     directory, plan = example(tmp_path)
     prune(directory, plan)

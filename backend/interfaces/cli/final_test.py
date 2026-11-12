@@ -12,10 +12,11 @@ from pathlib import Path
 from backend.infrastructure.datasets.listening_data import file_sha256, read_bundle, validate_bundle
 from backend.infrastructure.research.full_test import restore, verify_test
 from backend.infrastructure.research.parameters import condition_name, controls, verify
+from backend.infrastructure.research.results import test_reference as _reference
 from backend.infrastructure.research.results import verify_artifacts
+from backend.infrastructure.research.results import verify_test_references as _verify_references
 from backend.infrastructure.research.search import load_study_config, study_lock
 from backend.infrastructure.research.store import atomic_json
-from backend.interfaces.cli.fixed_test import _reference, _verify_references
 from backend.paths import PROJECT_ROOT
 
 MODELS = ("ease", "content", "bm25", "bpr")
@@ -163,8 +164,8 @@ def freeze(planned=None, *, ease_memory_budget_mb=24576):
 
 
 def evaluate_condition(model, name):
+    from backend.bootstrap import run_evaluation as run
     from backend.infrastructure.provenance import source_hash
-    from backend.interfaces.cli.evaluate import run
 
     protocol = _read(PROJECT_ROOT / "data/experiments" / model / "test/config.json")
     if source_hash() != protocol["source_sha256"]:
@@ -251,7 +252,7 @@ def main():
     parser.add_argument("--summarize", action="store_true")
     args = parser.parse_args()
     if args.summarize:
-        from backend.interfaces.cli.final_report import summarize
+        from backend.bootstrap import publish_final_test as summarize
 
         if not args.model:
             parser.error("summarize requires model")

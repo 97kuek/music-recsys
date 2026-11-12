@@ -1,6 +1,7 @@
 """全件結果の読込み / 個別イベントや全候補をメモリへ展開しない。"""
 
 import json
+from dataclasses import replace
 
 from backend.infrastructure.research.results import read_result
 
@@ -14,10 +15,12 @@ def is_full(config):
     )
 
 
-def curves(config):
+def curves(config, *, phase="validation"):
     import pandas as pd
 
-    document = read_result(config)
+    document = read_result(config, phase=phase)
+    if phase == "test":
+        config = replace(config, output=config.output.parent / "test")
     if document.get("format") == "music-recsys-hybrid-comparison-v1":
         from backend.infrastructure.research.results import verify_artifacts
 
@@ -26,6 +29,7 @@ def curves(config):
         accuracy = frame[frame.aspect == "accuracy"].copy()
         accuracy["model"] = accuracy["condition"]
         accuracy["experiment"] = accuracy["condition"]
+        accuracy["phase"] = phase
         for metric in ("ild", "catalog_coverage", "novelty"):
             values = frame[(frame.aspect == "diversity") & (frame.metric == metric)][
                 ["condition", "task", "k", "mean", "n_evaluated", "n_excluded"]

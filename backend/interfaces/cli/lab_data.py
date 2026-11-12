@@ -102,8 +102,8 @@ def prepare_files(cache, tags, output, *, users=None, source=None):
     import duckdb
 
     from backend.infrastructure.datasets.features import write_features
+    from backend.infrastructure.datasets.listening_export import export_listening_phase
     from backend.infrastructure.datasets.music4all_adapter import parse_tags
-    from backend.interfaces.cli.listening_export import export_listening_phase
 
     if users is not None and (type(users) is not int or users <= 0):
         raise ValueError("users must be positive")
@@ -125,7 +125,7 @@ def prepare_files(cache, tags, output, *, users=None, source=None):
                 "domain/recommendation/features.py",
                 "interfaces/cli/lab_data.py",
                 "infrastructure/datasets/temporal.py",
-                "interfaces/cli/listening_export.py",
+                "infrastructure/datasets/listening_export.py",
                 "infrastructure/datasets/listening_data.py",
                 "infrastructure/datasets/features.py",
                 "infrastructure/datasets/music4all_adapter.py",

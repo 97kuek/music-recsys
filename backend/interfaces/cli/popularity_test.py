@@ -7,10 +7,10 @@ from dataclasses import asdict
 from pathlib import Path
 
 from backend.infrastructure.datasets.listening_data import file_sha256, read_bundle
+from backend.infrastructure.research.metrics import metric_rows
 from backend.infrastructure.research.results import read_result, verify_artifacts
 from backend.infrastructure.research.search import load_study_config, study_lock
 from backend.infrastructure.research.store import atomic_json
-from backend.interfaces.cli.catalog import metric_rows
 
 
 def run(config_paths, *, gpu=True):
@@ -78,7 +78,7 @@ def run(config_paths, *, gpu=True):
         with (output / "run.log").open("x") as log:
             log.write("FROZEN: play-count and user-count; full population; all four aspects\n")
             log.flush()
-            from backend.interfaces.cli.evaluate import run as evaluate
+            from backend.bootstrap import run_evaluation as evaluate
 
             results = []
             for c in configs:

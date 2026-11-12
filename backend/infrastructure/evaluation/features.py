@@ -3,6 +3,7 @@
 import numpy as np
 
 from backend.domain.recommendation.features import unit_vector, validate_features
+from backend.infrastructure.evaluation.sparse import row_sum
 
 
 class FeaturePrefixes:
@@ -44,11 +45,11 @@ class FeaturePrefixes:
             safe = xp.maximum(ids, 0)
             vector = self.matrix[safe.reshape(-1)].multiply(present.reshape(-1, 1)).tocsr()
             vector_sum = vector_sum + vector
-            norm_sum += xp.asarray(vector.multiply(vector).sum(axis=1)).reshape(-1)
+            norm_sum += row_sum(vector.multiply(vector), xp)
             lengths += present
             complete &= ~present | self.valid[safe]
             denominator = xp.maximum(lengths * (lengths - 1), 1)
-            squared_sum = xp.asarray(vector_sum.multiply(vector_sum).sum(axis=1)).reshape(-1)
+            squared_sum = row_sum(vector_sum.multiply(vector_sum), xp)
             cosine_sum = (squared_sum - norm_sum).reshape(batch, models)
             values[:, :, rank] = xp.clip(1 - cosine_sum / denominator, 0, 1)
             valid[:, :, rank] = (lengths >= 2) & complete
