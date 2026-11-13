@@ -16,6 +16,17 @@ def test_documentation_has_current_documents_and_bounded_size():
         "todo.md",
         "discussion.md",
         "selector-study.md",
+        "personal-selection.md",
+        "ease-weighting.md",
+        "history-temporal.md",
+        "history-combination.md",
+        "history-diagnostics.md",
+        "history-selection.md",
+        "accuracy-research.md",
+        "transition-fusion.md",
+        "transition-normalization.md",
+        "sequence-model.md",
+        "data-retention.md",
     }
     for path in documents + [ROOT / "README.md", ROOT / "README.en.md", ROOT / "AGENTS.md"]:
         assert len(path.read_text(encoding="utf-8").splitlines()) <= 200, path

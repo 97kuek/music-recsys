@@ -47,6 +47,7 @@ flowchart LR
 
 ```bash
 # 個人MacでZIPを展開し、Docker Desktopを起動して実行
+
 bash deploy/mac.sh start
 bash deploy/mac.sh status
 bash deploy/mac.sh logs
@@ -64,6 +65,7 @@ bash deploy/mac.sh stop
 
 ```bash
 # Macで必要な非公開設定を用意して実行
+
 bash deploy/mac.sh start-pages
 bash deploy/mac.sh researcher
 ```

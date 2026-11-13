@@ -75,6 +75,7 @@ flowchart LR
 
 ```bash
 # 既定は計画表示、--runで保存候補をGPU集計する
+
 .venv/bin/python -m backend.interfaces.cli.hybrid_strata --config configs/hybrid/base.json
 .venv/bin/python -m backend.interfaces.cli.hybrid_strata --config configs/hybrid/base.json --run
 ```
@@ -104,6 +105,7 @@ flowchart LR
 ```bash
 .venv/bin/python -m backend.interfaces.cli.hybrid_union --config configs/hybrid/base.json
 # 計画を確認してから明示実行
+
 .venv/bin/python -m backend.interfaces.cli.hybrid_union --config configs/hybrid/base.json --run
 ```
 

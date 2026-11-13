@@ -15,8 +15,15 @@
 | 未実装・未確認・次に決める事項 | [TODO](docs/todo.md) |
 | Validation/Test・図・対応差・限界 | [結果と考察](docs/discussion.md) |
 | 固定・ルール・LLM単発の比較設計・接続前監査 | [選択器比較](docs/selector-study.md) |
+| 個人別の方式選択・交差評価 | [個人別選択](docs/personal-selection.md) |
+| 精度改善の根拠・EASEの入力重み | [研究方針](docs/accuracy-research.md) / [EASE比較](docs/ease-weighting.md) |
+| 時間情報・履歴方式の組合せ | [時間情報](docs/history-temporal.md) / [組合せ比較](docs/history-combination.md) |
+| 履歴方式の診断・個人別選択 | [診断](docs/history-diagnostics.md) / [選択](docs/history-selection.md) |
+| 遷移・初回聴取の補完性 | [遷移方式の比較](docs/transition-fusion.md) / [遷移量の正規化](docs/transition-normalization.md) |
+| 系列モデルの入力・実行条件 | [eSASRec型モデル](docs/sequence-model.md) |
+| 保持対象・削減済み成果物の読込み | [データ保持](docs/data-retention.md) |
 
-- `docs/`のMarkdownは上の6本、各200行以内。仕様を重複させず、正確な数値・出典は保存結果へリンクする
+- 文書は上表を入口にし、各200行以内に保つ。仕様を重複させず、正確な数値・出典は保存結果へリンクする
 - 過去の詳細仕様・処理版は`data/provenance/`に保持する。現在の操作と過去の記録を混在させない
 
 ## 実行と確認
@@ -110,6 +117,7 @@ flowchart LR
 - 個別推薦・スコア・候補はParquetへ保存し、JSONへ巨大に重複展開しない。index.htmlや二重の設定コピーを新設しない
 - 原本のhash・出典・処理版を維持し、成功マーカー前の保存物を公開しない。未測定nullを0へ補わず、全値nullのPNGは作らない
 - 元データ・分割・結果・モデル・参加者ログを通常の掃除へ混ぜない。稼働中ジョブやMacのstateと競合する削除・移動をしない
+- ユーザー指示による既存成果の選別は[研究成果の保持範囲](docs/data-retention.md)に従う。削減条件も集計値・設定・元hashを残し、個別再分析には再生成を要求する
 - 重みの明示削減は元manifestとretention.jsonを残す。BPR500epochの12モデル等の保持対象を維持し、CSVから重みを復元した扱いにしない
 - 削減済み重みは推論時に明確に拒否し、別モデルへ自動切替しない。図も削減記録と原本数値があるものだけ新規出力先へ再生成する
 - 図は比較・論文・本文参照・代表条件を保持し、再描画できる個別条件図は`figures.retention.json`と元数値のhashを照合して削減する。[削減対象と出典](data/provenance/figure-retention-20261112/plan.json)を参照

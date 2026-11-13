@@ -14,7 +14,7 @@ Docker, sudo, and a resident database are not required for offline research
 - [Open tasks and decisions](docs/todo.md)
 - [Results, figures, and limitations](docs/discussion.md)
 
-The five Markdown files in `docs/` each stay within 200 lines
+Each Markdown file in `docs/` stays within 200 lines; the [Japanese documentation index](README.md#文書) lists all current topics
 Exact metrics, source hashes, and historical processing versions remain in their immutable experiment artifacts
 
 ## Evaluation boundaries
