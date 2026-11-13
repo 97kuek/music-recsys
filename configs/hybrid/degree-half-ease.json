@@ -1,0 +1,15 @@
+{
+  "extends": "transition-ease.json",
+  "experiment": {
+    "name": "degree-half-ease-rrf",
+    "output": "../../data/experiments/hybrid/degree-half-ease-20"
+  },
+  "pipeline": {
+    "sources": {
+      "transition_rules": {
+        "validation": "../../data/experiments/transition_rules/first-listen-degree-half",
+        "rationale": "Fixed degree-power 0.5; evaluate whether EASE adds value after normalization"
+      }
+    }
+  }
+}

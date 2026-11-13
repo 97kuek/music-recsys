@@ -14,6 +14,7 @@ ROOT_FILES = (
     "README.md",
     "LICENSE",
     "NOTICE",
+    "backend/infrastructure/recommenders/licenses/transformer-benchmark.txt",
     "AGENTS.md",
     "README.en.md",
     ".dockerignore",

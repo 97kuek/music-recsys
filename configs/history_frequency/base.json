@@ -1,0 +1,14 @@
+{
+  "extends": "../common.json",
+  "experiment": {
+    "name": "music4all-personal-frequency",
+    "output": "../../data/experiments/history_frequency/count"
+  },
+  "model": {
+    "name": "history_frequency",
+    "parameters": {
+      "use_gpu": true,
+      "input_memory_mb": 16384
+    }
+  }
+}

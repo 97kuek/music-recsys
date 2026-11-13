@@ -1,0 +1,8 @@
+{
+  "extends": "base.json",
+  "experiment": {
+    "name": "music4all-personal-decayed-count-30d",
+    "output": "../../data/experiments/history_frequency/decayed-count-30d"
+  },
+  "model": {"parameters": {"history_basis": "decayed_count_30d"}}
+}

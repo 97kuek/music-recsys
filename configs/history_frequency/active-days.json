@@ -1,0 +1,12 @@
+{
+  "extends": "base.json",
+  "experiment": {
+    "name": "music4all-personal-active-days",
+    "output": "../../data/experiments/history_frequency/active-days"
+  },
+  "model": {
+    "parameters": {
+      "history_basis": "active_days"
+    }
+  }
+}

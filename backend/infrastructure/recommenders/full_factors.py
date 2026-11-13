@@ -4,14 +4,18 @@ import numpy as np
 
 
 class FullFactorModel:
-    def load_learning(self, learning_path):
+    def load_learning(self, learning_path, *, memory_limit="2GB", value_column="play_count"):
         """Load positive counts, preserving sorted user/item indices and popularity ties."""
         import duckdb
         from scipy.sparse import coo_matrix
 
-        with duckdb.connect(config={"threads": 2, "memory_limit": "2GB"}) as c:
+        if value_column not in {"play_count", "active_days"}:
+            raise ValueError("Unknown learning value column")
+        extra = ",active_days" if value_column == "active_days" else ""
+
+        with duckdb.connect(config={"threads": 2, "memory_limit": memory_limit}) as c:
             data = c.execute(
-                "SELECT user_id,item_id,play_count FROM read_parquet(?) ORDER BY user_id,item_id",
+                f"SELECT user_id,item_id,play_count{extra} FROM read_parquet(?) ORDER BY user_id,item_id",
                 [str(learning_path)],
             ).fetchnumpy()
         users, ui = np.unique(data["user_id"], return_inverse=True)
@@ -21,10 +25,13 @@ class FullFactorModel:
             raise ValueError("learning counts must be finite and positive")
         self.users = {u: i for i, u in enumerate(users)}
         self.index = {item: i for i, item in enumerate(self.items)}
-        matrix = coo_matrix((counts, (ui, ii)), shape=(len(users), len(self.items))).tocsr()
+        values = np.asarray(data[value_column], dtype=float)
+        if not np.isfinite(values).all() or (values <= 0).any() or (values > counts).any():
+            raise ValueError("Invalid learning values")
+        matrix = coo_matrix((values, (ui, ii)), shape=(len(users), len(self.items))).tocsr()
         matrix.sum_duplicates()
         matrix.sort_indices()
-        self.plays = np.asarray(matrix.sum(axis=0)).ravel()
+        self.plays = np.bincount(ii, weights=counts, minlength=len(self.items))
         return matrix
 
     def rank(self, user, history, task, top_k=20):

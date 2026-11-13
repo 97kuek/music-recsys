@@ -32,3 +32,9 @@ Dependencies retain their own licenses. The browser distribution includes
 third-party-licenses.txt for bundled React, React DOM and Scheduler code.
 The source-code license is provided as license.txt in the web distribution.
 No endorsement by dataset authors, service providers or Waseda University is implied.
+
+SequenceNetwork / LiGR:
+Adapted from https://github.com/blondered/transformer_benchmark (LiGR and SwiGLU)
+and RecTools 0.13.0 (Copyright 2025 MTS), under the Apache License 2.0.
+Changes include standalone training/scoring, explicit safe padding and train-only
+input handling. License: backend/infrastructure/recommenders/licenses/transformer-benchmark.txt

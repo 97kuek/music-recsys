@@ -1,0 +1,12 @@
+{
+  "extends": "symmetric.json",
+  "experiment": {
+    "name": "transition-first-listen-symmetric-d5-n100",
+    "output": "../../data/experiments/transition_rules/first-listen-symmetric-d5-n100"
+  },
+  "model": {
+    "parameters": {
+      "transition_events": "first_listen"
+    }
+  }
+}

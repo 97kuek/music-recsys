@@ -1,0 +1,39 @@
+{
+  "extends": "../common.json",
+  "experiment": {
+    "name": "transition-ease-rrf",
+    "output": "../../data/experiments/hybrid/transition-ease-20"
+  },
+  "model": {
+    "name": "hybrid",
+    "parameters": {}
+  },
+  "pipeline": {
+    "design": "transition-ease",
+    "top_m": 20,
+    "retrieval_m": 40,
+    "c": 60.0,
+    "weights": [
+      1.0,
+      1.0
+    ],
+    "tie_tolerance": 1e-12,
+    "sources": {
+      "transition_rules": {
+        "validation": "../../data/experiments/transition_rules/first-listen-symmetric-d5-n100",
+        "rationale": "First-listen co-occurrence; fixed before fusion evaluation"
+      },
+      "ease": {
+        "validation": "../../data/experiments/ease/l500",
+        "rationale": "Binary EASE l500; complementary new-item candidates"
+      }
+    }
+  },
+  "search": {
+    "stage": "B",
+    "seeds": [
+      0
+    ],
+    "max_trials": 3
+  }
+}

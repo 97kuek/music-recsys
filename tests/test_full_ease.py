@@ -66,7 +66,55 @@ def test_ease_matches_constrained_ridge_and_candidate_rules(tmp_path):
             FullEASE(learning(tmp_path), **kwargs)
 
 
-def test_ease_cpu_full_validation_is_complete_and_never_opens_test(tmp_path):
+@pytest.mark.parametrize(
+    "gpu",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                os.environ.get("MUSIC_RECSYS_TEST_GPU") != "1", reason="explicit GPU test"
+            ),
+        ),
+    ],
+)
+def test_log_count_matches_independent_weighted_ridge(tmp_path, gpu):
+    model = FullEASE(
+        learning(tmp_path),
+        regularization=2,
+        history_weighting="log_count",
+        use_gpu=gpu,
+        block_size=2,
+        progress=lambda _: None,
+    )
+    counts = np.array([[32, 1, 0, 0], [0, 2, 1, 0], [1, 0, 5, 1]], dtype=float)
+    x = np.log2(1 + counts)
+    expected = np.zeros((4, 4))
+    for column in range(4):
+        other = np.arange(4) != column
+        design = x[:, other]
+        expected[other, column] = np.linalg.solve(
+            design.T @ design + 2 * np.eye(3), design.T @ x[:, column]
+        )
+    if gpu:
+        import cupy as cp
+
+        weights, history = cp.asnumpy(model.weights), model.history_weights.get().toarray()
+        np.testing.assert_allclose(
+            cp.asnumpy(model.gpu_score_batch([0, 1, 2])), x @ expected, atol=2e-6
+        )
+    else:
+        weights, history = model.weights, model.history_weights.toarray()
+    np.testing.assert_allclose(weights, expected, atol=2e-6 if gpu else 1e-14)
+    np.testing.assert_allclose(history, x, atol=1e-6)
+    np.testing.assert_array_equal(model.plays, counts.sum(axis=0))
+    assert model.training_provenance["parameters"]["history_weighting"] == "log_count"
+    with pytest.raises(ValueError, match="history_weighting"):
+        FullEASE(learning(tmp_path), history_weighting="unknown")
+
+
+@pytest.mark.parametrize("history_weighting", ["binary", "log_count"])
+def test_ease_cpu_full_validation_is_complete_and_never_opens_test(tmp_path, history_weighting):
     from backend.infrastructure.research.configuration import load_settings
     from backend.interfaces.cli.evaluate import run
 
@@ -75,7 +123,9 @@ def test_ease_cpu_full_validation_is_complete_and_never_opens_test(tmp_path):
     )["create_example"]
     bundle = create(tmp_path / "bundle")
     raw = load_settings(Path("configs/ease/base.json"))
-    raw["model"]["parameters"].update(use_gpu=False, memory_budget_mb=128)
+    raw["model"]["parameters"].update(
+        use_gpu=False, memory_budget_mb=128, history_weighting=history_weighting
+    )
     raw["experiment"].update(
         validation_dataset=str(bundle / "validation"),
         test_dataset=str(tmp_path / "test-must-not-be-opened"),
@@ -88,6 +138,9 @@ def test_ease_cpu_full_validation_is_complete_and_never_opens_test(tmp_path):
     result = json.loads((output / "result.json").read_text())
     assert result["status"] == "succeeded"
     assert result["phase"] == "validation"
+    assert ("log2" if history_weighting == "log_count" else "binary") in result["definitions"][
+        "ranking"
+    ]
     assert {r["k"] for r in result["accuracy"]} == set(range(2, 21))
     assert result["observations"] and result["diversity"]
     assert result["efficiency"]["api_cost"] is None

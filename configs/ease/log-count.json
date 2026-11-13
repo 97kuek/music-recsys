@@ -1,0 +1,13 @@
+{
+  "extends": "base.json",
+  "experiment": {
+    "name": "music4all-ease-log-count",
+    "output": "../../data/experiments/ease/log-count/l500"
+  },
+  "model": {
+    "parameters": {
+      "history_weighting": "log_count",
+      "input_memory_mb": 16384
+    }
+  }
+}

@@ -10,9 +10,11 @@ def summarize(results, *, cp, population):
 
     groups = {r["condition"]["group"] for r in results if r["pool_recall"]}
     rows = []
-    labels = ("source_a100", "source_b100", "union100", "source_a200", "source_b200")
     for group in sorted(groups):
         sources = [r for r in results if r["condition"]["group"] == group]
+        labels = tuple(dict.fromkeys(r["scope"] for r in sources[0]["pool_recall"]))
+        if len(labels) != 5:
+            raise ValueError("Expected five candidate budget scopes")
         for task in ("new", "repeat"):
             for window in (30, 90, 180):
                 user_ids = None

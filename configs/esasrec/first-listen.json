@@ -1,0 +1,8 @@
+{
+  "extends": "all.json",
+  "experiment": {
+    "name": "esasrec-first-listen-l100-d64-e100",
+    "output": "../../data/experiments/esasrec/first-listen-l100-d64-e100"
+  },
+  "model": {"parameters": {"sequence_events": "first_listen"}}
+}

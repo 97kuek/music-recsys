@@ -37,8 +37,9 @@ def describe(values, cp):
 
 
 class PoolRecall:
-    def __init__(self, index, windows, writer):
+    def __init__(self, index, windows, writer, *, top_m=100, retrieval_m=200):
         self.index, self.windows = index, windows
+        self.top_m, self.retrieval_m = top_m, retrieval_m
         self.values = defaultdict(list)
         self.writer = writer
 
@@ -67,7 +68,13 @@ class PoolRecall:
                     axis=1
                 ) / cp.maximum(counts, 1)
 
-            matrices = (sources[0][:, :100], sources[1][:, :100], pool, sources[0], sources[1])
+            matrices = (
+                sources[0][:, : self.top_m],
+                sources[1][:, : self.top_m],
+                pool,
+                sources[0],
+                sources[1],
+            )
             values = cp.stack([recall(m) for m in matrices], axis=1)
             if bool((values[:, 2] + 1e-12 < cp.maximum(values[:, 0], values[:, 1])).any()):
                 raise ValueError("Union Recall violates set containment")
@@ -86,7 +93,13 @@ class PoolRecall:
 
     def finish(self, cp, population):
         rows = []
-        labels = ("source_a100", "source_b100", "union100", "source_a200", "source_b200")
+        labels = (
+            f"source_a{self.top_m}",
+            f"source_b{self.top_m}",
+            f"union{self.top_m}",
+            f"source_a{self.retrieval_m}",
+            f"source_b{self.retrieval_m}",
+        )
         for (task, window), batches in self.values.items():
             values = cp.concatenate(batches)
             n = len(values)
@@ -162,7 +175,13 @@ def evaluate(study, condition, references):
         else None
     )
     pool_recall = (
-        PoolRecall(index, config.evaluation.window_days, pool_details)
+        PoolRecall(
+            index,
+            config.evaluation.window_days,
+            pool_details,
+            top_m=study.spec.top_m,
+            retrieval_m=study.retrieval,
+        )
         if pool_details is not None
         else None
     )
@@ -223,7 +242,7 @@ def evaluate(study, condition, references):
                     cp.cuda.Stream.null.synchronize()
                     t = time.perf_counter()
                     if len(arrays) == 1:
-                        pool = arrays[0][:, : study.spec.top_m]
+                        pool = arrays[0][:, : study.retrieval]
                         scores = None
                         counts = (pool >= 0).sum(axis=1)
                     else:
@@ -389,8 +408,8 @@ def evaluate(study, condition, references):
         figures=[],
         definitions=dict(
             ild="float64 prefix identity; missing/zero/short lists excluded",
-            latency="Measured source top-200 retrieval amortization plus fusion/MMR; not single-request latency or a measured top-100 retrieval cost",
-            pool="Raw union of each source top-100; candidate_count is global task eligibility, pool_count is actual selection universe",
+            latency=f"Measured source top-{study.retrieval} retrieval amortization plus fusion/MMR; not single-request latency or a measured top-{study.spec.top_m} retrieval cost",
+            pool=f"Raw union of each source top-{study.spec.top_m}; single control retains top-{study.retrieval}; candidate_count is global task eligibility, pool_count is actual selection universe",
             mmr="Feature-missing RRF positions pinned; lambda1 identity; valid first choice follows RRF; objective ties within 1e-12 follow RRF",
             uncertainty="Fixed seeds; user bootstrap; seed SD separately; no multiplicity correction",
         ),

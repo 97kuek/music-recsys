@@ -12,6 +12,29 @@ license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.12,<3.13"
 dependencies = []
 
+[project.optional-dependencies]
+sequence-cpu = ["torch==2.6.0"]
+sequence-cuda = ["torch==2.6.0; sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[tool.uv]
+conflicts = [[{ extra = "sequence-cpu" }, { extra = "sequence-cuda" }]]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "sequence-cpu" },
+    { index = "pytorch-cu124", extra = "sequence-cuda" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
 [project.scripts]
 music-recsys-benchmark = "backend.infrastructure.evaluation.benchmark:main"
 music-recsys-profile = "backend.infrastructure.datasets.music4all:main"

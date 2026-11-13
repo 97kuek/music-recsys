@@ -61,7 +61,18 @@ class LocalEvaluation:
         if phase == "test":
             if (
                 config.model
-                not in {"popularity", "itemcf", "als", "bpr", "ease", "content", "bm25"}
+                not in {
+                    "popularity",
+                    "itemcf",
+                    "als",
+                    "bpr",
+                    "ease",
+                    "content",
+                    "bm25",
+                    "history_frequency",
+                    "transition_rules",
+                    "esasrec",
+                }
                 or config.test_dataset is None
             ):
                 raise ValueError("Full Test requires a supported full model and a Test bundle")
@@ -109,10 +120,42 @@ class LocalEvaluation:
             raise FileExistsError("配信用モデルは上書きしません")
         allowed = {
             "popularity": {"basis"},
+            "history_frequency": {"use_gpu", "input_memory_mb", "history_basis"},
+            "transition_rules": {
+                "use_gpu",
+                "input_memory_mb",
+                "distance",
+                "neighbors",
+                "max_gap_days",
+                "symmetric",
+                "transition_events",
+                "degree_power",
+            },
+            "esasrec": {
+                "use_gpu",
+                "input_memory_mb",
+                "sequence_length",
+                "factors",
+                "heads",
+                "blocks",
+                "dropout",
+                "negatives",
+                "batch_size",
+                "epochs",
+                "learning_rate",
+                "sequence_events",
+            },
             "itemcf": {"neighbors", "similarity"},
             "content": {"use_idf", "aggregation", "use_gpu"},
             "bm25": {"neighbors", "k1", "b", "use_gpu"},
-            "ease": {"regularization", "use_gpu", "block_size", "memory_budget_mb"},
+            "ease": {
+                "regularization",
+                "use_gpu",
+                "block_size",
+                "memory_budget_mb",
+                "history_weighting",
+                "input_memory_mb",
+            },
             "bpr": {
                 "factors",
                 "iterations",
@@ -139,13 +182,16 @@ class LocalEvaluation:
             or config.grid
         ):
             raise ValueError(
-                "full evaluation requires listening-v2 popularity/itemcf/als/bpr/content/bm25/ease with fixed parameters"
+                "full evaluation requires a supported listening-v2 model with fixed parameters"
             )
-        if config.model in {"content", "ease"} and export_path is not None:
+        if (
+            config.model in {"content", "ease", "history_frequency", "transition_rules", "esasrec"}
+            and export_path is not None
+        ):
             raise ValueError(
                 f"{config.model} serving export is not implemented; omit --export-model"
             )
-        if config.model in {"als", "bpr"} and len(config.seeds) != 1:
+        if config.model in {"als", "bpr", "esasrec"} and len(config.seeds) != 1:
             raise ValueError("full factor model requires exactly one seed per run")
         from backend.infrastructure.recommenders.popularity import validate_basis
 
@@ -196,7 +242,11 @@ class _EvaluationSession:
         ease_memory_budget_mb = self._options.ease_memory_budget_mb
         progress(f"Validating full {phase} bundle")
         dataset = config.test_dataset if phase == "test" else config.validation_dataset
-        manifest, paths, counts = validate_bundle(dataset)
+        input_memory_mb = config.parameters.get("input_memory_mb", 2048)
+        from backend.infrastructure.recommenders.factors import integer
+
+        integer(input_memory_mb, "input_memory_mb")
+        manifest, paths, counts = validate_bundle(dataset, memory_limit=f"{input_memory_mb}MB")
         if manifest["phase"] != phase:
             raise ValueError("Input phase differs from requested phase")
         if phase == "test":
@@ -238,6 +288,42 @@ class _EvaluationSession:
                 **config.parameters,
             )
         factor_model = None
+        if config.model == "history_frequency":
+            from backend.infrastructure.recommenders.full_history import FullHistory
+
+            if training_parameters.get("history_basis") in {
+                "last_play",
+                "recency_log_count",
+                "recency_recent_30d",
+                "decayed_count_30d",
+            }:
+                roles = ("train",) if phase == "validation" else ("train", "validation")
+                training_parameters.update(
+                    events_path=[
+                        str(dataset.parent / "source" / f"{role}.parquet") for role in roles
+                    ],
+                    events_sha256=[manifest["source_files"][role]["sha256"] for role in roles],
+                    prediction_at=manifest["prediction_at"],
+                )
+            factor_model = FullHistory(paths["learning"], progress=progress, **training_parameters)
+        if config.model in {"transition_rules", "esasrec"}:
+            from backend.infrastructure.recommenders.full_transition import FullTransition
+
+            roles = ("train",) if phase == "validation" else ("train", "validation")
+            training_parameters.update(
+                events_path=[str(dataset.parent / "source" / f"{role}.parquet") for role in roles],
+                events_sha256=[manifest["source_files"][role]["sha256"] for role in roles],
+                prediction_at=manifest["prediction_at"],
+            )
+            model_type = FullTransition
+            if config.model == "esasrec":
+                from backend.infrastructure.recommenders.full_sequence import FullSequence
+
+                model_type = FullSequence
+                training_parameters.update(
+                    seed=config.seeds[0], checkpoint_path=output / "model.pt"
+                )
+            factor_model = model_type(paths["learning"], progress=progress, **training_parameters)
         if config.model == "bm25":
             from backend.infrastructure.recommenders.full_bm25 import FullBM25
 
@@ -394,6 +480,8 @@ class _EvaluationSession:
             path = output / f"{name}.parquet"
             os.replace(output / f"{name}.parquet.partial", path)
             artifacts[name] = {"path": path.name, "sha256": file_sha256(path)}
+        if config.model == "esasrec":
+            artifacts["model"] = {"path": "model.pt", "sha256": file_sha256(output / "model.pt")}
         document = {
             "format": "music-recsys-full-result-v1",
             "status": "succeeded",
@@ -460,8 +548,17 @@ def evaluation_definitions(
                 if config.model == "content"
                 else "BM25-weighted item-neighbor sum"
                 if config.model == "bm25"
+                else "log2(1+learning play_count) history times learned dense item coefficients; zero diagonal"
+                if config.model == "ease"
+                and config.parameters.get("history_weighting") == "log_count"
                 else "binary history times learned dense item coefficients; zero diagonal"
                 if config.model == "ease"
+                else f"per-user learning {config.parameters.get('history_basis', 'play_count')}; unseen scores zero, resolved by training popularity"
+                if config.model == "history_frequency"
+                else "30-day decayed history times sparse transition rules"
+                if config.model == "transition_rules"
+                else "causal LiGR sequence encoding times learned item embeddings; full training catalog"
+                if config.model == "esasrec"
                 else f"{config.model.upper()} latent score"
             )
             + "; ties by training plays then item ID"

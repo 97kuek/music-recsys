@@ -32,6 +32,8 @@ def verify_references(references):
 
 def plan(config):
     raw = load_settings(config.path)["pipeline"]
+    if raw.get("design") == "transition-ease":
+        return transition_plan(config, raw)
     spec = FusionSpec(raw["top_m"], raw["c"], tuple(raw["weights"]), raw["tie_tolerance"])
     if (
         spec.top_m != 100
@@ -89,3 +91,38 @@ def matches_plan(config, saved):
         and saved["sources"] == sources
         and saved["conditions"] == plain([asdict(c) for c in conditions])
     )
+
+
+def transition_plan(config, raw):
+    """Predeclared two-source RRF and equal retrieval-budget single controls."""
+    spec = FusionSpec(raw["top_m"], raw["c"], tuple(raw["weights"]), raw["tie_tolerance"])
+    if (spec.top_m, raw["retrieval_m"], spec.c, spec.weights) != (20, 40, 60.0, (1.0, 1.0)):
+        raise ValueError("Transition fusion requires fixed 20+20 candidates, c60, equal weights")
+    if set(raw["sources"]) != {"transition_rules", "ease"}:
+        raise ValueError("Transition fusion requires transition_rules and ease")
+    sources = {}
+    for model in ("transition_rules", "ease"):
+        source = raw["sources"][model]
+        directory = (config.path.parent / source["validation"]).resolve()
+        saved, result = read(directory / "config.json"), read(directory / "result.json")
+        if (result["phase"], result["status"], result["model"]) != (
+            "validation",
+            "succeeded",
+            model,
+        ):
+            raise ValueError("Candidate version requires a succeeded matching Validation")
+        sources[model] = dict(
+            model=model,
+            seed=0,
+            directory=str(directory),
+            parameters=saved["settings"]["parameters"],
+            evidence=reference(directory),
+            rationale=source["rationale"],
+        )
+    conditions = tuple(HybridCondition(name, name, (name,), 0) for name in sources)
+    conditions += (
+        HybridCondition(
+            "transition_rules-ease-rrf", "transition_rules-ease-rrf", tuple(sources), 0
+        ),
+    )
+    return spec, raw["retrieval_m"], sources, conditions

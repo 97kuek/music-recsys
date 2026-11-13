@@ -14,9 +14,8 @@ def figures(output, rows, common):
     frame = pd.DataFrame(rows)
     shared = pd.DataFrame(common)
     names = []
-    for a, b in (("ease", "bpr"), ("bm25", "content")):
-        prefix = a + "-" + b
-        groups = [a, b, prefix + "-rrf", prefix + "-mmr0.8", prefix + "-mmr0.5"]
+    for prefix in shared.pair.unique():
+        groups = list(shared[shared.pair == prefix].condition.unique())
         for task, metric, name in (*ACCURACY, *DIVERSITY):
             values = (
                 shared[(shared.pair == prefix) & (shared.task == task)].assign(metric="ild")
@@ -68,7 +67,7 @@ def figures(output, rows, common):
                 )
             ax.set(
                 xlabel=label.replace("$K$", "20"),
-                yticks=range(5),
+                yticks=range(len(groups)),
                 yticklabels=groups,
                 xlim=(0, None),
             )
@@ -90,10 +89,12 @@ def figures(output, rows, common):
             fig, ax = axes(figsize=(8, 4.2))
             values = values.set_index("condition").reindex(groups)
             ax.barh(
-                range(5), values["mean"] * (1000 if unit == "ms" else 1), color=STYLES[0]["color"]
+                range(len(groups)),
+                values["mean"] * (1000 if unit == "ms" else 1),
+                color=STYLES[0]["color"],
             )
             ax.set(
-                yticks=range(5),
+                yticks=range(len(groups)),
                 yticklabels=groups,
                 xlabel=metric.replace("_", " ") + f" ({unit})",
                 xlim=(0, None),

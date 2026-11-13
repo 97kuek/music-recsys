@@ -1,0 +1,24 @@
+{
+  "extends": "../common.json",
+  "experiment": {
+    "name": "esasrec-all-l100-d64-e100",
+    "output": "../../data/experiments/esasrec/all-l100-d64-e100"
+  },
+  "model": {
+    "name": "esasrec",
+    "parameters": {
+      "use_gpu": true,
+      "input_memory_mb": 32768,
+      "sequence_length": 100,
+      "factors": 64,
+      "heads": 2,
+      "blocks": 2,
+      "dropout": 0.2,
+      "negatives": 256,
+      "batch_size": 128,
+      "epochs": 100,
+      "learning_rate": 0.001,
+      "sequence_events": "all"
+    }
+  }
+}

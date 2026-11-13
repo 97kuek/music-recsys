@@ -1,0 +1,12 @@
+{
+  "extends": "directed.json",
+  "experiment": {
+    "name": "transition-symmetric-d5-n100",
+    "output": "../../data/experiments/transition_rules/symmetric-d5-n100"
+  },
+  "model": {
+    "parameters": {
+      "symmetric": true
+    }
+  }
+}

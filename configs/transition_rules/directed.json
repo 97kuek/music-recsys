@@ -1,0 +1,18 @@
+{
+  "extends": "../common.json",
+  "experiment": {
+    "name": "transition-directed-d5-n100",
+    "output": "../../data/experiments/transition_rules/directed-d5-n100"
+  },
+  "model": {
+    "name": "transition_rules",
+    "parameters": {
+      "use_gpu": true,
+      "input_memory_mb": 32768,
+      "distance": 5,
+      "neighbors": 100,
+      "max_gap_days": 1,
+      "symmetric": false
+    }
+  }
+}

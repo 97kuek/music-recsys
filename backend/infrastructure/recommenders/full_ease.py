@@ -1,4 +1,4 @@
-"""EASE: binary train-only X, B=-P/diag(P), diag(B)=0 (Steck, WWW 2019)."""
+"""EASE with binary/log-count train-only X, B=-P/diag(P), diag(B)=0."""
 
 import time
 
@@ -17,18 +17,28 @@ class FullEASE(FullFactorModel):
         use_gpu=False,
         block_size=256,
         memory_budget_mb=22528,
+        history_weighting="binary",
+        input_memory_mb=2048,
         progress=print,
     ):
         from backend.infrastructure.models.training import capture_training
 
         number(regularization, "regularization", positive=True)
         number(memory_budget_mb, "memory_budget_mb", positive=True)
+        integer(input_memory_mb, "input_memory_mb")
         integer(block_size, "block_size")
         if type(use_gpu) is not bool:
             raise ValueError("use_gpu must be boolean")
+        if history_weighting not in {"binary", "log_count"}:
+            raise ValueError("history_weighting must be binary or log_count")
         capture_training(self, locals())
         started = time.perf_counter()
-        matrix = self.load_learning(learning_path)
+        matrix = self.load_learning(learning_path, memory_limit=f"{input_memory_mb}MB")
+        # Keep raw popularity ties from load_learning; transform only the regression input.
+        if history_weighting == "binary":
+            matrix.data.fill(1.0)
+        else:
+            matrix.data[:] = np.log1p(matrix.data) / np.log(2.0)
         n = len(self.items)
         dtype = np.float32 if use_gpu else np.float64
         sparse_bytes = sum(a.nbytes for a in (matrix.data, matrix.indices, matrix.indptr))
@@ -54,7 +64,6 @@ class FullEASE(FullFactorModel):
             self._fit_gpu(matrix, regularization, block_size, memory_budget_mb, progress)
         else:
             self.history_weights = matrix
-            self.history_weights.data.fill(1.0)
             gram = (matrix.T @ matrix).toarray()
             gram.flat[:: n + 1] += regularization
             inverse = np.linalg.solve(gram, np.eye(n))
@@ -68,7 +77,12 @@ class FullEASE(FullFactorModel):
                 bitwise_reproducible=False,
             )
         self.execution.update(
-            input_transform="binary positive learning user-item pairs",
+            input_transform=(
+                "binary positive learning user-item pairs"
+                if history_weighting == "binary"
+                else "log2(1 + aggregated learning play_count), both fitting and scoring"
+            ),
+            history_weighting=history_weighting,
             reference="https://arxiv.org/abs/1905.03375",
             estimated_buffer_bytes=self.estimated_buffer_bytes,
             **({"device_buffer_estimates": self.buffer_estimates} if use_gpu else {}),
@@ -91,7 +105,6 @@ class FullEASE(FullFactorModel):
             raise ValueError("EASE estimated arrays exceed currently free GPU memory")
         n = len(self.items)
         self.history_weights = csr_matrix(matrix.astype(np.float32))
-        self.history_weights.data.fill(1.0)
         transpose = self.history_weights.T.tocsr()
         # Fortran layout permits in-place cuSOLVER and triangular solves without full copies.
         factor = cp.empty((n, n), dtype=cp.float32, order="F")

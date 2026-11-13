@@ -28,7 +28,9 @@ def validate_training(config, manifest, paths, counts):
     expected = sum(manifest["source_files"][r]["row_count"] for r in ("train", "validation"))
     if counts["events"] != expected:
         raise ValueError("Test training must include all Train + Validation events")
-    with duckdb.connect(config={"threads": 2, "memory_limit": "2GB"}) as c:
+    with duckdb.connect(
+        config={"threads": 2, "memory_limit": f"{config.parameters.get('input_memory_mb', 2048)}MB"}
+    ) as c:
         c.read_parquet(str(previous["learning"])).create_view("before_learning")
         c.read_parquet(str(previous["observations"])).create_view("before_observations")
         c.read_parquet(str(paths["learning"])).create_view("test_learning")

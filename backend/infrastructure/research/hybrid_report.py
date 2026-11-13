@@ -67,7 +67,10 @@ def publish(study, results, *, xp, render):
             row.update(ci_low=lookup[key]["ci_low"], ci_high=lookup[key]["ci_high"])
     common = []
     items, _, _ = study.catalog()
-    for pair in (("ease", "bpr"), ("bm25", "content")):
+    pairs = dict.fromkeys(
+        tuple(s.split("-s")[0] for s in c.sources) for c in study.conditions if len(c.sources) == 2
+    )
+    for pair in pairs:
         sources = {
             r["condition"]["name"]: dict(
                 path=str(r["directory"]) + "/recommendations.parquet", result=r
@@ -171,7 +174,7 @@ def publish(study, results, *, xp, render):
                 definitions=dict(
                     uncertainty="K20 four principal accuracy metrics: paired-user bootstrap after per-user fixed-seed averaging; seed SD separate; no multiple comparison correction",
                     ild="Common valid users within each candidate-source pair, all frozen conditions and seeds; intersections differ across pairs",
-                    timing="Source retrieval measures include top-200 diagnostics; final pool uses each top-100; amortized GPU cost is not single-request latency",
+                    timing=f"Source retrieval measures include top-{study.retrieval} diagnostics; fusion uses each top-{study.spec.top_m}; amortized GPU cost is not single-request latency",
                     diagnostics="Per-run scale_diagnostics and pool_recall retain actual candidate size and source budget controls",
                 ),
             ),

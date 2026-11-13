@@ -236,13 +236,34 @@ class HybridStudy:
                 from backend.infrastructure.recommenders.full_bpr import FullBPR
                 from backend.infrastructure.recommenders.full_content import FullContent
                 from backend.infrastructure.recommenders.full_ease import FullEASE
+                from backend.infrastructure.recommenders.full_transition import FullTransition
 
-                cls = {"ease": FullEASE, "bm25": FullBM25, "content": FullContent, "bpr": FullBPR}[
-                    source["model"]
-                ]
+                cls = {
+                    "ease": FullEASE,
+                    "bm25": FullBM25,
+                    "content": FullContent,
+                    "bpr": FullBPR,
+                    "transition_rules": FullTransition,
+                }[source["model"]]
                 extra = dict(features=self.features()) if source["model"] == "content" else {}
                 if source["model"] == "bpr":
                     extra["seed"] = source["seed"]
+                if source["model"] == "transition_rules":
+                    dataset = (
+                        self.config.validation_dataset
+                        if self.phase == "validation"
+                        else self.config.test_dataset
+                    )
+                    roles = ("train",) if self.phase == "validation" else ("train", "validation")
+                    extra.update(
+                        events_path=[
+                            str(dataset.parent / "source" / f"{role}.parquet") for role in roles
+                        ],
+                        events_sha256=[
+                            self.manifest["source_files"][role]["sha256"] for role in roles
+                        ],
+                        prediction_at=self.manifest["prediction_at"],
+                    )
                 parameters = dict(source["parameters"])
                 if source["model"] == "ease" and self.ease_memory_budget_mb is not None:
                     if not parameters.get("use_gpu"):

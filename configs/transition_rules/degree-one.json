@@ -1,0 +1,8 @@
+{
+  "extends": "first-listen.json",
+  "experiment": {
+    "name": "transition-first-listen-degree-one",
+    "output": "../../data/experiments/transition_rules/first-listen-degree-one"
+  },
+  "model": {"parameters": {"degree_power": 1.0}}
+}

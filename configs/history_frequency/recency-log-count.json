@@ -1,0 +1,8 @@
+{
+  "extends": "base.json",
+  "experiment": {
+    "name": "music4all-personal-recency-log-count",
+    "output": "../../data/experiments/history_frequency/recency-log-count"
+  },
+  "model": {"parameters": {"history_basis": "recency_log_count"}}
+}

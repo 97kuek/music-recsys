@@ -49,6 +49,12 @@ def test_archive_includes_worktree_but_excludes_secrets_and_logs(tmp_path, mode)
     with zipfile.ZipFile(output) as package:
         names = package.namelist()
         assert "music-recsys-mac-0.2.0/backend/new.py" in names
+        assert (
+            package.read(
+                "music-recsys-mac-0.2.0/backend/infrastructure/recommenders/licenses/transformer-benchmark.txt"
+            )
+            == b"uncommitted content"
+        )
         assert "music-recsys-mac-0.2.0/docs/diagrams/app.svg" not in names
         assert "music-recsys-mac-0.2.0/docs/architecture.html" not in names
         assert "music-recsys-mac-0.2.0/frontend/tests/study.test.mjs" not in names
