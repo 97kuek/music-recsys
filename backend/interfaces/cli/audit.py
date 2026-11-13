@@ -29,7 +29,16 @@ def write_json(path, value):
         stream.write("\n")
 
 
-def run(output, sources, *, backend="cuda", batch_users=64, publication=False):
+def run(
+    output,
+    sources,
+    *,
+    backend="cuda",
+    batch_users=64,
+    publication=False,
+    sort_memory_mb=256,
+    allow_spill=True,
+):
     if batch_users < 1:
         raise ValueError("batch_users must be positive")
     output = Path(output).resolve()
@@ -76,7 +85,13 @@ def run(output, sources, *, backend="cuda", batch_users=64, publication=False):
         plots="overall curves only; all stratified values and denominators in metrics.csv/result.json",
     )
     xp = np
-    execution = dict(backend=backend, batch_users=batch_users, dtype="float64")
+    execution = dict(
+        backend=backend,
+        batch_users=batch_users,
+        dtype="float64",
+        sort_memory_mb=sort_memory_mb,
+        allow_spill=allow_spill,
+    )
     if backend == "cuda":
         import cupy as cp
 
@@ -116,7 +131,12 @@ def run(output, sources, *, backend="cuda", batch_users=64, publication=False):
     writer = AuditDetails(output / "users.parquet.partial")
     try:
         with (output / "run.log").open("x") as log:
-            for batch in recommendation_batches(loaded, batch_users):
+            for batch in recommendation_batches(
+                loaded,
+                batch_users,
+                sort_memory_mb=sort_memory_mb,
+                allow_spill=allow_spill,
+            ):
                 by_task = {task: [] for task in ("new", "repeat")}
                 truths = {task: {w: [] for w in windows} for task in by_task}
                 users = []
@@ -339,6 +359,8 @@ def main():
     parser.add_argument("--batch-users", type=int, default=64)
     parser.add_argument("--source", action="append", metavar="NAME=RESULT_DIRECTORY")
     parser.add_argument("--publication", action="store_true")
+    parser.add_argument("--sort-memory-mb", type=int, default=256)
+    parser.add_argument("--no-spill", action="store_true")
     args = parser.parse_args()
     sources = (
         dict(arg.split("=", 1) for arg in args.source)
@@ -354,6 +376,8 @@ def main():
         backend=args.backend,
         batch_users=args.batch_users,
         publication=args.publication,
+        sort_memory_mb=args.sort_memory_mb,
+        allow_spill=not args.no_spill,
     )
     return 0
 

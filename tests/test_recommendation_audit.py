@@ -243,10 +243,19 @@ def test_cli_small_full_population_provenance_no_overwrite_and_null_details(tmp_
         path = tmp_path / f"{basis}.json"
         path.write_text(json.dumps(raw))
         sources[basis] = evaluate.run(path)
-    output = audit.run(tmp_path / "audit", sources, backend="cpu", batch_users=2)
+    output = audit.run(
+        tmp_path / "audit",
+        sources,
+        backend="cpu",
+        batch_users=2,
+        sort_memory_mb=128,
+        allow_spill=False,
+    )
     result = json.loads((output / "result.json").read_text())
     assert result["population"]["users"] == 4
     assert result["status"] == "succeeded"
+    assert result["execution"]["allow_spill"] is False
+    assert result["execution"]["sort_memory_mb"] == 128
     assert len(pq.read_table(output / "users.parquet")) == 4 * 2 * 3
     assert any(
         value is None

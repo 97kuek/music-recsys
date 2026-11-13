@@ -96,9 +96,12 @@ def load_sources(sources):
     return loaded, common
 
 
-def recommendation_batches(sources, batch_users):
+def recommendation_batches(sources, batch_users, *, sort_memory_mb=256, allow_spill=True):
     """Stream identical full user order; reject missing, duplicated or misaligned requests."""
     import duckdb
+
+    if type(sort_memory_mb) is not int or sort_memory_mb < 1 or type(allow_spill) is not bool:
+        raise ValueError("Positive sort_memory_mb and boolean allow_spill required")
 
     def rows(path):
         # CPU results interleave tasks, GPU results emit all new then all repeat in a batch.
@@ -106,8 +109,8 @@ def recommendation_batches(sources, batch_users):
             with duckdb.connect(
                 config={
                     "threads": 1,
-                    "memory_limit": "256MB",
-                    "temp_directory": temporary,
+                    "memory_limit": f"{sort_memory_mb}MB",
+                    "temp_directory": temporary if allow_spill else "",
                 }
             ) as connection:
                 reader = connection.execute(

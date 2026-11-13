@@ -44,6 +44,14 @@ def verify_artifacts(directory, artifacts):
     directory = Path(directory).resolve()
     for reference in artifacts.values():
         path = (directory / reference["path"]).resolve()
+        retention = path.parent / "artifacts.retention.json"
+        if path.is_relative_to(directory) and not path.exists() and retention.is_file():
+            retired = json.loads(retention.read_text(encoding="utf-8"))
+            if any(row["path"] == path.name for row in retired.get("files", [])):
+                raise ValueError(
+                    f"Artifact explicitly retired: {path}; aggregate results remain available. "
+                    f"Regenerate individual evidence before reanalysis; see {retention}"
+                )
         if not path.is_relative_to(directory) or file_sha256(path) != reference["sha256"]:
             raise ValueError("Saved experiment artifact changed (checksum mismatch)")
 
